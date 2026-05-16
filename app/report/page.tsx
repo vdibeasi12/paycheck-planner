@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClientComponentClient } from "@supabase/auth-helpers-nextjs"
+import { createClient } from "@/lib/supabase/client"
 
 import {
   calculateDebtFreeDate,
@@ -14,103 +14,104 @@ import { Debt } from "@/lib/financeEngine"
 
 export default function ReportPage() {
 
-  const supabase = createClientComponentClient()
+  const supabase = createClient()
   const router = useRouter()
 
   const [debts, setDebts] = useState<Debt[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const fetchDebts = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          router.push("/login")
+          return
+        }
 
-    const loadData = async () => {
+        const { data, error } = await supabase
+          .from("debts")
+          .select("*")
+          .eq("user_id", user.id)
 
-      const {
-        data: { user }
-      } = await supabase.auth.getUser()
-
-      if (!user) {
+        if (error) throw error
+        setDebts(data || [])
+      } catch (error) {
+        console.error("Error fetching debts:", error)
+      } finally {
         setLoading(false)
-        return
       }
-
-      const { data } = await supabase
-        .from("debts")
-        .select("*")
-        .eq("user_id", user.id)
-
-      setDebts(data || [])
-      setLoading(false)
     }
 
-    loadData()
-
-  }, [supabase])
+    fetchDebts()
+  }, [supabase, router])
 
   if (loading) {
-    return (
-      <div className="p-10 text-center">
-        Loading report...
-      </div>
-    )
+    return <div className="text-white p-8">Loading...</div>
   }
 
   const debtFreeDate = calculateDebtFreeDate(debts)
-  const interest = calculateTotalInterestPaid(debts)
-  const savings = calculatePotentialSavings(debts, 150)
+  const totalInterest = calculateTotalInterestPaid(debts)
+  const potentialSavings = calculatePotentialSavings(debts)
 
   return (
-    <div className="min-h-screen bg-gray-100 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-4xl font-bold text-white mb-8">Financial Report</h1>
 
-      <div className="bg-white p-10 rounded-2xl shadow max-w-xl w-full text-center space-y-6">
-
-        <h1 className="text-3xl font-bold">
-          My Debt Freedom Plan
-        </h1>
-
-        <div className="text-4xl font-bold text-green-600">
-          {debtFreeDate}
-        </div>
-
-        <p className="text-gray-500">
-          Estimated Debt Free Date
-        </p>
-
-        <div className="border-t pt-6 space-y-2">
-
-          <div className="flex justify-between">
-            <span>Total Interest</span>
-            <span>${interest}</span>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+          <div className="bg-slate-700 rounded-lg p-6">
+            <h2 className="text-white text-lg mb-2">Debt-Free Date</h2>
+            <p className="text-2xl font-bold text-green-400">
+              {debtFreeDate ? new Date(debtFreeDate).toLocaleDateString() : "N/A"}
+            </p>
           </div>
 
-          <div className="flex justify-between">
-            <span>Potential Savings</span>
-            <span className="text-green-600">
-              ${savings}
-            </span>
+          <div className="bg-slate-700 rounded-lg p-6">
+            <h2 className="text-white text-lg mb-2">Total Interest Paid</h2>
+            <p className="text-2xl font-bold text-red-400">
+              ${totalInterest.toFixed(2)}
+            </p>
           </div>
 
+          <div className="bg-slate-700 rounded-lg p-6">
+            <h2 className="text-white text-lg mb-2">Potential Savings</h2>
+            <p className="text-2xl font-bold text-blue-400">
+              ${potentialSavings.toFixed(2)}
+            </p>
+          </div>
         </div>
 
-        <button
-          onClick={() => {
-            navigator.clipboard.writeText(window.location.href)
-            alert("Link copied!")
-          }}
-          className="bg-black text-white px-6 py-3 rounded-lg w-full"
-        >
-          Copy Share Link
-        </button>
-
-        {/* VIRAL CTA */}
-        <button
-          onClick={() => router.push("/")}
-          className="bg-green-600 text-white px-6 py-3 rounded-lg w-full text-lg font-semibold"
-        >
-          Start Your Plan Free
-        </button>
-
+        <div className="bg-slate-700 rounded-lg p-6">
+          <h2 className="text-white text-xl mb-4">Your Debts</h2>
+          {debts.length === 0 ? (
+            <p className="text-gray-300">No debts recorded yet.</p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-white">
+                <thead>
+                  <tr className="border-b border-slate-600">
+                    <th className="text-left py-2">Creditor</th>
+                    <th className="text-left py-2">Balance</th>
+                    <th className="text-left py-2">Rate</th>
+                    <th className="text-left py-2">Payment</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {debts.map((debt) => (
+                    <tr key={debt.id} className="border-b border-slate-600">
+                      <td className="py-2">{debt.creditor_name}</td>
+                      <td className="py-2">${debt.balance.toFixed(2)}</td>
+                      <td className="py-2">{debt.interest_rate}%</td>
+                      <td className="py-2">${debt.monthly_payment.toFixed(2)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
       </div>
-
     </div>
   )
 }
