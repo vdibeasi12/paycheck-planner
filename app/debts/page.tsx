@@ -1,70 +1,60 @@
 "use client"
 
-import DebtFreedomCountdown from "@/components/DebtFreedomCountdown"
-import DebtDestructionScore from "@/components/DebtDestructionScore"
-import NetWorthTracker from "@/components/NetWorthTracker"
-import PaycheckPlanner from "@/components/PaycheckPlanner"
-import PaycheckBreakdownChart from "@/components/PaycheckBreakdownChart"
-import DebtStrategyRace from "@/components/DebtStrategyRace"
-import BudgetShockDetector from "@/components/BudgetShockDetector"
-import InterestLeakDetector from "@/components/InterestLeakDetector"
-import DebtProgress from "@/components/DebtProgress"
+import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { createClient } from "@/lib/supabase/client"
+import { Debt } from "@/lib/financeEngine"
+import DebtForm from "@/components/DebtForm"
 import DebtTable from "@/components/DebtTable"
-import DebtPayoffTimelineChart from "@/components/DebtPayoffTimelineChart"
-import AIPayoffStrategy from "@/components/AIPayoffStrategy"
+import DebtProgress from "@/components/DebtProgress"
 
-export default function DashboardPage() {
-return ( <div className="p-8 space-y-8 bg-gray-50 min-h-screen">
+export default function DebtsPage() {
+  const supabase = createClient()
+  const router = useRouter()
+  const [debts, setDebts] = useState<Debt[]>([])
+  const [loading, setLoading] = useState(true)
 
-```
-  <h1 className="text-3xl font-bold">
-    Financial Dashboard
-  </h1>
+  useEffect(() => {
+    const fetchDebts = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser()
+        if (!user) {
+          router.push("/login")
+          return
+        }
 
-  {/* TOP METRICS */}
+        const { data, error } = await supabase
+          .from("debts")
+          .select("*")
+          .eq("user_id", user.id)
 
-  <div className="grid md:grid-cols-3 gap-6">
-    <DebtFreedomCountdown />
-    <DebtDestructionScore />
-    <NetWorthTracker />
-  </div>
+        if (error) throw error
+        setDebts(data || [])
+      } catch (error) {
+        console.error("Error fetching debts:", error)
+      } finally {
+        setLoading(false)
+      }
+    }
 
-  {/* AI STRATEGY */}
+    fetchDebts()
+  }, [supabase, router])
 
-  <AIPayoffStrategy />
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 p-8">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-4xl font-bold text-white mb-8">Manage Debts</h1>
 
-  {/* PAYOFF TIMELINE */}
+        {/* DEBT FORM */}
+        <DebtForm onDebtAdded={(newDebt) => setDebts([...debts, newDebt])} />
 
-  <DebtPayoffTimelineChart />
+        {/* DEBT PROGRESS */}
+        <DebtProgress />
 
-  {/* BUDGET TOOLS */}
+        {/* DEBT TABLE */}
+        <DebtTable />
 
-  <div className="grid md:grid-cols-2 gap-6">
-    <PaycheckPlanner />
-    <PaycheckBreakdownChart />
-  </div>
-
-  {/* STRATEGY TOOLS */}
-
-  <DebtStrategyRace />
-
-  {/* RISK ANALYSIS */}
-
-  <div className="grid md:grid-cols-2 gap-6">
-    <BudgetShockDetector />
-    <InterestLeakDetector />
-  </div>
-
-  {/* PROGRESS TRACKING */}
-
-  <DebtProgress />
-
-  {/* DEBT TABLE */}
-
-  <DebtTable />
-
-</div>
-```
-
-)
+      </div>
+    </div>
+  )
 }
