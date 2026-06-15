@@ -1,0 +1,26 @@
+/* /app/globals.css */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Prevent layout shift from scrollbar appearing/disappearing */
+html {
+  scrollbar-gutter: stable;
+  overflow-y: scroll;
+}
+
+/* REMOVE NEXT DEV "N" BADGE */
+nextjs-portal {
+  display: none !important;
+}
+/* ---- Mobile safe-area support (iOS notch / Dynamic Island / home indicator) ---- */
+/* Used with viewport-fit=cover. Add `pb-safe` to bottom bars, etc. */
+:root {
+  --safe-top: env(safe-area-inset-top);
+  --safe-bottom: env(safe-area-inset-bottom);
+}
+body {
+  /* Keep page content clear of the iOS home indicator at the very bottom. */
+  padding-bottom: env(safe-area-inset-bottom);
+}

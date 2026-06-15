@@ -1,0 +1,21 @@
+# Allow all robots to crawl Paycheck Planner
+User-agent: *
+Allow: /
+Disallow: /admin/
+Disallow: /dashboard/
+Disallow: /api/
+Disallow: /auth/
+
+# Specific search engines
+User-agent: Googlebot
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+# Sitemaps
+Sitemap: https://paycheckplanner.ai/sitemap.xml
+
+# Crawl delay for other bots
+User-agent: *
+Crawl-delay: 1
