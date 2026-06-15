@@ -12,12 +12,17 @@ export default function Logo({ size = 'md', className = '' }: LogoProps) {
     '2xl': 'h-32',
   }
 
+  // The logo's "Paycheck" wordmark is dark navy and was designed for light
+  // backgrounds, so it sits on a white rounded chip to stay legible on the
+  // dark theme. Tune bg-white / padding / rounding to taste.
   return (
-    <div className={`flex items-center overflow-visible ${heights[size]} ${className}`}>
+    <div
+      className={`inline-flex items-center rounded-xl bg-white px-3 py-2 shadow-sm ${className}`}
+    >
       <img
         src="/logo.png"
         alt="Paycheck Planner"
-        className="h-full w-auto object-contain"
+        className={`${heights[size]} w-auto object-contain`}
       />
     </div>
   )

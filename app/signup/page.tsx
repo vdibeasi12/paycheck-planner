@@ -4,6 +4,7 @@ import { useState } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
+import { isNativeApp } from "@/lib/platform"
 
 export default function SignupPage() {
   const router = useRouter()
@@ -12,6 +13,47 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+
+  const handleGoogleSignup = async () => {
+    setError("")
+    setLoading(true)
+    try {
+      // Google blocks OAuth inside embedded webviews (disallowed_useragent).
+      // On native we open the system browser and deep-link back; the callback
+      // is handled by <NativeInit/> (app/components/NativeInit.tsx).
+      if (isNativeApp()) {
+        const { data, error: oauthError } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: "com.dibeasi.paycheckplanner://auth-callback",
+            skipBrowserRedirect: true,
+          },
+        })
+        if (oauthError) {
+          setError(oauthError.message)
+          return
+        }
+        if (data?.url) {
+          const { Browser } = await import("@capacitor/browser")
+          await Browser.open({ url: data.url })
+        }
+        return
+      }
+
+      // Web: normal redirect through the server callback route.
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback`,
+        },
+      })
+      if (oauthError) setError(oauthError.message)
+    } catch {
+      setError("An error occurred with Google sign-in. Please try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -66,6 +108,25 @@ export default function SignupPage() {
             {error}
           </div>
         )}
+
+        <button
+          type="button"
+          onClick={handleGoogleSignup}
+          disabled={loading}
+          className="w-full border border-gray-700 bg-[#1a233a] hover:bg-[#2a3f5f] rounded-lg py-3 px-4 flex items-center justify-center gap-3 transition disabled:opacity-50">
+          <img
+            src="https://www.svgrepo.com/show/475656/google-color.svg"
+            alt="Google"
+            className="w-5 h-5"
+          />
+          <span className="text-white font-medium">Continue with Google</span>
+        </button>
+
+        <div className="flex items-center gap-4 my-6">
+          <div className="flex-1 h-px bg-gray-700"></div>
+          <span className="text-gray-500 text-sm">or</span>
+          <div className="flex-1 h-px bg-gray-700"></div>
+        </div>
 
         <form onSubmit={handleSignup} className="space-y-4">
           <input
