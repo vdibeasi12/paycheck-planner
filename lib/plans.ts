@@ -111,3 +111,20 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
 export function effectiveMonthly(annual: number): number {
   return Math.round((annual / 12) * 100) / 100;
 }
+
+// Reverse lookup: a Stripe price ID -> the plan tier it belongs to.
+// Server- and client-safe: it reads the same NEXT_PUBLIC_ price IDs that
+// drive the pricing page, so checkout and the webhook can never disagree
+// with what the customer actually saw and paid for. Returns null for
+// unknown/foreign price IDs (e.g. stale IDs from an old Stripe account).
+export function planForPriceId(
+  priceId: string | null | undefined
+): TierId | null {
+  if (!priceId) return null;
+  for (const tier of TIERS) {
+    if (priceId === tier.stripe.monthly || priceId === tier.stripe.annual) {
+      return tier.id;
+    }
+  }
+  return null;
+}

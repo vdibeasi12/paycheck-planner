@@ -21,8 +21,11 @@ type Billing = "monthly" | "annual";
 export default function PricingPage() {
   const [billing, setBilling] = useState<Billing>("annual");
   const [loadingId, setLoadingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   async function handleCheckout(tier: Tier) {
+    setError(null);
+
     // Free tier just sends people into the product.
     if (tier.id === "free") {
       window.location.href = "/signup";
@@ -37,26 +40,52 @@ export default function PricingPage() {
 
     const priceId = billing === "annual" ? tier.stripe.annual : tier.stripe.monthly;
 
-    // No Stripe price configured yet -> fall back to signup so the button
-    // is never a dead end.
+    // No price wired up for this tier/billing combo. That's a config problem
+    // (missing/empty NEXT_PUBLIC_STRIPE_* env var), so surface it instead of
+    // silently bouncing to signup like before.
     if (!priceId) {
-      window.location.href = "/signup";
+      console.error(
+        `No Stripe price configured for ${tier.id} (${billing}). Check NEXT_PUBLIC_STRIPE_* env vars.`
+      );
+      setError(
+        `This plan isn't available right now. Please try again later or email ${BRAND.supportEmail}.`
+      );
       return;
     }
 
     try {
       setLoadingId(tier.id);
+
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ priceId }),
       });
+
       const data = await res.json().catch(() => null);
-      // If checkout returns a Stripe URL, go there; otherwise route to signup
-      // (e.g. user isn't logged in yet).
-      window.location.href = data?.url ?? "/signup";
-    } catch {
-      window.location.href = "/signup";
+
+      // Happy path: Stripe handed us a hosted checkout URL.
+      if (res.ok && data?.url) {
+        window.location.href = data.url;
+        return;
+      }
+
+      // Not signed in yet — expected from the public pricing page. Send them
+      // to sign up; they can come back and subscribe afterward.
+      if (res.status === 401) {
+        window.location.href = "/signup";
+        return;
+      }
+
+      // Anything else is a genuine failure: an inactive/foreign price ID, a
+      // Stripe-account mismatch, an outage, etc. Show it instead of hiding it.
+      console.error("Checkout failed:", res.status, data);
+      setError(
+        `We couldn't start checkout. Please try again — if it keeps happening, email ${BRAND.supportEmail}.`
+      );
+    } catch (err) {
+      console.error("Checkout request error:", err);
+      setError("We couldn't reach checkout. Check your connection and try again.");
     } finally {
       setLoadingId(null);
     }
@@ -105,6 +134,16 @@ export default function PricingPage() {
             {billing === "annual" ? "You're saving a month on every paid plan." : "\u00A0"}
           </p>
         </section>
+
+        {/* Checkout error (only shown when something actually fails) */}
+        {error && (
+          <div
+            role="alert"
+            className="mx-auto mt-8 max-w-xl rounded-xl border border-rose-500/40 bg-rose-500/10 px-4 py-3 text-center text-sm text-rose-200"
+          >
+            {error}
+          </div>
+        )}
 
         {/* Tier cards */}
         <section className="mt-10 grid gap-6 md:grid-cols-3">

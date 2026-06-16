@@ -1,132 +1,114 @@
+import { NextResponse } from "next/server"
+import { createClient } from "@/lib/supabase/server"
+
+const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
+const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6"
+
+const SYSTEM_PROMPT = `You are the AI financial assistant inside Paycheck Planner, a debt-payoff and budgeting app.
+Help users with personal finance: debt payoff (snowball vs. avalanche), budgeting, saving, emergency funds, and managing bills and paychecks.
+Be friendly, encouraging, specific, and concise. Use plain language, give concrete actionable steps, and keep answers focused on the user's question.
+Where useful, point users to Paycheck Planner's own tools (the Debt Payoff Calculator, the Bills tracker, and the Dashboard).
+Guardrails: you provide general educational information, not licensed financial, investment, tax, or legal advice. Never recommend specific securities or guarantee returns. For personalized investment, tax, or legal decisions, tell the user to consult a qualified professional.`
+
+type ChatMsg = { role: "user" | "assistant"; content: string }
+
 export async function POST(request: Request) {
   try {
-    const { message } = await request.json()
+    const { message, history } = await request.json()
 
-    if (!message || typeof message !== 'string') {
-      return Response.json({ response: 'Invalid message' }, { status: 400 })
+    if (!message || typeof message !== "string") {
+      return NextResponse.json({ response: "Please enter a question." }, { status: 400 })
     }
 
-    // AI Response Logic - Currently simulated
-    // TODO: Integrate with Claude API, OpenAI, or your preferred AI service
-    const response = getAIResponse(message)
+    // Auth + plan gate: the AI assistant is a Premium feature, and this also
+    // protects the API budget from anonymous / free usage.
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      return NextResponse.json(
+        { response: "Please log in to use the AI assistant." },
+        { status: 401 }
+      )
+    }
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("plan")
+      .eq("id", user.id)
+      .maybeSingle()
+    if (profile?.plan !== "premium") {
+      return NextResponse.json({
+        response:
+          "The AI assistant is a Premium feature. Upgrade to Premium to chat with your financial assistant any time.",
+      })
+    }
 
-    return Response.json({ response })
+    const apiKey = process.env.ANTHROPIC_API_KEY
+    if (!apiKey) {
+      console.error("ANTHROPIC_API_KEY is not set")
+      return NextResponse.json(
+        { response: "The AI assistant isn't configured yet. Please try again later." },
+        { status: 500 }
+      )
+    }
+
+    // Build the conversation: prior turns (sent by the UI) + this message.
+    // Anthropic requires the list to start with a user turn, so drop any
+    // leading assistant turns (e.g. the greeting bubble) and cap the context.
+    let prior: ChatMsg[] = Array.isArray(history)
+      ? history
+          .filter(
+            (m: any) =>
+              m &&
+              (m.role === "user" || m.role === "assistant") &&
+              typeof m.content === "string" &&
+              m.content.trim().length > 0
+          )
+          .slice(-10)
+      : []
+    while (prior.length && prior[0].role === "assistant") prior.shift()
+
+    const messages: ChatMsg[] = [...prior, { role: "user", content: message }]
+
+    const res = await fetch(ANTHROPIC_URL, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        max_tokens: 1024,
+        system: SYSTEM_PROMPT,
+        messages,
+      }),
+    })
+
+    if (!res.ok) {
+      const detail = await res.text()
+      console.error("Anthropic API error:", res.status, detail)
+      return NextResponse.json(
+        { response: "Sorry, the assistant is having trouble right now. Please try again in a moment." },
+        { status: 502 }
+      )
+    }
+
+    const data = await res.json()
+    const text: string = Array.isArray(data?.content)
+      ? data.content
+          .filter((b: any) => b?.type === "text")
+          .map((b: any) => b.text)
+          .join("\n")
+          .trim()
+      : ""
+
+    return NextResponse.json({
+      response: text || "I'm not sure how to answer that—could you rephrase?",
+    })
   } catch (error) {
-    console.error('Chat API error:', error)
-    return Response.json(
-      { response: 'Error processing your request' },
-      { status: 500 }
-    )
+    console.error("Chat API error:", error)
+    return NextResponse.json({ response: "Error processing your request." }, { status: 500 })
   }
-}
-
-function getAIResponse(message: string): string {
-  const lowerMessage = message.toLowerCase()
-
-  // Debt-related responses
-  if (lowerMessage.includes('debt') && lowerMessage.includes('payoff')) {
-    return `Great question about debt payoff! Here's my advice:
-
-1. **Snowball Method**: Pay off smallest balances first for quick wins and motivation
-2. **Avalanche Method**: Pay off highest interest rates first to save money on interest
-3. **Key Steps**:
-   - List all debts with balances and rates
-   - Choose your strategy
-   - Make minimum payments on all debts
-   - Apply extra payments to your target debt
-   - Repeat until debt-free
-
-Use our Debt Payoff Calculator to compare strategies for your specific situation!`
-  }
-
-  if (lowerMessage.includes('save') || lowerMessage.includes('saving')) {
-    return `Great! Here are proven ways to save more money:
-
-1. **Track Your Spending**: Use our Bills tracker to monitor where your money goes
-2. **Cut Expenses**: Review subscriptions and reduce non-essential spending
-3. **Increase Income**: Look for side gigs or negotiate a raise
-4. **Automate Savings**: Set up automatic transfers to savings on payday
-5. **Set Goals**: Define what you're saving for (emergency fund, vacation, etc.)
-6. **Use the 50/30/20 Rule**: Allocate 50% to needs, 30% to wants, 20% to savings
-
-Start small - even $50/month adds up to $600/year!`
-  }
-
-  if (lowerMessage.includes('budget')) {
-    return `Budgeting is key to financial success! Here's how to get started:
-
-1. **Calculate Your Income**: Know your monthly take-home pay
-2. **List Your Expenses**: Bills, groceries, entertainment, etc.
-3. **Categorize Spending**: Needs, wants, and savings
-4. **Set Limits**: Allocate amounts to each category
-5. **Track Progress**: Review monthly and adjust as needed
-6. **Use Tools**: Our Bills tracker and Dashboard help with this
-
-Pro tip: Use the 50/30/20 rule as a starting framework!`
-  }
-
-  if (lowerMessage.includes('emergency') || lowerMessage.includes('fund')) {
-    return `An emergency fund is crucial! Here's my advice:
-
-**Target Amount**: 3-6 months of living expenses
-
-**How to Build It**:
-1. Start with $1,000 for small emergencies
-2. Then aim for 1 month of expenses
-3. Build to 3-6 months over time
-4. Keep it in an accessible savings account
-
-**Priority**: Build your emergency fund BEFORE paying off debt (unless it's high-interest credit card debt)
-
-This prevents you from going back into debt when emergencies happen!`
-  }
-
-  if (lowerMessage.includes('financial health') || lowerMessage.includes('improve')) {
-    return `Here's how to improve your financial health:
-
-1. **Check Your Credit Score**: Know where you stand
-2. **Reduce Debt**: Use our calculator to make a payoff plan
-3. **Build Emergency Fund**: 3-6 months of expenses
-4. **Live Below Your Means**: Spend less than you earn
-5. **Automate Savings**: Make it automatic
-6. **Review Regularly**: Check your progress monthly
-
-**Metrics to Track**:
-- Debt-to-income ratio
-- Net worth
-- Savings rate
-- Credit score
-
-Start with one goal and build from there!`
-  }
-
-  if (lowerMessage.includes('invest') || lowerMessage.includes('investment')) {
-    return `About investing:
-
-**Before You Invest**:
-1. Have an emergency fund (3-6 months expenses)
-2. Pay off high-interest debt
-3. Understand your risk tolerance
-
-**Common Options**:
-- 401(k) - employer retirement plan
-- IRA - individual retirement account
-- Index funds - diversified, low-cost
-- Stocks - higher risk, higher potential return
-
-**Important**: I provide educational information, not investment advice. Consult a qualified financial advisor before investing.
-
-Our AI recommendations can help you plan!`
-  }
-
-  // Default helpful response
-  return `I'm here to help with your financial questions! I can assist with:
-
-• **Debt payoff strategies** - Snowball vs Avalanche methods
-• **Budgeting tips** - How to create and stick to a budget
-• **Saving goals** - Building emergency funds and saving more
-• **Financial planning** - Overall financial health improvement
-• **Bill management** - Tracking and organizing expenses
-
-Try asking me anything about these topics, or use our quick action buttons below to get started!`
 }
