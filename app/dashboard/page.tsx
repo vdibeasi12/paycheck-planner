@@ -20,9 +20,14 @@ export default async function DashboardPage() {
   // ✅ SAFER PROFILE FETCH
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("plan")
+    .select("plan, onboarded")
     .eq("id", user.id)
     .maybeSingle()
+
+  // New users complete a short first-run setup before seeing the dashboard.
+  if (profile && profile.onboarded === false) {
+    redirect("/onboarding")
+  }
 
   // 🔥 FALLBACK LOGIC (CRITICAL)
   let plan = "free"
@@ -30,9 +35,6 @@ export default async function DashboardPage() {
   if (profile?.plan) {
     plan = profile.plan
   }
-
-  // OPTIONAL DEBUG (REMOVE LATER)
-  console.log("PLAN:", plan, "ERROR:", error)
 
   // Fetch debts for summary cards + list
   const { data: debtsData } = await supabase
