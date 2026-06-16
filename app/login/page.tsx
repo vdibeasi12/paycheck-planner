@@ -45,7 +45,7 @@ function LoginForm() {
         }
       }
 
-      router.push("/dashboard")
+      window.location.href = "/dashboard"
     } catch {
       setError("An error occurred. Please try again.")
     } finally {
@@ -73,7 +73,7 @@ function LoginForm() {
         setError(vErr.message)
         return
       }
-      router.push("/dashboard")
+      window.location.href = "/dashboard"
     } finally {
       setLoading(false)
     }
