@@ -99,19 +99,19 @@ export default function MfaSetup() {
 
   if (loading) {
     return (
-      <div className="flex items-center gap-2 text-slate-400">
+      <div className="flex items-center gap-2 text-gray-400">
         <Loader2 size={16} className="animate-spin" /> Checking your security settings…
       </div>
     );
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+    <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-6 shadow-sm">
       <div className="flex items-center gap-2">
         <ShieldCheck size={20} className="text-emerald-500" />
-        <h2 className="text-lg font-semibold text-slate-900">Two-factor authentication</h2>
+        <h2 className="text-lg font-semibold text-white">Two-factor authentication</h2>
       </div>
-      <p className="mt-1 text-sm text-slate-500">
+      <p className="mt-1 text-sm text-gray-400">
         Add a one-time code from an authenticator app for an extra layer of security at sign-in.
       </p>
 
@@ -120,7 +120,7 @@ export default function MfaSetup() {
         <ul className="mt-4 divide-y divide-slate-100">
           {factors.map((f) => (
             <li key={f.id} className="flex items-center justify-between py-3">
-              <span className="flex items-center gap-2 text-sm text-slate-700">
+              <span className="flex items-center gap-2 text-sm text-gray-200">
                 <ShieldCheck size={16} className="text-emerald-500" />
                 {f.friendly_name || "Authenticator app"}
                 <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
@@ -142,27 +142,27 @@ export default function MfaSetup() {
 
       {/* Enrollment */}
       {enrolling ? (
-        <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-5">
-          <p className="text-sm font-medium text-slate-700">
+        <div className="mt-5 rounded-xl border border-gray-700 bg-[#0f172a] p-5">
+          <p className="text-sm font-medium text-gray-200">
             1. Scan this QR code in your authenticator app (Google Authenticator, Authy, 1Password).
           </p>
           {qr && (
             <div
-              className="mt-3 inline-block rounded-lg bg-white p-3"
+              className="mt-3 inline-block rounded-lg bg-[#0f172a] p-3"
               // Supabase returns the QR as an SVG string
               dangerouslySetInnerHTML={{ __html: qr }}
             />
           )}
           {secret && (
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-gray-400">
               Can&apos;t scan? Enter this key manually:{" "}
-              <code className="rounded bg-slate-200 px-1.5 py-0.5 font-mono text-slate-700">
+              <code className="rounded bg-[#1a233a] px-1.5 py-0.5 font-mono text-gray-200">
                 {secret}
               </code>
             </p>
           )}
 
-          <p className="mt-4 text-sm font-medium text-slate-700">
+          <p className="mt-4 text-sm font-medium text-gray-200">
             2. Enter the 6-digit code it shows:
           </p>
           <div className="mt-2 flex gap-2">
@@ -171,7 +171,7 @@ export default function MfaSetup() {
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
               inputMode="numeric"
               placeholder="123456"
-              className="w-32 rounded-lg border border-slate-300 px-3 py-2 text-center text-lg tracking-widest outline-none focus:border-emerald-400"
+              className="w-32 rounded-lg border border-gray-700 px-3 py-2 text-center text-lg tracking-widest outline-none focus:border-emerald-400"
             />
             <button
               type="button"
@@ -185,7 +185,7 @@ export default function MfaSetup() {
             <button
               type="button"
               onClick={cancelEnroll}
-              className="rounded-lg px-3 py-2 text-sm text-slate-500 hover:bg-slate-100"
+              className="rounded-lg px-3 py-2 text-sm text-gray-400 hover:bg-[#1a233a]"
             >
               Cancel
             </button>
@@ -199,7 +199,7 @@ export default function MfaSetup() {
             type="button"
             onClick={startEnroll}
             disabled={busy}
-            className="flex items-center gap-2 rounded-lg border border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:opacity-60"
+            className="flex items-center gap-2 rounded-lg border border-gray-700 px-4 py-2 text-sm font-semibold text-gray-200 hover:bg-[#1a233a] disabled:opacity-60"
           >
             {busy ? <Loader2 size={16} className="animate-spin" /> : <ShieldPlus size={16} />}
             {factors.length > 0 ? "Add another device" : "Set up two-factor authentication"}

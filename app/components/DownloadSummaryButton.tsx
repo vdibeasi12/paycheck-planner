@@ -18,7 +18,7 @@ export default function DownloadSummaryButton() {
         }
       }}
       disabled={busy}
-      className="flex items-center gap-2 rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800 disabled:opacity-60"
+      className="flex items-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-black hover:bg-green-600 disabled:opacity-60"
     >
       {busy ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
       {busy ? "Building PDF…" : "Download PDF summary"}

@@ -4,12 +4,12 @@ import DownloadSummaryButton from "@/components/DownloadSummaryButton";
 
 export default function InsightsPage() {
   return (
-    <div className="min-h-screen bg-gray-50 p-6 md:p-10">
+    <div className="min-h-screen bg-[#020617] p-6 md:p-10">
       <div className="mx-auto max-w-4xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-slate-900">Insights</h1>
-            <p className="mt-1 text-sm text-slate-500">A visual breakdown of your money.</p>
+            <h1 className="text-2xl font-bold text-white">Insights</h1>
+            <p className="mt-1 text-sm text-gray-400">A visual breakdown of your money.</p>
           </div>
           <DownloadSummaryButton />
         </div>

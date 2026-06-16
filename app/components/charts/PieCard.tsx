@@ -32,11 +32,11 @@ export function PieCard({
   const total = data.reduce((s, d) => s + d.value, 0);
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <h3 className="text-sm font-semibold text-slate-900">{title}</h3>
+    <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-5 shadow-sm">
+      <h3 className="text-sm font-semibold text-white">{title}</h3>
 
       {data.length === 0 || total === 0 ? (
-        <div className="flex h-56 items-center justify-center text-center text-sm text-slate-400">
+        <div className="flex h-56 items-center justify-center text-center text-sm text-gray-400">
           {emptyHint || "No data yet."}
         </div>
       ) : (
@@ -64,8 +64,8 @@ export function PieCard({
               </PieChart>
             </ResponsiveContainer>
             <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xs text-slate-400">Total</span>
-              <span className="text-lg font-bold text-slate-900">{money(total)}</span>
+              <span className="text-xs text-gray-400">Total</span>
+              <span className="text-lg font-bold text-white">{money(total)}</span>
             </div>
           </div>
 
@@ -75,14 +75,14 @@ export function PieCard({
               .sort((a, b) => b.value - a.value)
               .map((d, i) => (
                 <li key={d.name} className="flex items-center justify-between text-sm">
-                  <span className="flex items-center gap-2 text-slate-600">
+                  <span className="flex items-center gap-2 text-gray-300">
                     <span
                       className="inline-block h-2.5 w-2.5 rounded-full"
                       style={{ background: COLORS[data.indexOf(d) % COLORS.length] }}
                     />
                     {d.name}
                   </span>
-                  <span className="font-medium text-slate-800">{money(d.value)}</span>
+                  <span className="font-medium text-white">{money(d.value)}</span>
                 </li>
               ))}
           </ul>

@@ -72,7 +72,7 @@ export default function DebtDestructionScore() {
   }
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow">
+    <div className="bg-[#0f172a] p-6 rounded-2xl shadow">
 
       <h2 className="text-xl font-bold mb-4">
         Debt Destruction Score
@@ -84,13 +84,13 @@ export default function DebtDestructionScore() {
           {score}
         </div>
 
-        <div className="text-gray-600 mt-2">
+        <div className="text-gray-300 mt-2">
           {label}
         </div>
 
       </div>
 
-      <div className="mt-6 text-sm text-gray-500">
+      <div className="mt-6 text-sm text-gray-400">
 
         <p>Total Debt: ${totalDebt.toLocaleString()}</p>
         <p>Active Debts: {debtCount}</p>
