@@ -4,6 +4,7 @@ import Logo from "./components/Logo"
 import Footer from "./components/Footer"
 import NativeInit from "./components/NativeInit"
 import AppNav from "./components/AppNav"
+import FloatingChat from "./components/FloatingChat"
 import type { Metadata, Viewport } from "next"
 
 export const metadata: Metadata = {
@@ -91,6 +92,7 @@ export default async function RootLayout({
         </main>
 
         <Footer />
+        {user && <FloatingChat />}
       </body>
     </html>
   )
