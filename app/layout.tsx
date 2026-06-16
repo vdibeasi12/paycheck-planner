@@ -3,6 +3,7 @@ import Link from "next/link"
 import Logo from "./components/Logo"
 import Footer from "./components/Footer"
 import NativeInit from "./components/NativeInit"
+import AppNav from "./components/AppNav"
 import type { Metadata, Viewport } from "next"
 
 export const metadata: Metadata = {
@@ -81,11 +82,7 @@ export default async function RootLayout({
               <Logo size="2xl" />
             </Link>
 
-            <div className="flex gap-8 items-center">
-              <Link href="/pricing" className="text-gray-300 hover:text-white transition text-sm font-medium">Pricing</Link>
-              {user && <Link href="/dashboard" className="text-gray-300 hover:text-white transition text-sm font-medium">Dashboard</Link>}
-              {!user && <Link href="/login" className="bg-green-500 hover:bg-green-600 text-black font-semibold px-6 py-2 rounded text-sm transition">Login</Link>}
-            </div>
+            <AppNav loggedIn={!!user} />
           </div>
         </header>
 
