@@ -79,7 +79,7 @@ export default async function RootLayout({
         <header className="border-b border-gray-800 bg-[#020617]/95 backdrop-blur sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
           <div className="w-full px-6 py-4 flex justify-between items-center">
             <Link href="/" className="flex items-center hover:opacity-80 transition">
-              <Logo size="2xl" />
+              <Logo size="md" />
             </Link>
 
             <AppNav loggedIn={!!user} />

@@ -34,7 +34,7 @@ export default function AppNav({ loggedIn }: { loggedIn: boolean }) {
       <div className="flex gap-6 items-center">
         <Link
           href="/pricing"
-          className="text-gray-300 hover:text-white transition text-sm font-medium"
+          className="text-gray-100 hover:text-white transition text-sm font-medium"
         >
           Pricing
         </Link>
@@ -56,8 +56,8 @@ export default function AppNav({ loggedIn }: { loggedIn: boolean }) {
           <Link
             key={l.href}
             href={l.href}
-            className={`text-sm font-medium transition ${
-              isActive(l.href) ? "text-green-400" : "text-gray-300 hover:text-white"
+            className={`text-base font-semibold transition ${
+              isActive(l.href) ? "text-green-400" : "text-gray-100 hover:text-white"
             }`}
           >
             {l.label}
@@ -65,15 +65,15 @@ export default function AppNav({ loggedIn }: { loggedIn: boolean }) {
         ))}
         <Link
           href="/account"
-          className={`text-sm font-medium transition ${
-            isActive("/account") ? "text-green-400" : "text-gray-300 hover:text-white"
+          className={`text-base font-semibold transition ${
+            isActive("/account") ? "text-green-400" : "text-gray-100 hover:text-white"
           }`}
         >
           Account
         </Link>
         <button
           onClick={signOut}
-          className="text-sm font-medium text-gray-400 hover:text-white transition"
+          className="text-base font-semibold text-gray-200 hover:text-white transition"
         >
           Sign out
         </button>

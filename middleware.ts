@@ -58,6 +58,14 @@ export async function middleware(request: NextRequest) {
     (p) => path === p || path.startsWith(p + "/")
   )
 
+  // Logged-in users shouldn't land on the marketing home page (it reads as
+  // "login didn't work"). Send them straight into the app.
+  if (user && path === "/") {
+    const url = request.nextUrl.clone()
+    url.pathname = "/dashboard"
+    return NextResponse.redirect(url)
+  }
+
   if (!user && isProtected) {
     const url = request.nextUrl.clone()
     url.pathname = "/login"
