@@ -71,8 +71,8 @@ export default function DebtTable({ debts = [] }: Props) {
 
   if (debts.length === 0) {
     return (
-      <div className="bg-white p-6 rounded-xl shadow">
-        <p className="text-gray-500">
+      <div className="bg-[#0f172a] p-6 rounded-xl shadow">
+        <p className="text-gray-400">
           No debts added yet.
         </p>
       </div>
@@ -81,7 +81,7 @@ export default function DebtTable({ debts = [] }: Props) {
 
   return (
 
-    <div className="bg-white p-6 rounded-xl shadow overflow-x-auto">
+    <div className="bg-[#0f172a] p-6 rounded-xl shadow overflow-x-auto">
 
       <h2 className="text-xl font-semibold mb-4">
         Your Debts

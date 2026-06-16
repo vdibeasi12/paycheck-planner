@@ -39,7 +39,7 @@ export default function InterestLeakDetector() {
   const saved = minimumInterest - optimizedInterest
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow">
+    <div className="bg-[#0f172a] p-6 rounded-2xl shadow">
 
       <h2 className="text-xl font-bold mb-4">
         Interest Leak Detector

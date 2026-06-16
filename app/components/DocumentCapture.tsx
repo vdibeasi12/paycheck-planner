@@ -131,7 +131,7 @@ export default function DocumentCapture() {
   return (
     <div className="space-y-6">
       {/* Capture card */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+      <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-5 shadow-sm">
         {/* Type chips */}
         <div className="flex flex-wrap gap-2">
           {TYPES.map((t) => (
@@ -142,7 +142,7 @@ export default function DocumentCapture() {
               className={`rounded-full px-3.5 py-1.5 text-sm font-medium transition ${
                 docType === t.id
                   ? "bg-emerald-500 text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                  : "bg-[#1a233a] text-gray-300 hover:bg-[#1a233a]"
               }`}
             >
               {t.label}
@@ -151,12 +151,12 @@ export default function DocumentCapture() {
         </div>
 
         {/* Preview / dropzone */}
-        <div className="mt-4 overflow-hidden rounded-xl border border-dashed border-slate-300 bg-slate-50">
+        <div className="mt-4 overflow-hidden rounded-xl border border-dashed border-gray-700 bg-[#0f172a]">
           {preview ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img src={preview} alt="Selected document" className="max-h-72 w-full object-contain" />
           ) : (
-            <div className="flex h-40 flex-col items-center justify-center text-slate-400">
+            <div className="flex h-40 flex-col items-center justify-center text-gray-400">
               <FileText size={28} />
               <p className="mt-2 text-sm">No image selected yet</p>
             </div>
@@ -168,14 +168,14 @@ export default function DocumentCapture() {
           <button
             type="button"
             onClick={() => cameraRef.current?.click()}
-            className="flex items-center justify-center gap-2 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-slate-800"
+            className="flex items-center justify-center gap-2 rounded-xl bg-green-500 px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-green-600"
           >
             <Camera size={16} /> Take photo
           </button>
           <button
             type="button"
             onClick={() => uploadRef.current?.click()}
-            className="flex items-center justify-center gap-2 rounded-xl border border-slate-300 px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+            className="flex items-center justify-center gap-2 rounded-xl border border-gray-700 px-4 py-2.5 text-sm font-semibold text-gray-200 transition hover:bg-[#1a233a]"
           >
             <Upload size={16} /> Upload file
           </button>
@@ -201,9 +201,9 @@ export default function DocumentCapture() {
         {/* Optional details */}
         <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <label className="block">
-            <span className="text-xs font-medium text-slate-500">Amount (optional)</span>
-            <div className="mt-1 flex items-center rounded-lg border border-slate-300 px-3">
-              <span className="text-slate-400">$</span>
+            <span className="text-xs font-medium text-gray-400">Amount (optional)</span>
+            <div className="mt-1 flex items-center rounded-lg border border-gray-700 px-3">
+              <span className="text-gray-400">$</span>
               <input
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
@@ -214,12 +214,12 @@ export default function DocumentCapture() {
             </div>
           </label>
           <label className="block">
-            <span className="text-xs font-medium text-slate-500">Note (optional)</span>
+            <span className="text-xs font-medium text-gray-400">Note (optional)</span>
             <input
               value={note}
               onChange={(e) => setNote(e.target.value)}
               placeholder="e.g. March electric bill"
-              className="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none"
+              className="mt-1 w-full rounded-lg border border-gray-700 px-3 py-2 text-sm outline-none"
             />
           </label>
         </div>
@@ -238,10 +238,10 @@ export default function DocumentCapture() {
       </div>
 
       {/* Recent uploads */}
-      <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-        <h2 className="text-sm font-semibold text-slate-900">Recent uploads</h2>
+      <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-5 shadow-sm">
+        <h2 className="text-sm font-semibold text-white">Recent uploads</h2>
         {docs.length === 0 ? (
-          <p className="mt-3 text-sm text-slate-400">
+          <p className="mt-3 text-sm text-gray-400">
             Nothing yet. Snap your first bill or paycheck above.
           </p>
         ) : (
@@ -249,14 +249,14 @@ export default function DocumentCapture() {
             {docs.map((doc) => (
               <li key={doc.id} className="flex items-center justify-between py-3">
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium text-slate-800">
-                    <span className="mr-2 rounded-full bg-slate-100 px-2 py-0.5 text-xs capitalize text-slate-600">
+                  <p className="truncate text-sm font-medium text-white">
+                    <span className="mr-2 rounded-full bg-[#1a233a] px-2 py-0.5 text-xs capitalize text-gray-300">
                       {doc.doc_type}
                     </span>
                     {doc.file_name || "Untitled"}
                     {doc.amount != null ? ` · $${Number(doc.amount).toFixed(2)}` : ""}
                   </p>
-                  <p className="text-xs text-slate-400">
+                  <p className="text-xs text-gray-400">
                     {new Date(doc.created_at).toLocaleDateString()}
                     {doc.note ? ` · ${doc.note}` : ""}
                   </p>
@@ -265,7 +265,7 @@ export default function DocumentCapture() {
                   <button
                     type="button"
                     onClick={() => viewDoc(doc)}
-                    className="rounded-lg p-2 text-slate-500 hover:bg-slate-100"
+                    className="rounded-lg p-2 text-gray-400 hover:bg-[#1a233a]"
                     aria-label="View"
                   >
                     <ExternalLink size={16} />

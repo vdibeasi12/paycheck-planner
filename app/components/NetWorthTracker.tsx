@@ -31,7 +31,7 @@ export default function NetWorthTracker() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-[#0f172a] rounded-xl shadow p-6">
       <h3 className="text-lg font-semibold mb-2">
         Net Worth
       </h3>

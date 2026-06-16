@@ -22,13 +22,13 @@ export default function DebtProgress({ debts = [] }: Props) {
 
   return (
 
-    <div className="bg-white p-6 rounded-xl shadow">
+    <div className="bg-[#0f172a] p-6 rounded-xl shadow">
 
       <h2 className="text-lg font-semibold mb-4">
         Debt Progress
       </h2>
 
-      <div className="w-full bg-gray-200 rounded-full h-6">
+      <div className="w-full bg-[#1a233a] rounded-full h-6">
 
         <div
           className="bg-green-600 h-6 rounded-full text-white text-sm flex items-center justify-center"
@@ -39,7 +39,7 @@ export default function DebtProgress({ debts = [] }: Props) {
 
       </div>
 
-      <p className="text-sm text-gray-500 mt-2">
+      <p className="text-sm text-gray-400 mt-2">
         Remaining Debt: ${totalDebt.toLocaleString()}
       </p>
 

@@ -58,11 +58,11 @@ export default function PaycheckBreakdownChart() {
 
   if (data.length === 0) {
     return (
-      <div className="bg-white p-6 rounded-2xl shadow">
+      <div className="bg-[#0f172a] p-6 rounded-2xl shadow">
         <h2 className="text-xl font-bold mb-4">
           Paycheck Breakdown
         </h2>
-        <p className="text-gray-500">
+        <p className="text-gray-400">
           No financial data available yet.
         </p>
       </div>
@@ -71,7 +71,7 @@ export default function PaycheckBreakdownChart() {
 
   return (
 
-    <div className="bg-white p-6 rounded-2xl shadow">
+    <div className="bg-[#0f172a] p-6 rounded-2xl shadow">
 
       <h2 className="text-xl font-bold mb-4">
         Paycheck Breakdown

@@ -14,7 +14,7 @@ import DebtPayoffTimelineChart from "@/components/DebtPayoffTimelineChart"
 import AIPayoffStrategy from "@/components/AIPayoffStrategy"
 
 export default function DashboardPage() {
-return ( <div className="p-8 space-y-8 bg-gray-50 min-h-screen">
+return ( <div className="p-8 space-y-8 bg-[#020617] min-h-screen">
 
   <h1 className="text-3xl font-bold">
     Financial Dashboard

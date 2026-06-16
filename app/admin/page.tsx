@@ -69,7 +69,7 @@ export default function AdminPage() {
 
   if (status === "loading")
     return (
-      <div className="flex min-h-screen items-center justify-center text-slate-400">
+      <div className="flex min-h-screen items-center justify-center text-gray-400">
         <Loader2 className="animate-spin" />
       </div>
     );
@@ -77,25 +77,25 @@ export default function AdminPage() {
   if (status === "denied")
     return (
       <div className="p-10">
-        <h1 className="text-2xl font-bold text-slate-900">Access denied</h1>
-        <p className="mt-2 text-slate-500">This area is for administrators only.</p>
+        <h1 className="text-2xl font-bold text-white">Access denied</h1>
+        <p className="mt-2 text-gray-400">This area is for administrators only.</p>
       </div>
     );
 
   if (status === "error")
     return (
       <div className="p-10">
-        <h1 className="text-2xl font-bold text-slate-900">Something went wrong</h1>
-        <p className="mt-2 text-slate-500">Couldn&apos;t load the admin data. Try again shortly.</p>
+        <h1 className="text-2xl font-bold text-white">Something went wrong</h1>
+        <p className="mt-2 text-gray-400">Couldn&apos;t load the admin data. Try again shortly.</p>
       </div>
     );
 
   return (
-    <div className="min-h-screen bg-gray-50 p-6 md:p-10">
+    <div className="min-h-screen bg-[#020617] p-6 md:p-10">
       <div className="mx-auto max-w-5xl">
         <div className="flex items-center gap-2">
           <ShieldCheck className="text-emerald-500" />
-          <h1 className="text-2xl font-bold text-slate-900">Admin portal</h1>
+          <h1 className="text-2xl font-bold text-white">Admin portal</h1>
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -105,8 +105,8 @@ export default function AdminPage() {
           <Metric icon={<TrendingUp size={16} />} label="MRR" value={`$${(metrics?.mrr ?? 0).toLocaleString()}`} />
         </div>
 
-        <div className="mt-6 flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3">
-          <Search size={16} className="text-slate-400" />
+        <div className="mt-6 flex items-center gap-2 rounded-lg border border-gray-700 bg-[#0f172a] px-3">
+          <Search size={16} className="text-gray-400" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -115,9 +115,9 @@ export default function AdminPage() {
           />
         </div>
 
-        <div className="mt-4 overflow-x-auto rounded-2xl border border-slate-200 bg-white shadow-sm">
+        <div className="mt-4 overflow-x-auto rounded-2xl border border-gray-700 bg-[#0f172a] shadow-sm">
           <table className="w-full min-w-[720px] text-left text-sm">
-            <thead className="border-b border-slate-200 text-xs uppercase tracking-wide text-slate-500">
+            <thead className="border-b border-gray-700 text-xs uppercase tracking-wide text-gray-400">
               <tr>
                 <th className="px-4 py-3">User</th>
                 <th className="px-4 py-3">Plan</th>
@@ -128,25 +128,25 @@ export default function AdminPage() {
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filtered.map((u) => (
-                <tr key={u.id} className="hover:bg-slate-50">
+                <tr key={u.id} className="hover:bg-[#0f172a]">
                   <td className="px-4 py-3">
-                    <span className="font-medium text-slate-800">{u.email}</span>
+                    <span className="font-medium text-white">{u.email}</span>
                     {savingId === u.id && (
-                      <Loader2 size={12} className="ml-2 inline animate-spin text-slate-400" />
+                      <Loader2 size={12} className="ml-2 inline animate-spin text-gray-400" />
                     )}
                   </td>
                   <td className="px-4 py-3">
                     <select
                       value={u.plan}
                       onChange={(e) => patch(u.id, { plan: e.target.value })}
-                      className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-sm outline-none focus:border-emerald-400"
+                      className="rounded-lg border border-gray-700 bg-[#0f172a] px-2 py-1 text-sm outline-none focus:border-emerald-400"
                     >
                       <option value="free">Free</option>
                       <option value="starter">Starter</option>
                       <option value="premium">Premium</option>
                     </select>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 text-gray-300">
                     {u.sub_tier ? (
                       <span className="capitalize">
                         {u.sub_tier}
@@ -155,14 +155,14 @@ export default function AdminPage() {
                           className={`ml-2 rounded-full px-2 py-0.5 text-xs ${
                             u.sub_status === "active" || u.sub_status === "trialing"
                               ? "bg-emerald-100 text-emerald-700"
-                              : "bg-slate-100 text-slate-500"
+                              : "bg-[#1a233a] text-gray-400"
                           }`}
                         >
                           {u.sub_status || "—"}
                         </span>
                       </span>
                     ) : (
-                      <span className="text-slate-400">None</span>
+                      <span className="text-gray-400">None</span>
                     )}
                   </td>
                   <td className="px-4 py-3">
@@ -172,20 +172,20 @@ export default function AdminPage() {
                       className={`rounded-full px-3 py-1 text-xs font-semibold ${
                         u.is_admin
                           ? "bg-emerald-100 text-emerald-700"
-                          : "bg-slate-100 text-slate-500 hover:bg-slate-200"
+                          : "bg-[#1a233a] text-gray-400 hover:bg-[#1a233a]"
                       }`}
                     >
                       {u.is_admin ? "Admin" : "Make admin"}
                     </button>
                   </td>
-                  <td className="px-4 py-3 text-slate-500">
+                  <td className="px-4 py-3 text-gray-400">
                     {new Date(u.created_at).toLocaleDateString()}
                   </td>
                 </tr>
               ))}
               {filtered.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="px-4 py-10 text-center text-slate-400">
+                  <td colSpan={5} className="px-4 py-10 text-center text-gray-400">
                     No users match that search.
                   </td>
                 </tr>
@@ -208,12 +208,12 @@ function Metric({
   value: string | number;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-      <div className="flex items-center gap-2 text-slate-500">
+    <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-4 shadow-sm">
+      <div className="flex items-center gap-2 text-gray-400">
         {icon}
         <span className="text-xs font-medium uppercase tracking-wide">{label}</span>
       </div>
-      <p className="mt-2 text-2xl font-bold text-slate-900">{value}</p>
+      <p className="mt-2 text-2xl font-bold text-white">{value}</p>
     </div>
   );
 }

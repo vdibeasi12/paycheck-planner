@@ -47,13 +47,13 @@ export default function DebtFreedomCountdown() {
   }
 
   return (
-    <div className="bg-white rounded-xl shadow p-6">
+    <div className="bg-[#0f172a] rounded-xl shadow p-6">
       <h3 className="text-lg font-semibold mb-3">
         Debt Freedom Countdown
       </h3>
 
       {monthsRemaining === null ? (
-        <p className="text-gray-600">
+        <p className="text-gray-300">
           Add debts to estimate your payoff timeline.
         </p>
       ) : (

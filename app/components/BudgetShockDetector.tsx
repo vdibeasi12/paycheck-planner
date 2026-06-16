@@ -58,7 +58,7 @@ export default function BudgetShockDetector() {
   }
 
   return (
-    <div className="bg-white p-6 rounded-2xl shadow">
+    <div className="bg-[#0f172a] p-6 rounded-2xl shadow">
 
       <h2 className="text-xl font-bold mb-4">
         Budget Shock Detector
@@ -89,7 +89,7 @@ export default function BudgetShockDetector() {
           Risk Level: {riskLevel}
         </h3>
 
-        <p className="text-gray-600 mt-1">
+        <p className="text-gray-300 mt-1">
           This measures how resilient your finances are if income drops or expenses increase.
         </p>
 
