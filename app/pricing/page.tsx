@@ -9,7 +9,6 @@ import {
   BRAND,
   TIERS,
   FEATURE_GROUPS,
-  effectiveMonthly,
   type Tier,
   type TierId,
   type FeatureCell,
@@ -288,7 +287,7 @@ function TierCard({
   const headlinePrice = isFree
     ? 0
     : annual
-    ? effectiveMonthly(tier.priceAnnual)
+    ? tier.priceAnnual
     : tier.priceMonthly;
 
   return (
@@ -313,7 +312,9 @@ function TierCard({
           <span className="text-4xl font-bold tracking-tight tabular-nums">
             ${isFree ? "0" : headlinePrice.toFixed(2).replace(/\.00$/, "")}
           </span>
-          {!isFree && <span className="pb-1 text-sm text-slate-400">/mo</span>}
+          {!isFree && (
+            <span className="pb-1 text-sm text-slate-400">{annual ? "/yr" : "/mo"}</span>
+          )}
         </div>
         <p className="mt-1 h-5 text-xs text-slate-500">
           {isFree
