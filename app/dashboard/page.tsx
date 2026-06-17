@@ -5,6 +5,7 @@ import SummaryCards from "@/app/components/SummaryCards"
 import DebtList from "@/app/components/DebtList"
 import DebtStrategyRace from "@/app/components/DebtStrategyRace"
 import PaywallOverlay from "@/app/components/PaywallOverlay"
+import InfoHint from "@/app/components/InfoHint"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -17,7 +18,7 @@ export default async function DashboardPage() {
     redirect("/login")
   }
 
-  // ✅ SAFER PROFILE FETCH
+  // âœ… SAFER PROFILE FETCH
   const { data: profile, error } = await supabase
     .from("profiles")
     .select("plan, onboarded")
@@ -29,7 +30,7 @@ export default async function DashboardPage() {
     redirect("/onboarding")
   }
 
-  // 🔥 FALLBACK LOGIC (CRITICAL)
+  // ðŸ”¥ FALLBACK LOGIC (CRITICAL)
   let plan = "free"
 
   if (profile?.plan) {
@@ -64,7 +65,13 @@ export default async function DashboardPage() {
 
       {/* CHARTS */}
       <div className="relative bg-[#0f172a] border border-gray-700 rounded-xl p-6 overflow-hidden">
-        <h2 className="text-lg font-semibold mb-4">Charts</h2>
+        <div className="mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-semibold">Charts</h2>
+          <InfoHint
+            label="About Charts"
+            text="Visual breakdowns of your balances and payoff trajectory over time. Included with Starter and Premium."
+          />
+        </div>
 
         <div className={!canUseCharts ? "opacity-40 pointer-events-none" : ""}>
           <div>{/* chart component */}</div>
@@ -79,11 +86,15 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {/* SNOWBALL (PREMIUM ONLY — FIXED) */}
+      {/* SNOWBALL (PREMIUM ONLY â€” FIXED) */}
       <div className="relative bg-[#0f172a] border border-gray-700 rounded-xl p-6 overflow-hidden">
-        <h2 className="text-lg font-semibold mb-4">
-          Snowball & Avalanche
-        </h2>
+        <div className="mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-semibold">Snowball &amp; Avalanche</h2>
+          <InfoHint
+            label="About Snowball & Avalanche"
+            text="Compares two payoff strategies â€” Snowball (smallest balance first) vs Avalanche (highest interest first) â€” so you can see which clears your debt faster. Premium."
+          />
+        </div>
 
         <div className={!canUseSnowball ? "opacity-40 pointer-events-none" : ""}>
           <DebtStrategyRace plan={plan} />
@@ -100,7 +111,13 @@ export default async function DashboardPage() {
 
       {/* AI */}
       <div className="relative bg-[#0f172a] border border-gray-700 rounded-xl p-6 overflow-hidden">
-        <h2 className="text-lg font-semibold mb-4">AI Insights</h2>
+        <div className="mb-4 flex items-center gap-2">
+          <h2 className="text-lg font-semibold">AI Insights</h2>
+          <InfoHint
+            label="About AI Insights"
+            text="Personalized, AI-generated suggestions based on your debts and budget. Premium."
+          />
+        </div>
 
         <div className={!canUseAI ? "opacity-40 pointer-events-none" : ""}>
           <div>{/* AI component */}</div>

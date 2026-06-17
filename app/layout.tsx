@@ -4,6 +4,7 @@ import Logo from "./components/Logo"
 import Footer from "./components/Footer"
 import NativeInit from "./components/NativeInit"
 import AppNav from "./components/AppNav"
+import Sidebar from "./components/Sidebar"
 import FloatingChat from "./components/FloatingChat"
 import type { Metadata, Viewport } from "next"
 
@@ -73,25 +74,36 @@ export default async function RootLayout({
         <link rel="icon" href="/favicon.ico" />
         <meta name="theme-color" content="#020617" />
       </head>
-      <body className="bg-[#020617] text-white flex flex-col min-h-screen">
+      <body className="bg-[#020617] text-white">
 
         <NativeInit />
 
-        <header className="border-b border-gray-800 bg-[#020617]/95 backdrop-blur sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
-          <div className="w-full px-6 py-4 flex justify-between items-center">
-            <Link href="/" className="flex items-center hover:opacity-80 transition">
-              <Logo size="md" />
-            </Link>
+        {/* Logged-in users get the left sidebar (desktop) + mobile drawer. */}
+        {user && <Sidebar />}
 
-            <AppNav loggedIn={!!user} />
-          </div>
-        </header>
+        {/* Content column. Shifted right of the fixed sidebar on desktop. */}
+        <div className={`flex min-h-screen flex-col ${user ? "md:pl-64" : ""}`}>
 
-        <main className="flex-1">
-          {children}
-        </main>
+          {/* Logged-out visitors keep the original marketing top bar. */}
+          {!user && (
+            <header className="border-b border-gray-800 bg-[#020617]/95 backdrop-blur sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
+              <div className="w-full px-6 py-4 flex justify-between items-center">
+                <Link href="/" className="flex items-center hover:opacity-80 transition">
+                  <Logo size="md" />
+                </Link>
 
-        <Footer />
+                <AppNav loggedIn={false} />
+              </div>
+            </header>
+          )}
+
+          <main className="flex-1">
+            {children}
+          </main>
+
+          <Footer />
+        </div>
+
         {user && <FloatingChat />}
       </body>
     </html>
