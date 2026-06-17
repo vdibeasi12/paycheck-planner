@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { CheckCircle2, TrendingDown, Brain, Zap } from 'lucide-react'
+import MemberMilestone from './components/MemberMilestone'
 
 export default function HomePage() {
   return (
@@ -53,6 +54,9 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Social proof / milestone */}
+      <MemberMilestone />
+
       {/* Features Grid */}
       <section className="max-w-6xl mx-auto px-6 py-20">
         <h2 className="text-4xl font-bold text-center mb-12">Powerful Features</h2>
@@ -79,7 +83,7 @@ export default function HomePage() {
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-4xl font-bold mb-6">Ready to Take Control?</h2>
           <p className="text-xl text-gray-300 mb-8">
-            Join thousands eliminating debt. Start free, upgrade anytime.
+            Start free, upgrade anytime. Cancel whenever you want.
           </p>
           <Link href="/signup" className="inline-block bg-green-500 hover:bg-green-600 text-black font-semibold px-8 py-4 rounded-lg text-lg transition">
             Get Started Free
