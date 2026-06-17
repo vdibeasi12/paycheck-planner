@@ -328,13 +328,7 @@ function TierCard({
         type="button"
         onClick={onSelect}
         disabled={loading}
-        className={`mt-6 w-full rounded-xl px-4 py-2.5 text-sm font-semibold transition disabled:opacity-60 ${
-          tier.highlight
-            ? "bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950 hover:brightness-110"
-            : isFree
-            ? "border border-slate-700 text-slate-100 hover:bg-slate-800"
-            : "bg-slate-100 text-slate-950 hover:bg-white"
-        }`}
+        className="mt-6 w-full rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:brightness-110 disabled:opacity-60"
       >
         {loading ? "Redirecting…" : tier.cta}
       </button>
