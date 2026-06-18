@@ -72,14 +72,14 @@ export default function AccountPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="New password"
-              className="rounded-lg border border-gray-700 px-3 py-2 text-sm outline-none focus:border-emerald-400"
+              className="rounded-lg border border-gray-700 px-3 py-2 text-sm outline-none focus:border-emerald-400 bg-[#0f172a] text-white placeholder:text-gray-500"
             />
             <input
               type="password"
               value={confirm}
               onChange={(e) => setConfirm(e.target.value)}
               placeholder="Confirm new password"
-              className="rounded-lg border border-gray-700 px-3 py-2 text-sm outline-none focus:border-emerald-400"
+              className="rounded-lg border border-gray-700 px-3 py-2 text-sm outline-none focus:border-emerald-400 bg-[#0f172a] text-white placeholder:text-gray-500"
             />
           </div>
           {msg && (

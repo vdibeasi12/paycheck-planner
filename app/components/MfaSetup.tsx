@@ -171,7 +171,7 @@ export default function MfaSetup() {
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
               inputMode="numeric"
               placeholder="123456"
-              className="w-32 rounded-lg border border-gray-700 px-3 py-2 text-center text-lg tracking-widest outline-none focus:border-emerald-400"
+              className="w-32 rounded-lg border border-gray-700 px-3 py-2 text-center text-lg tracking-widest outline-none focus:border-emerald-400 bg-[#0f172a] text-white placeholder:text-gray-500"
             />
             <button
               type="button"
