@@ -203,7 +203,7 @@ export default function PricingPage() {
               we prorate the difference.
             </Faq>
             <Faq q="What does the annual plan save me?">
-              Annual billing is eleven months for the price of twelve — one month free
+              Annual billing is ten months for the price of twelve — two months free
               on Momentum and Accelerate.
             </Faq>
             <Faq q="Do I need a card for the Free plan?">
@@ -320,7 +320,7 @@ function TierCard({
           {isFree
             ? "Free forever"
             : annual
-            ? `$${tier.priceAnnual} billed yearly · 1 month free`
+            ? `$${tier.priceAnnual} billed yearly · 2 months free`
             : "Billed monthly"}
         </p>
       </div>

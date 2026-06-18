@@ -44,7 +44,7 @@ export const TIERS: Tier[] = [
     name: "Momentum",
     tagline: "Start the momentum -- charts that show your debt shrinking.",
     priceMonthly: 3,
-    priceAnnual: 33, // 11 months -- one month free
+    priceAnnual: 30, // 10 months -- two months free
     cta: "Build Momentum",
     stripe: {
       monthly: process.env.NEXT_PUBLIC_STRIPE_STARTER_MONTHLY,
@@ -56,7 +56,7 @@ export const TIERS: Tier[] = [
     name: "Accelerate",
     tagline: "AI in your corner and the full toolkit, so you pay off faster.",
     priceMonthly: 6,
-    priceAnnual: 66, // 11 months -- one month free
+    priceAnnual: 60, // 10 months -- two months free
     highlight: true,
     cta: "Hit Accelerate",
     stripe: {
@@ -69,7 +69,7 @@ export const TIERS: Tier[] = [
     name: "Autopilot",
     tagline: "Connect your accounts and your whole plan runs itself.",
     priceMonthly: 10,
-    priceAnnual: 108, // about 2 months free vs paying monthly
+    priceAnnual: 100, // 2 months free vs paying monthly
     cta: "Get Autopilot",
     stripe: {
       monthly: process.env.NEXT_PUBLIC_STRIPE_CONNECTED_MONTHLY,
