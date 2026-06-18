@@ -8,6 +8,7 @@ import {
   X,
   LayoutDashboard,
   CreditCard,
+  CalendarClock,
   Receipt,
   Target,
   BarChart3,
@@ -21,6 +22,7 @@ import { supabase } from "@/lib/supabase/client"
 const LINKS = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
   { href: "/debts", label: "Debts", Icon: CreditCard },
+  { href: "/amortization", label: "Payoff Plan", Icon: CalendarClock },
   { href: "/bills", label: "Bills", Icon: Receipt },
   { href: "/goals", label: "Goals", Icon: Target },
   { href: "/insights", label: "Insights", Icon: BarChart3 },
