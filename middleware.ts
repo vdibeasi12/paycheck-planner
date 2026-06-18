@@ -19,7 +19,25 @@ const PROTECTED = [
   "/goals",
   "/account",
   "/insights",
+  "/mfa",
 ]
+
+// Reads the `aal` claim from a Supabase access token (JWT) with no network
+// call. base64url-decoded in the Edge runtime via atob. Returns null on any
+// problem so the caller falls back to the authoritative network check.
+function getAalClaim(token?: string): string | null {
+  if (!token) return null
+  try {
+    const part = token.split(".")[1]
+    if (!part) return null
+    let b64 = part.replace(/-/g, "+").replace(/_/g, "/")
+    while (b64.length % 4) b64 += "="
+    const obj = JSON.parse(atob(b64))
+    return typeof obj.aal === "string" ? obj.aal : null
+  } catch {
+    return null
+  }
+}
 
 export async function middleware(request: NextRequest) {
   // Start with a pass-through response we can attach refreshed cookies to.
@@ -71,6 +89,28 @@ export async function middleware(request: NextRequest) {
     url.pathname = "/login"
     url.searchParams.set("redirectTo", path)
     return NextResponse.redirect(url)
+  }
+
+  // MFA enforcement: a logged-in user with a verified second factor whose
+  // session is still AAL1 must complete the step-up challenge before reaching
+  // any protected route. /mfa itself is exempt to avoid a redirect loop.
+  if (user && isProtected && path !== "/mfa") {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+    const token = session?.access_token
+
+    // Cheap path: if the JWT already shows aal2, the user has stepped up.
+    if (getAalClaim(token) !== "aal2") {
+      const { data: aal } =
+        await supabase.auth.mfa.getAuthenticatorAssuranceLevel(token)
+      if (aal && aal.currentLevel === "aal1" && aal.nextLevel === "aal2") {
+        const url = request.nextUrl.clone()
+        url.pathname = "/mfa"
+        url.searchParams.set("redirectTo", path)
+        return NextResponse.redirect(url)
+      }
+    }
   }
 
   return response
