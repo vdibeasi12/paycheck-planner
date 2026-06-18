@@ -27,7 +27,7 @@ export type Tier = {
 // While false, the tier still exists for checkout/webhook wiring and keeps its
 // Stripe price IDs, but it is hidden on the pricing page. Keep this false until
 // the Plaid sync is fully built and ready to sell.
-export const AUTOPILOT_LIVE = false;
+export const AUTOPILOT_LIVE = true;
 
 export const TIERS: Tier[] = [
   {
