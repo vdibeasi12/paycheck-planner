@@ -4,7 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import MfaSetup from "@/components/MfaSetup";
-import { KeyRound, LogOut, Loader2 } from "lucide-react";
+import { KeyRound, LogOut, Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function AccountPage() {
   const router = useRouter();
@@ -12,6 +12,7 @@ export default function AccountPage() {
   const [confirm, setConfirm] = useState("");
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const [showPw, setShowPw] = useState(false);
 
   async function changePassword() {
     setMsg(null);
@@ -67,20 +68,40 @@ export default function AccountPage() {
             <h2 className="text-lg font-semibold text-white">Change password</h2>
           </div>
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="New password"
-              className="rounded-lg border border-gray-700 px-3 py-2 text-sm outline-none focus:border-emerald-400 bg-[#0f172a] text-white placeholder:text-gray-500"
-            />
-            <input
-              type="password"
-              value={confirm}
-              onChange={(e) => setConfirm(e.target.value)}
-              placeholder="Confirm new password"
-              className="rounded-lg border border-gray-700 px-3 py-2 text-sm outline-none focus:border-emerald-400 bg-[#0f172a] text-white placeholder:text-gray-500"
-            />
+            <div className="relative">
+              <input
+                type={showPw ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="New password"
+                className="w-full rounded-lg border border-gray-700 px-3 py-2 pr-10 text-sm outline-none focus:border-emerald-400 bg-[#0f172a] text-white placeholder:text-gray-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw((v) => !v)}
+                aria-label={showPw ? "Hide password" : "Show password"}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
+              >
+                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
+            <div className="relative">
+              <input
+                type={showPw ? "text" : "password"}
+                value={confirm}
+                onChange={(e) => setConfirm(e.target.value)}
+                placeholder="Confirm new password"
+                className="w-full rounded-lg border border-gray-700 px-3 py-2 pr-10 text-sm outline-none focus:border-emerald-400 bg-[#0f172a] text-white placeholder:text-gray-500"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPw((v) => !v)}
+                aria-label={showPw ? "Hide password" : "Show password"}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-200"
+              >
+                {showPw ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </div>
           {msg && (
             <p className={`mt-3 text-sm ${msg.kind === "ok" ? "text-emerald-600" : "text-rose-600"}`}>
