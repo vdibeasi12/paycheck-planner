@@ -6,6 +6,34 @@ import DebtList from "@/app/components/DebtList"
 import DebtStrategyRace from "@/app/components/DebtStrategyRace"
 import PaywallOverlay from "@/app/components/PaywallOverlay"
 import InfoHint from "@/app/components/InfoHint"
+import SafeToSpend from "@/app/components/SafeToSpend"
+
+function monthlyFactor(freq?: string | null): number {
+  switch ((freq || "monthly").toLowerCase()) {
+    case "weekly":
+      return 52 / 12
+    case "biweekly":
+    case "bi-weekly":
+    case "every two weeks":
+      return 26 / 12
+    case "semimonthly":
+    case "semi-monthly":
+    case "twice a month":
+      return 2
+    case "quarterly":
+      return 1 / 3
+    case "annual":
+    case "annually":
+    case "yearly":
+      return 1 / 12
+    case "one-time":
+    case "one time":
+    case "once":
+      return 0
+    default:
+      return 1
+  }
+}
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -46,6 +74,27 @@ export default async function DashboardPage() {
   const totalDebt = debts.reduce((sum, d) => sum + (Number(d.balance) || 0), 0)
   const monthlyPayments = debts.reduce((sum, d) => sum + (Number(d.minimum_payment) || 0), 0)
 
+  // Safe-to-spend inputs: monthly income and monthly bills (normalized by frequency)
+  const { data: incomeData } = await supabase
+    .from("income")
+    .select("amount, frequency")
+    .eq("user_id", user.id)
+  const income = Array.isArray(incomeData) ? incomeData : []
+  const monthlyIncome = income.reduce(
+    (sum, i) => sum + (Number(i.amount) || 0) * monthlyFactor(i.frequency),
+    0
+  )
+
+  const { data: billsData } = await supabase
+    .from("bills")
+    .select("amount, frequency")
+    .eq("user_id", user.id)
+  const bills = Array.isArray(billsData) ? billsData : []
+  const monthlyBills = bills.reduce(
+    (sum, b) => sum + (Number(b.amount) || 0) * monthlyFactor(b.frequency),
+    0
+  )
+
   const canUseCharts = plan === "starter" || plan === "premium"
   const canUseSnowball = plan === "premium"
   const canUseAI = plan === "premium"
@@ -60,6 +109,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
+      <SafeToSpend monthlyIncome={monthlyIncome} monthlyBills={monthlyBills} monthlyDebt={monthlyPayments} />
       <SummaryCards netWorth={-totalDebt} totalDebt={totalDebt} monthlyPayments={monthlyPayments} percentPaid={0} />
       <DebtList debts={debts} />
 
