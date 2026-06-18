@@ -6,6 +6,7 @@ import NativeInit from "./components/NativeInit"
 import AppNav from "./components/AppNav"
 import Sidebar from "./components/Sidebar"
 import FloatingChat from "./components/FloatingChat"
+import FeedbackWidget from "./components/FeedbackWidget"
 import type { Metadata, Viewport } from "next"
 
 export const metadata: Metadata = {
@@ -105,6 +106,7 @@ export default async function RootLayout({
         </div>
 
         {user && <FloatingChat />}
+        {user && <FeedbackWidget />}
       </body>
     </html>
   )

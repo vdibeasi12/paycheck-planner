@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { ShieldCheck, Users, TrendingUp, CreditCard, Search, Loader2 } from "lucide-react";
+import AdminFeedback from "@/app/components/AdminFeedback";
 
 type UserRow = {
   id: string;
@@ -193,6 +194,8 @@ export default function AdminPage() {
             </tbody>
           </table>
         </div>
+
+        <AdminFeedback />
       </div>
     </div>
   );
