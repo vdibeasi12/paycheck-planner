@@ -7,7 +7,7 @@ import Link from "next/link";
 import { Check, X, Sparkles } from "lucide-react";
 import {
   BRAND,
-  TIERS,
+  VISIBLE_TIERS,
   FEATURE_GROUPS,
   type Tier,
   type TierId,
@@ -145,8 +145,8 @@ export default function PricingPage() {
         )}
 
         {/* Tier cards */}
-        <section className="mt-10 grid gap-6 md:grid-cols-3">
-          {TIERS.map((tier) => (
+        <section className={`mt-10 grid gap-6 ${VISIBLE_TIERS.length === 4 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
+          {VISIBLE_TIERS.map((tier) => (
             <TierCard
               key={tier.id}
               tier={tier}
@@ -173,7 +173,7 @@ export default function PricingPage() {
                   <th className="sticky left-0 bg-slate-900/80 px-5 py-4 text-sm font-semibold text-slate-300 backdrop-blur">
                     Feature
                   </th>
-                  {TIERS.map((t) => (
+                  {VISIBLE_TIERS.map((t) => (
                     <th
                       key={t.id}
                       className="px-5 py-4 text-center text-sm font-semibold"
@@ -342,7 +342,7 @@ function GroupRows({ group, rows }: { group: string; rows: typeof FEATURE_GROUPS
     <>
       <tr>
         <td
-          colSpan={4}
+          colSpan={VISIBLE_TIERS.length + 1}
           className="bg-slate-900/60 px-5 pt-5 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-500"
         >
           {group}
@@ -353,9 +353,9 @@ function GroupRows({ group, rows }: { group: string; rows: typeof FEATURE_GROUPS
           <td className="sticky left-0 bg-inherit px-5 py-3 text-sm text-slate-300">
             {row.label}
           </td>
-          <Cell value={row.free} />
-          <Cell value={row.starter} />
-          <Cell value={row.premium} highlight />
+          {VISIBLE_TIERS.map((col) => (
+            <Cell key={col.id} value={row[col.id]} highlight={col.highlight} />
+          ))}
         </tr>
       ))}
     </>

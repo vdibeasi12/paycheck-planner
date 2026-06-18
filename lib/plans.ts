@@ -10,7 +10,7 @@ export const BRAND = {
   domain: "paycheckplanner.ai",
 } as const;
 
-export type TierId = "free" | "starter" | "premium";
+export type TierId = "free" | "starter" | "premium" | "connected";
 
 export type Tier = {
   id: TierId;
@@ -22,6 +22,12 @@ export type Tier = {
   cta: string;
   stripe: { monthly?: string; annual?: string }; // Stripe price IDs
 };
+
+// Flip to true to launch the Autopilot (Plaid bank-sync) tier publicly.
+// While false, the tier still exists for checkout/webhook wiring and keeps its
+// Stripe price IDs, but it is hidden on the pricing page. Keep this false until
+// the Plaid sync is fully built and ready to sell.
+export const AUTOPILOT_LIVE = false;
 
 export const TIERS: Tier[] = [
   {
@@ -38,7 +44,7 @@ export const TIERS: Tier[] = [
     name: "Momentum",
     tagline: "Start the momentum -- charts that show your debt shrinking.",
     priceMonthly: 3,
-    priceAnnual: 33, // 11 months — one month free
+    priceAnnual: 33, // 11 months -- one month free
     cta: "Build Momentum",
     stripe: {
       monthly: process.env.NEXT_PUBLIC_STRIPE_STARTER_MONTHLY,
@@ -50,7 +56,7 @@ export const TIERS: Tier[] = [
     name: "Accelerate",
     tagline: "AI in your corner and the full toolkit, so you pay off faster.",
     priceMonthly: 6,
-    priceAnnual: 66, // 11 months — one month free
+    priceAnnual: 66, // 11 months -- one month free
     highlight: true,
     cta: "Hit Accelerate",
     stripe: {
@@ -58,7 +64,26 @@ export const TIERS: Tier[] = [
       annual: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY,
     },
   },
+  {
+    id: "connected",
+    name: "Autopilot",
+    tagline: "Connect your accounts and your whole plan runs itself.",
+    priceMonthly: 10,
+    priceAnnual: 108, // about 2 months free vs paying monthly
+    cta: "Get Autopilot",
+    stripe: {
+      monthly: process.env.NEXT_PUBLIC_STRIPE_CONNECTED_MONTHLY,
+      annual: process.env.NEXT_PUBLIC_STRIPE_CONNECTED_YEARLY,
+    },
+  },
 ];
+
+// Tiers shown on the public pricing page. Autopilot stays hidden until
+// AUTOPILOT_LIVE is true, but it remains in TIERS so checkout and the webhook
+// can resolve its price IDs the moment it launches.
+export const VISIBLE_TIERS: Tier[] = AUTOPILOT_LIVE
+  ? TIERS
+  : TIERS.filter((t) => t.id !== "connected");
 
 // A cell is either a capability (boolean -> green check / rose cross)
 // or a value (string -> shown as text, e.g. a quantity limit).
@@ -69,6 +94,7 @@ export type FeatureRow = {
   free: FeatureCell;
   starter: FeatureCell;
   premium: FeatureCell;
+  connected: FeatureCell;
 };
 
 export type FeatureGroup = { group: string; rows: FeatureRow[] };
@@ -77,32 +103,41 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
   {
     group: "Tracking",
     rows: [
-      { label: "Debts tracked", free: "Up to 3", starter: "Up to 10", premium: "Unlimited" },
-      { label: "Bills & paychecks", free: true, starter: true, premium: true },
-      { label: "Net worth & assets", free: true, starter: true, premium: true },
+      { label: "Debts tracked", free: "Up to 3", starter: "Up to 10", premium: "Unlimited", connected: "Unlimited" },
+      { label: "Bills & paychecks", free: true, starter: true, premium: true, connected: true },
+      { label: "Net worth & assets", free: true, starter: true, premium: true, connected: true },
     ],
   },
   {
     group: "Insights",
     rows: [
-      { label: "Charts & visualizations", free: false, starter: true, premium: true },
-      { label: "Snowball & Avalanche payoff", free: false, starter: false, premium: true },
-      { label: "Advanced analytics", free: false, starter: false, premium: true },
+      { label: "Charts & visualizations", free: false, starter: true, premium: true, connected: true },
+      { label: "Snowball & Avalanche payoff", free: false, starter: false, premium: true, connected: true },
+      { label: "Advanced analytics", free: false, starter: false, premium: true, connected: true },
     ],
   },
   {
     group: "Smart tools",
     rows: [
-      { label: "AI insights & support", free: false, starter: false, premium: true },
-      { label: "Camera bill & paycheck capture", free: false, starter: false, premium: true },
-      { label: "PDF reports & export", free: false, starter: true, premium: true },
+      { label: "AI insights & support", free: false, starter: false, premium: true, connected: true },
+      { label: "Camera bill & paycheck capture", free: false, starter: false, premium: true, connected: true },
+      { label: "PDF reports & export", free: false, starter: true, premium: true, connected: true },
+    ],
+  },
+  {
+    group: "Automation",
+    rows: [
+      { label: "Bank account sync (Plaid)", free: false, starter: false, premium: false, connected: true },
+      { label: "Auto-import debts, balances & APRs", free: false, starter: false, premium: false, connected: true },
+      { label: "Auto income, bills & safe-to-spend", free: false, starter: false, premium: false, connected: true },
+      { label: "Recurring-charge detector", free: false, starter: false, premium: false, connected: true },
     ],
   },
   {
     group: "Support",
     rows: [
-      { label: "Email support", free: true, starter: true, premium: true },
-      { label: "Priority support", free: false, starter: false, premium: true },
+      { label: "Email support", free: true, starter: true, premium: true, connected: true },
+      { label: "Priority support", free: false, starter: false, premium: true, connected: true },
     ],
   },
 ];
