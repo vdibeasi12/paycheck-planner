@@ -8,6 +8,7 @@ import Sidebar from "./components/Sidebar"
 import FloatingChat from "./components/FloatingChat"
 import FeedbackWidget from "./components/FeedbackWidget"
 import type { Metadata, Viewport } from "next"
+import { Analytics } from "@vercel/analytics/next"
 
 export const metadata: Metadata = {
   title: "Paycheck Planner - Debt Payoff & Financial Planning Tools",
@@ -107,6 +108,7 @@ export default async function RootLayout({
 
         {user && <FloatingChat />}
         {user && <FeedbackWidget />}
+        <Analytics />
       </body>
     </html>
   )

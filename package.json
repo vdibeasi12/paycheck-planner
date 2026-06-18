@@ -15,6 +15,7 @@
     "android": "npx cap open android"
   },
   "dependencies": {
+    "@vercel/analytics": "^2.0.1",
     "@capacitor/android": "^7.4.0",
     "@capacitor/app": "^7.0.0",
     "@capacitor/browser": "^7.0.5",
