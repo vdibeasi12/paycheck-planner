@@ -35,11 +35,11 @@ export const TIERS: Tier[] = [
   },
   {
     id: "starter",
-    name: "Starter",
-    tagline: "Charts and reports to watch your debt shrink.",
+    name: "Momentum",
+    tagline: "Start the momentum -- charts that show your debt shrinking.",
     priceMonthly: 3,
     priceAnnual: 33, // 11 months — one month free
-    cta: "Choose Starter",
+    cta: "Build Momentum",
     stripe: {
       monthly: process.env.NEXT_PUBLIC_STRIPE_STARTER_MONTHLY,
       annual: process.env.NEXT_PUBLIC_STRIPE_STARTER_YEARLY,
@@ -47,12 +47,12 @@ export const TIERS: Tier[] = [
   },
   {
     id: "premium",
-    name: "Premium",
-    tagline: "AI guidance, camera capture, and the full toolkit.",
+    name: "Accelerate",
+    tagline: "AI in your corner and the full toolkit, so you pay off faster.",
     priceMonthly: 6,
     priceAnnual: 66, // 11 months — one month free
     highlight: true,
-    cta: "Go Premium",
+    cta: "Hit Accelerate",
     stripe: {
       monthly: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY,
       annual: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY,

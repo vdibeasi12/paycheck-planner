@@ -143,8 +143,8 @@ export default function AdminPage() {
                       className="rounded-lg border border-gray-700 bg-[#0f172a] px-2 py-1 text-sm outline-none focus:border-emerald-400"
                     >
                       <option value="free">Free</option>
-                      <option value="starter">Starter</option>
-                      <option value="premium">Premium</option>
+                      <option value="starter">Momentum</option>
+                      <option value="premium">Accelerate</option>
                     </select>
                   </td>
                   <td className="px-4 py-3 text-gray-300">

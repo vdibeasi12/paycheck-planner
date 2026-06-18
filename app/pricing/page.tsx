@@ -204,13 +204,13 @@ export default function PricingPage() {
             </Faq>
             <Faq q="What does the annual plan save me?">
               Annual billing is eleven months for the price of twelve — one month free
-              on Starter and Premium.
+              on Momentum and Accelerate.
             </Faq>
             <Faq q="Do I need a card for the Free plan?">
               No. The Free plan stays free, no card required.
             </Faq>
             <Faq q="How do I get help?">
-              Email us anytime at {BRAND.supportEmail}. Premium members get priority
+              Email us anytime at {BRAND.supportEmail}. Accelerate members get priority
               replies.
             </Faq>
           </div>

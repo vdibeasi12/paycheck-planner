@@ -22,7 +22,7 @@ export default function Step3Plan({ next }: { next: () => void }) {
 
         {/* STARTER */}
         <div className="border border-white/10 p-6 rounded">
-          <h2 className="text-xl mb-2">Starter</h2>
+          <h2 className="text-xl mb-2">Momentum</h2>
           <p className="text-2xl mb-4">$3/mo</p>
           <ul className="text-sm space-y-2">
             <li>✔ Up to 10 debts</li>
@@ -34,7 +34,7 @@ export default function Step3Plan({ next }: { next: () => void }) {
 
         {/* PREMIUM */}
         <div className="border border-green-500 p-6 rounded">
-          <h2 className="text-xl mb-2">Premium</h2>
+          <h2 className="text-xl mb-2">Accelerate</h2>
           <p className="text-2xl mb-4">$6/mo</p>
           <ul className="text-sm space-y-2">
             <li>✔ Unlimited debts</li>

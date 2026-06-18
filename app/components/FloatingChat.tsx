@@ -51,7 +51,7 @@ const FAQS: Faq[] = [
   {
     keywords: ["chart", "charts", "insight", "insights", "analytics", "graph", "report"],
     answer:
-      "Charts and analytics live under Insights in the top menu (available on the Starter and Premium plans).",
+      "Charts and analytics live under Insights in the top menu (available on the Momentum and Accelerate plans).",
   },
   {
     keywords: ["ai advisor", "ai chat", "ai financial", "financial advisor", "ai help"],

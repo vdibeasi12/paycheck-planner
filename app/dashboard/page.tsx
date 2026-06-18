@@ -119,7 +119,7 @@ export default async function DashboardPage() {
           <h2 className="text-lg font-semibold">Charts</h2>
           <InfoHint
             label="About Charts"
-            text="Visual breakdowns of your balances and payoff trajectory over time. Included with Starter and Premium."
+            text="Visual breakdowns of your balances and payoff trajectory over time. Included with Momentum and Accelerate."
           />
         </div>
 
