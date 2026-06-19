@@ -7,6 +7,7 @@ import DebtStrategyRace from "@/app/components/DebtStrategyRace"
 import PaywallOverlay from "@/app/components/PaywallOverlay"
 import InfoHint from "@/app/components/InfoHint"
 import SafeToSpend from "@/app/components/SafeToSpend"
+import { canUseCharts as planCanUseCharts, canUseSnowball as planCanUseSnowball, canUseAI as planCanUseAI } from "@/lib/permissions"
 
 function monthlyFactor(freq?: string | null): number {
   switch ((freq || "monthly").toLowerCase()) {
@@ -95,9 +96,9 @@ export default async function DashboardPage() {
     0
   )
 
-  const canUseCharts = plan === "starter" || plan === "premium"
-  const canUseSnowball = plan === "premium"
-  const canUseAI = plan === "premium"
+  const canUseCharts = planCanUseCharts(plan)
+  const canUseSnowball = planCanUseSnowball(plan)
+  const canUseAI = planCanUseAI(plan)
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">

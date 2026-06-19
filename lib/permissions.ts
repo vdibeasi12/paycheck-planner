@@ -7,6 +7,10 @@ export function canUseSnowball(plan: string): boolean {
   return plan === 'premium' || plan === 'starter' || plan === 'connected'
 }
 
+export function canUseCharts(plan: string): boolean {
+  return plan === 'starter' || plan === 'premium' || plan === 'connected'
+}
+
 export function canUseAvalanche(plan: string): boolean {
   return plan === 'premium' || plan === 'connected'
 }
