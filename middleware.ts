@@ -100,11 +100,21 @@ export async function middleware(request: NextRequest) {
     } = await supabase.auth.getSession()
     const token = session?.access_token
 
-    // Cheap path: if the JWT already shows aal2, the user has stepped up.
-    if (getAalClaim(token) !== "aal2") {
-      const { data: aal } =
-        await supabase.auth.mfa.getAuthenticatorAssuranceLevel(token)
-      if (aal && aal.currentLevel === "aal1" && aal.nextLevel === "aal2") {
+    // The JWT `aal` claim is authoritative for "has this session stepped up?":
+    //   aal2 -> already verified this session, let them through.
+    //   aal1 -> only force /mfa if the user actually has a verified factor to
+    //           challenge against (otherwise there is nothing to step up to and
+    //           we would bounce them into a dead end).
+    // We deliberately do NOT call getAuthenticatorAssuranceLevel() here: in a
+    // fresh per-request Edge client it cannot resolve `nextLevel` and always
+    // reports aal1/aal1, so the step-up redirect never fired.
+    if (getAalClaim(token) === "aal1") {
+      const { data: factors } = await supabase.auth.mfa.listFactors()
+      const hasVerifiedFactor =
+        !!factors &&
+        Array.isArray(factors.all) &&
+        factors.all.some((f) => f.status === "verified")
+      if (hasVerifiedFactor) {
         const url = request.nextUrl.clone()
         url.pathname = "/mfa"
         url.searchParams.set("redirectTo", path)
