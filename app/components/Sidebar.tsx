@@ -18,6 +18,7 @@ import {
   LogOut,
 } from "lucide-react"
 import Logo from "./Logo"
+import OnboardingChecklist from "./OnboardingChecklist"
 import { supabase } from "@/lib/supabase/client"
 
 const LINKS = [
@@ -106,7 +107,12 @@ export default function Sidebar() {
             <Logo size="md" />
           </Link>
         </div>
-        <div className="flex-1 overflow-y-auto py-4">{renderLinks()}</div>
+        <div className="flex-1 overflow-y-auto py-4">
+          {renderLinks()}
+          <div className="mt-4">
+            <OnboardingChecklist />
+          </div>
+        </div>
       </aside>
 
       {/* Mobile slide-out drawer */}
@@ -130,6 +136,9 @@ export default function Sidebar() {
             </div>
             <div className="flex-1 overflow-y-auto py-4">
               {renderLinks(() => setOpen(false))}
+              <div className="mt-4">
+                <OnboardingChecklist />
+              </div>
             </div>
           </aside>
         </div>
