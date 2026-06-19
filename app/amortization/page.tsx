@@ -40,7 +40,7 @@ export default async function AmortizationPage() {
   //   PaywallOverlay priceId below to the Premium Monthly price
   //   (price_1TO2SSFv1EcTs6LYVswF0AwU) plus matching copy.
   // To make it free for everyone: set this to true.
-  const canUseAmortization = plan === "starter" || plan === "premium"
+  const canUseAmortization = plan === "starter" || plan === "premium" || plan === "connected"
 
   const { data: debtsData } = await supabase
     .from("debts")

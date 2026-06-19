@@ -109,7 +109,10 @@ export async function middleware(request: NextRequest) {
     // We deliberately do NOT call getAuthenticatorAssuranceLevel() here: in a
     // fresh per-request Edge client it cannot resolve `nextLevel` and always
     // reports aal1/aal1, so the step-up redirect never fired.
-    if (getAalClaim(token) === "aal1") {
+    // Secure-by-default: only an explicit aal2 claim counts as stepped-up.
+    // A missing or unreadable claim (some OAuth sessions) or aal1 both
+    // force the challenge whenever the user has a verified factor.
+    if (getAalClaim(token) !== "aal2") {
       const { data: factors } = await supabase.auth.mfa.listFactors()
       const hasVerifiedFactor =
         !!factors &&
