@@ -8,6 +8,7 @@ const PROTECTED = [
   "/admin",
   "/debts",
   "/bills",
+  "/income",
   "/analytics",
   "/ai-chat",
   "/ai-advisor",
