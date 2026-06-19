@@ -47,7 +47,7 @@ export default async function DashboardPage() {
     redirect("/login")
   }
 
-  // âœ… SAFER PROFILE FETCH
+  // - SAFER PROFILE FETCH
   const { data: profile, error } = await supabase
     .from("profiles")
     .select("plan, onboarded")
@@ -59,7 +59,7 @@ export default async function DashboardPage() {
     redirect("/onboarding")
   }
 
-  // ðŸ”¥ FALLBACK LOGIC (CRITICAL)
+  // - FALLBACK LOGIC (CRITICAL)
   let plan = "free"
 
   if (profile?.plan) {
@@ -137,13 +137,13 @@ export default async function DashboardPage() {
         )}
       </div>
 
-      {/* SNOWBALL (PREMIUM ONLY â€” FIXED) */}
+      {/* SNOWBALL (PREMIUM ONLY - FIXED) */}
       <div className="relative bg-[#0f172a] border border-gray-700 rounded-xl p-6 overflow-hidden">
         <div className="mb-4 flex items-center gap-2">
           <h2 className="text-lg font-semibold">Snowball &amp; Avalanche</h2>
           <InfoHint
             label="About Snowball & Avalanche"
-            text="Compares two payoff strategies â€” Snowball (smallest balance first) vs Avalanche (highest interest first) â€” so you can see which clears your debt faster. Premium."
+            text="Compares two payoff strategies - Snowball (smallest balance first) vs Avalanche (highest interest first) - so you can see which clears your debt faster. Premium."
           />
         </div>
 
