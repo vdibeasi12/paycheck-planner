@@ -29,11 +29,18 @@ function serviceClient() {
   );
 }
 
+// Monthly-equivalent revenue for a subscription. Annual plans are "2 months
+// free" (annual price = monthly x 10), so a yearly sub contributes
+// (monthly x 10) / 12 per month.
 function monthlyValue(tier: string | null, planType: string | null) {
-  const base = tier === "premium" ? 6 : tier === "starter" ? 3 : 0;
+  const base =
+    tier === "connected" ? 10 : tier === "premium" ? 6 : tier === "starter" ? 3 : 0;
   const annual = planType === "annual" || planType === "yearly";
-  return annual ? (base * 11) / 12 : base;
+  return annual ? (base * 10) / 12 : base;
 }
+
+// Plans an admin may assign from the dropdown.
+const ASSIGNABLE_PLANS = ["free", "starter", "premium", "connected"];
 
 export async function GET(req: Request) {
   const gate = await requireAdmin();
@@ -46,7 +53,7 @@ export async function GET(req: Request) {
   const authUsers = list?.users || [];
 
   const [{ data: profiles }, { data: subs }] = await Promise.all([
-    sb.from("profiles").select("id, plan, is_admin"),
+    sb.from("profiles").select("id, plan, is_admin, signup_source"),
     sb.from("subscriptions").select("user_id, tier, status, plan_type, current_period_end"),
   ]);
 
@@ -65,6 +72,7 @@ export async function GET(req: Request) {
       created_at: u.created_at,
       plan: p?.plan ?? "free",
       is_admin: !!p?.is_admin,
+      signup_source: p?.signup_source ?? null,
       sub_tier: s?.tier ?? null,
       sub_status: s?.status ?? null,
       sub_plan_type: s?.plan_type ?? null,
@@ -83,12 +91,21 @@ export async function GET(req: Request) {
   );
   const mrr = activeSubs.reduce((sum, s) => sum + monthlyValue(s.tier, s.plan_type), 0);
 
+  // "How did you hear about us?" rollup. Only counts users who answered after
+  // the feature shipped; everyone else falls into "unknown".
+  const signupSources: Record<string, number> = {};
+  (profiles || []).forEach((p) => {
+    const src = ((p.signup_source as string | null) || "").trim() || "unknown";
+    signupSources[src] = (signupSources[src] || 0) + 1;
+  });
+
   return NextResponse.json({
     metrics: {
       totalUsers: authUsers.length,
       signups30,
       activeSubs: activeSubs.length,
       mrr: Math.round(mrr * 100) / 100,
+      signupSources,
     },
     users: rows,
   });
@@ -109,7 +126,7 @@ export async function PATCH(req: Request) {
   }
 
   const update: Record<string, unknown> = {};
-  if (typeof body.plan === "string" && ["free", "starter", "premium"].includes(body.plan)) {
+  if (typeof body.plan === "string" && ASSIGNABLE_PLANS.includes(body.plan)) {
     update.plan = body.plan;
   }
   if (typeof body.is_admin === "boolean") update.is_admin = body.is_admin;
