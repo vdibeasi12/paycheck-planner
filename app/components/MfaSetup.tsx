@@ -10,6 +10,7 @@ export default function MfaSetup() {
   const [factors, setFactors] = useState<Factor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [removeMsg, setRemoveMsg] = useState<string | null>(null);
 
   // enrollment state
   const [enrolling, setEnrolling] = useState(false);
@@ -76,7 +77,7 @@ export default function MfaSetup() {
         setError(vErr.message);
         return;
       }
-      // success — reset and reload
+      // success -- reset and reload
       cancelEnroll();
       await loadFactors();
     } finally {
@@ -93,14 +94,14 @@ export default function MfaSetup() {
   }
 
   async function removeFactor(id: string) {
-    await supabase.auth.mfa.unenroll({ factorId: id });
+    setRemoveMsg(null); if (!window.confirm("Remove this authenticator? You will no longer be asked for a 6-digit code at sign-in until you set one up again.")) return; const { error: uErr } = await supabase.auth.mfa.unenroll({ factorId: id }); if (uErr) { setRemoveMsg(uErr.message || "Could not remove this device. Sign out and back in, complete the 6-digit verification, then try again."); return; }
     await loadFactors();
   }
 
   if (loading) {
     return (
       <div className="flex items-center gap-2 text-gray-400">
-        <Loader2 size={16} className="animate-spin" /> Checking your security settings…
+        <Loader2 size={16} className="animate-spin" /> Checking your security settings...
       </div>
     );
   }
@@ -140,6 +141,7 @@ export default function MfaSetup() {
         </ul>
       )}
 
+      {removeMsg && (<p className="mt-3 text-sm text-rose-400">{removeMsg}</p>)}
       {/* Enrollment */}
       {enrolling ? (
         <div className="mt-5 rounded-xl border border-gray-700 bg-[#0f172a] p-5">
