@@ -130,7 +130,7 @@ export default function PricingPage() {
             <BillingToggle billing={billing} onChange={setBilling} />
           </div>
           <p className="mt-3 h-5 text-sm text-emerald-400">
-            {billing === "annual" ? "You're saving a month on every paid plan." : "\u00A0"}
+            {billing === "annual" ? "You're saving two months on every paid plan." : "\u00A0"}
           </p>
         </section>
 
