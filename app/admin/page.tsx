@@ -11,6 +11,8 @@ import {
   KeyRound,
   ShieldOff,
   Trash2,
+  History,
+  RefreshCw,
 } from "lucide-react";
 import AdminFeedback from "@/app/components/AdminFeedback";
 
@@ -38,6 +40,26 @@ type Metrics = {
   canceledSubs: number;
 };
 
+type AuditRow = {
+  id: string;
+  created_at: string;
+  actor_id: string;
+  actor_email: string | null;
+  action: string;
+  target_id: string | null;
+  target_email: string | null;
+  metadata: Record<string, unknown> | null;
+};
+
+const AUDIT_ACTION_LABELS: Record<string, string> = {
+  plan_change: "Plan change",
+  grant_admin: "Granted admin",
+  revoke_admin: "Revoked admin",
+  reset_password: "Password reset link",
+  reset_mfa: "2FA reset",
+  delete_user: "Deleted user",
+};
+
 const PLAN_LABELS: Record<string, string> = {
   free: "Free",
   starter: "Momentum",
@@ -58,6 +80,9 @@ export default function AdminPage() {
   const [delTarget, setDelTarget] = useState<{ id: string; email: string } | null>(null);
   const [delConfirm, setDelConfirm] = useState("");
   const [delBusy, setDelBusy] = useState(false);
+  const [auditOpen, setAuditOpen] = useState(false);
+  const [auditLog, setAuditLog] = useState<AuditRow[]>([]);
+  const [auditStatus, setAuditStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
 
   useEffect(() => {
     load();
@@ -172,6 +197,28 @@ export default function AdminPage() {
     () => users.filter((u) => u.email.toLowerCase().includes(query.toLowerCase())),
     [users, query]
   );
+
+  async function loadAudit() {
+    setAuditStatus("loading");
+    try {
+      const res = await fetch("/api/admin/audit?limit=100");
+      if (!res.ok) {
+        setAuditStatus("error");
+        return;
+      }
+      const data = await res.json();
+      setAuditLog(Array.isArray(data.log) ? data.log : []);
+      setAuditStatus("ok");
+    } catch {
+      setAuditStatus("error");
+    }
+  }
+
+  function toggleAudit() {
+    const next = !auditOpen;
+    setAuditOpen(next);
+    if (next && auditStatus === "idle") loadAudit();
+  }
 
   const cost = useMemo(() => {
     const active = users.filter((u) => u.sub_status === "active" || u.sub_status === "trialing");
@@ -458,6 +505,81 @@ export default function AdminPage() {
               )}
             </tbody>
           </table>
+        </div>
+
+        <div className="mt-6 rounded-2xl border border-gray-700 bg-[#0f172a] shadow-sm">
+          <button
+            type="button"
+            onClick={toggleAudit}
+            className="flex w-full items-center justify-between px-5 py-4 text-left"
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-gray-300">
+              <History size={16} /> Admin audit log
+            </span>
+            <span className="text-xs text-gray-500">{auditOpen ? "Hide" : "Show"}</span>
+          </button>
+
+          {auditOpen && (
+            <div className="border-t border-gray-700 px-5 py-4">
+              <div className="mb-3 flex items-center justify-between">
+                <p className="text-xs text-gray-500">Most recent 100 admin actions (newest first).</p>
+                <button
+                  type="button"
+                  onClick={loadAudit}
+                  disabled={auditStatus === "loading"}
+                  className="flex items-center gap-1 rounded-lg border border-gray-700 px-2 py-1 text-xs text-gray-300 hover:bg-[#1a233a] disabled:opacity-50"
+                >
+                  <RefreshCw size={12} className={auditStatus === "loading" ? "animate-spin" : ""} /> Refresh
+                </button>
+              </div>
+
+              {auditStatus === "loading" && (
+                <p className="py-6 text-center text-sm text-gray-400">Loading...</p>
+              )}
+              {auditStatus === "error" && (
+                <p className="py-6 text-center text-sm text-rose-300">Could not load the audit log.</p>
+              )}
+              {auditStatus === "ok" && auditLog.length === 0 && (
+                <p className="py-6 text-center text-sm text-gray-400">No admin actions recorded yet.</p>
+              )}
+              {auditStatus === "ok" && auditLog.length > 0 && (
+                <div className="overflow-x-auto">
+                  <table className="w-full min-w-[760px] text-left text-sm">
+                    <thead className="border-b border-gray-700 text-xs uppercase tracking-wide text-gray-400">
+                      <tr>
+                        <th className="px-3 py-2">When</th>
+                        <th className="px-3 py-2">Action</th>
+                        <th className="px-3 py-2">Target</th>
+                        <th className="px-3 py-2">By</th>
+                        <th className="px-3 py-2">Details</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-800">
+                      {auditLog.map((row) => (
+                        <tr key={row.id}>
+                          <td className="whitespace-nowrap px-3 py-2 text-gray-400">
+                            {new Date(row.created_at).toLocaleString()}
+                          </td>
+                          <td className="px-3 py-2">
+                            <span className="rounded-full bg-[#1a233a] px-2 py-0.5 text-xs font-medium text-gray-200">
+                              {AUDIT_ACTION_LABELS[row.action] || row.action}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2 text-gray-300">{row.target_email || row.target_id || "-"}</td>
+                          <td className="px-3 py-2 text-gray-400">{row.actor_email || row.actor_id}</td>
+                          <td className="px-3 py-2 text-gray-500">
+                            {row.metadata && Object.keys(row.metadata).length > 0
+                              ? JSON.stringify(row.metadata)
+                              : "-"}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         <AdminFeedback />
