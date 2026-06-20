@@ -13,7 +13,7 @@ export default function FeedbackWidget() {
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Send feedback"
-        className="fixed bottom-5 left-5 z-40 flex items-center gap-2 rounded-full border border-gray-700 bg-[#0f172a] px-4 py-2.5 text-sm font-semibold text-gray-100 shadow-lg transition hover:bg-[#1a233a]"
+        className="fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full border border-gray-700 bg-[#0f172a] px-4 py-2.5 text-sm font-semibold text-gray-100 shadow-lg transition hover:bg-[#1a233a]"
       >
         <MessageSquarePlus size={18} className="text-emerald-400" />
         Feedback
