@@ -1,32 +1,7 @@
 import { NextResponse } from "next/server";
-import { createClient as createServiceClient } from "@supabase/supabase-js";
-import { createClient as createUserClient } from "@/lib/supabase/server";
+import { requireAdmin, serviceClient, logAdminAction } from "@/lib/adminGuard";
 
 export const dynamic = "force-dynamic";
-
-async function requireAdmin() {
-  const userClient = await createUserClient();
-  const {
-    data: { user },
-  } = await userClient.auth.getUser();
-  if (!user) return { ok: false as const, status: 401, error: "Unauthorized" };
-
-  const { data: profile } = await userClient
-    .from("profiles")
-    .select("is_admin")
-    .eq("id", user.id)
-    .maybeSingle();
-
-  if (!profile?.is_admin) return { ok: false as const, status: 403, error: "Forbidden" };
-  return { ok: true as const, userId: user.id };
-}
-
-function serviceClient() {
-  return createServiceClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL as string,
-    process.env.SUPABASE_SERVICE_ROLE_KEY as string
-  );
-}
 
 // POST { userId }: clear all of a user's MFA factors (lost-device recovery).
 // After this the user signs in at AAL1 and can enroll a fresh authenticator
@@ -64,6 +39,16 @@ export async function POST(req: Request) {
     });
     if (!delErr) removed++;
   }
+
+  const { data: got } = await sb.auth.admin.getUserById(userId);
+  await logAdminAction({
+    actorId: gate.userId,
+    actorEmail: gate.userEmail,
+    action: "reset_mfa",
+    targetId: userId,
+    targetEmail: got?.user?.email ?? null,
+    metadata: { removed, total: factors.length },
+  });
 
   return NextResponse.json({ ok: true, removed, total: factors.length });
 }
