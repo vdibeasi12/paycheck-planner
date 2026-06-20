@@ -1,6 +1,6 @@
 "use client"
 
-import { Fragment, useState } from "react"
+import { Fragment, useEffect, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -17,6 +17,7 @@ import {
   MessageSquare,
   MessageSquarePlus,
   Sparkles,
+  ShieldCheck,
   Settings,
   LogOut,
 } from "lucide-react"
@@ -41,6 +42,25 @@ export default function Sidebar() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
   const [gsOpen, setGsOpen] = useState(false)
+  const [isAdmin, setIsAdmin] = useState(false)
+
+  // Show the Admin link only to admin accounts.
+  useEffect(() => {
+    let active = true
+    supabase.auth.getUser().then(async ({ data }) => {
+      const user = data.user
+      if (!user) return
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("is_admin")
+        .eq("id", user.id)
+        .single()
+      if (active && prof?.is_admin) setIsAdmin(true)
+    })
+    return () => {
+      active = false
+    }
+  }, [])
 
   const p = pathname || ""
   const isActive = (href: string) => p === href || p.startsWith(href + "/")
@@ -90,6 +110,25 @@ export default function Sidebar() {
           </Fragment>
         )
       })}
+
+      {isAdmin && (
+        <Link
+          href="/admin"
+          onClick={onNavigate}
+          aria-current={isActive("/admin") ? "page" : undefined}
+          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition ${
+            isActive("/admin")
+              ? "bg-green-500/15 text-green-400"
+              : "text-gray-300 hover:bg-white/5 hover:text-white"
+          }`}
+        >
+          <ShieldCheck
+            size={20}
+            className={isActive("/admin") ? "text-green-400" : "text-gray-400"}
+          />
+          Admin
+        </Link>
+      )}
 
       <button
         onClick={() => openFeedback(onNavigate)}

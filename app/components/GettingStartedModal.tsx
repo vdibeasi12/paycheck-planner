@@ -1,17 +1,77 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import Link from "next/link"
+import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
 import {
   CheckCircle2,
   Circle,
+  Wallet,
   CreditCard,
   Receipt,
-  Target,
+  CalendarClock,
+  MessageSquare,
+  Landmark,
+  RefreshCw,
   X,
   LayoutDashboard,
 } from "lucide-react"
+
+type Tier = "free" | "starter" | "premium" | "connected"
+const RANK: Record<Tier, number> = { free: 0, starter: 1, premium: 2, connected: 3 }
+
+type StepDef = {
+  key: string
+  rank: number
+  kind: "data" | "action" | "locked"
+  href: string
+  Icon: any
+  title: string
+  desc: string
+  table?: string
+  progressKey?: string
+}
+
+// Cumulative by tier: each higher tier shows every lower-tier step plus its own.
+const STEP_DEFS: StepDef[] = [
+  {
+    key: "income", rank: 0, kind: "data", href: "/income", Icon: Wallet, table: "income",
+    title: "Add your income",
+    desc: "Enter each paycheck and how often it arrives so the budget math is right.",
+  },
+  {
+    key: "debts", rank: 0, kind: "data", href: "/debts", Icon: CreditCard, table: "debts",
+    title: "Add your first debt",
+    desc: "Enter a balance, interest rate (APR), and minimum payment so we can build your payoff plan.",
+  },
+  {
+    key: "bills", rank: 0, kind: "data", href: "/bills", Icon: Receipt, table: "bills",
+    title: "Add a bill",
+    desc: "Track what's coming in and going out each month.",
+  },
+  {
+    key: "payoff", rank: 1, kind: "action", href: "/amortization", Icon: CalendarClock, progressKey: "payoff_reviewed",
+    title: "Review your payoff plan",
+    desc: "See your debt-free date and the order we'll knock out each balance.",
+  },
+  {
+    key: "ai", rank: 2, kind: "action", href: "/ai-chat", Icon: MessageSquare, progressKey: "ai_tried",
+    title: "Try AI Insights",
+    desc: "Ask a question in plain English and get answers tied to your numbers.",
+  },
+  {
+    key: "connect_bank", rank: 3, kind: "locked", href: "#", Icon: Landmark,
+    title: "Connect your bank",
+    desc: "Securely link an institution so balances and APRs update on their own.",
+  },
+  {
+    key: "auto_sync", rank: 3, kind: "locked", href: "#", Icon: RefreshCw,
+    title: "Set up automatic debt sync",
+    desc: "Let balances refresh automatically so your plan stays accurate without manual entry.",
+  },
+]
+
+type Step = StepDef & { done: boolean; locked: boolean }
 
 const SOURCES = [
   { value: "", label: "Select an option (optional)" },
@@ -29,7 +89,8 @@ const SOURCES = [
 type Props = { open: boolean; onClose: () => void }
 
 export default function GettingStartedModal({ open, onClose }: Props) {
-  const [counts, setCounts] = useState<{ debts: number; bills: number; goals: number } | null>(null)
+  const router = useRouter()
+  const [steps, setSteps] = useState<Step[] | null>(null)
   const [source, setSource] = useState("")
   const [busy, setBusy] = useState(false)
 
@@ -43,32 +104,50 @@ export default function GettingStartedModal({ open, onClose }: Props) {
     return () => window.removeEventListener("keydown", onKey)
   }, [open, onClose])
 
-  // Load progress whenever the popup opens.
+  // Build the tier-aware checklist whenever the popup opens.
   useEffect(() => {
     if (!open) return
     let active = true
     ;(async () => {
-      setCounts(null)
+      setSteps(null)
       const {
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) {
-        if (active) setCounts({ debts: 0, bills: 0, goals: 0 })
+        if (active) setSteps([])
         return
       }
-      const countFor = async (table: string) => {
-        const { count } = await supabase
-          .from(table)
-          .select("id", { count: "exact", head: true })
-          .eq("user_id", user.id)
-        return count ?? 0
-      }
-      const [debts, bills, goals] = await Promise.all([
-        countFor("debts"),
-        countFor("bills"),
-        countFor("financial_goals"),
-      ])
-      if (active) setCounts({ debts, bills, goals })
+
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("plan, is_admin")
+        .eq("id", user.id)
+        .single()
+
+      const plan = ((prof?.plan as Tier) || "free")
+      // Admins (and the connected tier) see every feature.
+      const userRank = prof?.is_admin ? RANK.connected : (RANK[plan] ?? 0)
+      const defs = STEP_DEFS.filter((d) => d.rank <= userRank)
+
+      const { data: progRows } = await supabase
+        .from("onboarding_progress")
+        .select("step_key")
+        .eq("user_id", user.id)
+      const doneKeys = new Set((progRows || []).map((r) => r.step_key as string))
+
+      const out = await Promise.all(
+        defs.map(async (d): Promise<Step> => {
+          if (d.kind === "locked") return { ...d, done: false, locked: true }
+          if (d.kind === "action") return { ...d, done: doneKeys.has(d.progressKey || ""), locked: false }
+          const { count } = await supabase
+            .from(d.table as string)
+            .select("id", { count: "exact", head: true })
+            .eq("user_id", user.id)
+          return { ...d, done: (count || 0) > 0, locked: false }
+        })
+      )
+
+      if (active) setSteps(out)
     })()
     return () => {
       active = false
@@ -77,31 +156,33 @@ export default function GettingStartedModal({ open, onClose }: Props) {
 
   if (!open) return null
 
-  const steps = [
-    {
-      done: (counts?.debts ?? 0) > 0,
-      href: "/debts",
-      Icon: CreditCard,
-      title: "Add your first debt",
-      desc: "Enter a balance, interest rate (APR), and minimum payment so we can build your payoff plan.",
-    },
-    {
-      done: (counts?.bills ?? 0) > 0,
-      href: "/bills",
-      Icon: Receipt,
-      title: "Add a bill or paycheck",
-      desc: "Track what's coming in and going out each month.",
-    },
-    {
-      done: (counts?.goals ?? 0) > 0,
-      href: "/goals",
-      Icon: Target,
-      title: "Set a goal",
-      desc: "Pick something to aim for and watch your progress add up.",
-    },
-  ]
-  const completed = steps.filter((s) => s.done).length
-  const pct = counts ? Math.round((completed / steps.length) * 100) : 0
+  const actionable = (steps || []).filter((s) => !s.locked)
+  const completed = actionable.filter((s) => s.done).length
+  const total = actionable.length
+  const pct = total ? Math.round((completed / total) * 100) : 0
+
+  const go = async (s: Step) => {
+    if (s.locked) return
+    if (s.kind === "action" && s.progressKey) {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (user) {
+          await supabase
+            .from("onboarding_progress")
+            .upsert(
+              { user_id: user.id, step_key: s.progressKey },
+              { onConflict: "user_id,step_key", ignoreDuplicates: true }
+            )
+        }
+      } catch {
+        // Non-blocking: navigate regardless.
+      }
+    }
+    onClose()
+    router.push(s.href)
+  }
 
   const finish = async () => {
     setBusy(true)
@@ -141,13 +222,13 @@ export default function GettingStartedModal({ open, onClose }: Props) {
         <div className="px-6 py-8 sm:px-8">
           <h1 className="text-2xl font-bold sm:text-3xl">Welcome to Paycheck Planner</h1>
           <p className="mt-2 text-gray-400">
-            Let's get you set up. Three quick steps and you'll have a real payoff plan.
+            Let's get you set up. Here's everything your plan unlocks.
           </p>
 
           <div className="mt-6">
             <div className="mb-2 flex justify-between text-sm text-gray-400">
               <span>
-                {completed} of {steps.length} done
+                {completed} of {total} done
               </span>
               <span>{pct}%</span>
             </div>
@@ -157,40 +238,53 @@ export default function GettingStartedModal({ open, onClose }: Props) {
           </div>
 
           <div className="mt-8 space-y-4">
-            {steps.map((s, i) => (
-              <div
-                key={i}
-                className={`flex items-start gap-4 rounded-xl border p-5 ${
-                  s.done ? "border-green-500/40 bg-green-500/5" : "border-gray-700 bg-[#0f172a]"
-                }`}
-              >
-                <div className="mt-0.5 shrink-0">
-                  {s.done ? (
-                    <CheckCircle2 className="text-green-400" size={24} />
-                  ) : (
-                    <Circle className="text-gray-500" size={24} />
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
-                    <s.Icon size={18} className="shrink-0 text-gray-300" />
-                    <h3 className="font-semibold">{s.title}</h3>
-                  </div>
-                  <p className="mt-1 text-sm text-gray-400">{s.desc}</p>
-                </div>
-                <Link
-                  href={s.href}
-                  onClick={onClose}
-                  className={`shrink-0 self-center rounded-lg px-4 py-2 text-sm font-semibold transition ${
+            {steps === null ? (
+              <p className="text-sm text-gray-500">Loading your checklist...</p>
+            ) : (
+              steps.map((s) => (
+                <div
+                  key={s.key}
+                  className={`flex items-start gap-4 rounded-xl border p-5 ${
                     s.done
-                      ? "border border-gray-700 text-gray-300 hover:text-white"
-                      : "bg-green-500 text-black hover:bg-green-600"
+                      ? "border-green-500/40 bg-green-500/5"
+                      : s.locked
+                      ? "border-gray-800 bg-[#0b1220] opacity-80"
+                      : "border-gray-700 bg-[#0f172a]"
                   }`}
                 >
-                  {s.done ? "Edit" : "Start"}
-                </Link>
-              </div>
-            ))}
+                  <div className="mt-0.5 shrink-0">
+                    {s.done ? (
+                      <CheckCircle2 className="text-green-400" size={24} />
+                    ) : (
+                      <Circle className={s.locked ? "text-gray-600" : "text-gray-500"} size={24} />
+                    )}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                      <s.Icon size={18} className="shrink-0 text-gray-300" />
+                      <h3 className="font-semibold">{s.title}</h3>
+                    </div>
+                    <p className="mt-1 text-sm text-gray-400">{s.desc}</p>
+                  </div>
+                  {s.locked ? (
+                    <span className="shrink-0 self-center rounded-full bg-gray-800 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
+                      Soon
+                    </span>
+                  ) : (
+                    <button
+                      onClick={() => go(s)}
+                      className={`shrink-0 self-center rounded-lg px-4 py-2 text-sm font-semibold transition ${
+                        s.done
+                          ? "border border-gray-700 text-gray-300 hover:text-white"
+                          : "bg-green-500 text-black hover:bg-green-600"
+                      }`}
+                    >
+                      {s.done ? "Open" : "Start"}
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
           </div>
 
           <div className="mt-8 rounded-xl border border-gray-700 bg-[#0f172a] p-5">
