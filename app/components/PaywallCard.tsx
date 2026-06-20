@@ -1,5 +1,6 @@
 "use client"
 
+import { useIsNativeApp } from "@/lib/platform"
 import UpgradeButton from "@/app/components/UpgradeButton"
 import { getDebtSummary } from "@/lib/previewEngine"
 import { Debt } from "@/lib/financeEngine"
@@ -12,6 +13,7 @@ export default function PaywallCard({
   user: any
   debts: Debt[]
 }) {
+  const native = useIsNativeApp()
   const summary = getDebtSummary(debts)
 
   // Single source of truth: the Premium tier drives the price shown here,
@@ -21,13 +23,12 @@ export default function PaywallCard({
 
   return (
     <div className="bg-white p-8 rounded-xl shadow text-center max-w-xl mx-auto">
-
-      {/* 🔥 HEADLINE */}
+      {/* HEADLINE */}
       <h2 className="text-2xl font-bold mb-2">
         You could be debt-free in {summary.months} months
       </h2>
 
-      {/* ⚠️ URGENCY */}
+      {/* URGENCY */}
       <p className="text-red-500 font-medium mb-4">
         You're paying about ${summary.monthlyInterest}/month in interest
       </p>
@@ -39,25 +40,34 @@ export default function PaywallCard({
 
       {/* FEATURES */}
       <div className="text-left mb-6 space-y-2">
-        <p>✅ Full payoff timeline</p>
-        <p>✅ Strategy comparison (snowball vs avalanche)</p>
-        <p>✅ Interest savings breakdown</p>
-        <p>✅ Financial stress test</p>
+        <p>{"\u2713"} Full payoff timeline</p>
+        <p>{"\u2713"} Strategy comparison (snowball vs avalanche)</p>
+        <p>{"\u2713"} Interest savings breakdown</p>
+        <p>{"\u2713"} Financial stress test</p>
       </div>
 
-      {/* PRICE — pulled from lib/plans.ts (Premium tier) */}
-      <div className="mb-6">
-        <p className="text-3xl font-bold">${premium.priceMonthly}/month</p>
-        <p className="text-green-600 font-medium">
-          or ${premium.priceAnnual}/year — just ${annualMonthly}/mo, billed yearly
+      {/* PRICE + CTA. No prices or purchase action inside the native shell
+          (App Store 3.1.1) -- show a manage-on-web note instead. */}
+      {native === false ? (
+        <>
+          <div className="mb-6">
+            <p className="text-3xl font-bold">${premium.priceMonthly}/month</p>
+            <p className="text-green-600 font-medium">
+              or ${premium.priceAnnual}/year {"\u2014"} just ${annualMonthly}/mo, billed yearly
+            </p>
+          </div>
+
+          <UpgradeButton />
+
+          <p className="text-xs text-gray-400 mt-4">
+            Cancel anytime. No risk.
+          </p>
+        </>
+      ) : (
+        <p className="text-sm text-gray-500 mb-2">
+          Manage your plan on the web at paycheckplanner.ai
         </p>
-      </div>
-
-      <UpgradeButton />
-
-      <p className="text-xs text-gray-400 mt-4">
-        Cancel anytime. No risk.
-      </p>
+      )}
     </div>
   )
 }

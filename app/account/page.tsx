@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import MfaSetup from "@/components/MfaSetup";
 import NotificationPreferences from "@/components/NotificationPreferences";
+import DeleteAccount from "@/components/DeleteAccount";
 import { KeyRound, LogOut, Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function AccountPage() {
@@ -121,6 +122,8 @@ export default function AccountPage() {
         </div>
 
         <NotificationPreferences />
+
+        <DeleteAccount />
       </div>
     </div>
   );

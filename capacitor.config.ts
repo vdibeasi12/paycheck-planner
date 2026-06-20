@@ -12,10 +12,11 @@ const config: CapacitorConfig = {
   webDir: 'www',
 
   server: {
-    // The native app loads your real, fully-working web app from here.
-    // This keeps server components, API routes, Supabase auth (cookies),
-    // Stripe and AI all functioning exactly as they do on the web.
-    url: 'https://paycheckplanner-snowy.vercel.app',
+    // The native app loads your real, fully-working web app from here. This is
+    // the canonical production alias that tracks `main` -- keep it identical to
+    // the web app so mobile never runs a stale deployment. Switch this to
+    // https://paycheckplanner.ai once that custom domain is live in Vercel.
+    url: 'https://paycheck-planner-two.vercel.app',
     // Only allow HTTPS. Leave false unless you are testing against a local
     // http:// dev server (then set true AND use your machine's LAN IP).
     cleartext: false,

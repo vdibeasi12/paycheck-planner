@@ -1,6 +1,6 @@
 "use client";
 
-import { isNativeApp } from "@/lib/platform";
+import { isNativeApp, useIsNativeApp } from "@/lib/platform";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -21,6 +21,7 @@ export default function PricingPage() {
   const [billing, setBilling] = useState<Billing>("annual");
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const native = useIsNativeApp();
 
   async function handleCheckout(tier: Tier) {
     setError(null);
@@ -88,6 +89,36 @@ export default function PricingPage() {
     } finally {
       setLoadingId(null);
     }
+  }
+
+  // Native shell: never render prices or purchase CTAs (App Store 3.1.1).
+  // Pre-mount (null) renders nothing to avoid a price flash; native shows a
+  // manage-on-web screen; web (false) falls through to the full pricing page.
+  if (native === null) return null;
+  if (native) {
+    return (
+      <main
+        className="flex min-h-screen items-center justify-center px-6 text-slate-100"
+        style={{
+          background:
+            "radial-gradient(1200px 600px at 50% -10%, #16243f 0%, #0a1228 55%, #070d1c 100%)",
+        }}
+      >
+        <div className="max-w-md text-center">
+          <div className="mb-6 flex justify-center">
+            <PaycheckPlannerLogo />
+          </div>
+          <h1 className="text-2xl font-bold tracking-tight">
+            Manage your plan on the web
+          </h1>
+          <p className="mt-3 text-sm text-slate-400">
+            Subscriptions are purchased and managed at paycheckplanner.ai. Once
+            your plan is active, everything unlocks here in the app
+            automatically.
+          </p>
+        </div>
+      </main>
+    );
   }
 
   return (
