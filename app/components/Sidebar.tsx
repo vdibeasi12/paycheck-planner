@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { Fragment, useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
@@ -16,11 +16,12 @@ import {
   BarChart3,
   MessageSquare,
   MessageSquarePlus,
+  Sparkles,
   Settings,
   LogOut,
 } from "lucide-react"
 import Logo from "./Logo"
-import OnboardingChecklist from "./OnboardingChecklist"
+import GettingStartedModal from "./GettingStartedModal"
 import { supabase } from "@/lib/supabase/client"
 
 const LINKS = [
@@ -39,6 +40,7 @@ const LINKS = [
 export default function Sidebar() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
+  const [gsOpen, setGsOpen] = useState(false)
 
   const p = pathname || ""
   const isActive = (href: string) => p === href || p.startsWith(href + "/")
@@ -58,20 +60,34 @@ export default function Sidebar() {
       {LINKS.map(({ href, label, Icon }) => {
         const active = isActive(href)
         return (
-          <Link
-            key={href}
-            href={href}
-            onClick={onNavigate}
-            aria-current={active ? "page" : undefined}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition ${
-              active
-                ? "bg-green-500/15 text-green-400"
-                : "text-gray-300 hover:bg-white/5 hover:text-white"
-            }`}
-          >
-            <Icon size={20} className={active ? "text-green-400" : "text-gray-400"} />
-            {label}
-          </Link>
+          <Fragment key={href}>
+            <Link
+              href={href}
+              onClick={onNavigate}
+              aria-current={active ? "page" : undefined}
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition ${
+                active
+                  ? "bg-green-500/15 text-green-400"
+                  : "text-gray-300 hover:bg-white/5 hover:text-white"
+              }`}
+            >
+              <Icon size={20} className={active ? "text-green-400" : "text-gray-400"} />
+              {label}
+            </Link>
+
+            {href === "/dashboard" && (
+              <button
+                onClick={() => {
+                  onNavigate?.()
+                  setGsOpen(true)
+                }}
+                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-gray-300 transition hover:bg-white/5 hover:text-white"
+              >
+                <Sparkles size={20} className="text-gray-400" />
+                Getting Started
+              </button>
+            )}
+          </Fragment>
         )
       })}
 
@@ -125,9 +141,6 @@ export default function Sidebar() {
         </div>
         <div className="flex-1 overflow-y-auto py-4">
           {renderLinks()}
-          <div className="mt-4">
-            <OnboardingChecklist />
-          </div>
         </div>
       </aside>
 
@@ -152,13 +165,12 @@ export default function Sidebar() {
             </div>
             <div className="flex-1 overflow-y-auto py-4">
               {renderLinks(() => setOpen(false))}
-              <div className="mt-4">
-                <OnboardingChecklist />
-              </div>
             </div>
           </aside>
         </div>
       )}
+
+      <GettingStartedModal open={gsOpen} onClose={() => setGsOpen(false)} />
     </>
   )
 }

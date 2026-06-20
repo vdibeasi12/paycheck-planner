@@ -57,14 +57,7 @@ export default function OnboardingActions({ allDone }: { allDone: boolean }) {
         </select>
       </div>
 
-      <div className="mt-6 flex items-center justify-between">
-        <button
-          onClick={finish}
-          disabled={busy}
-          className="text-sm text-gray-400 hover:text-white transition disabled:opacity-50"
-        >
-          Skip for now
-        </button>
+      <div className="mt-6 flex items-center justify-end">
         <button
           onClick={finish}
           disabled={busy}
