@@ -15,6 +15,7 @@ import {
   Trophy,
   BarChart3,
   MessageSquare,
+  MessageSquarePlus,
   Settings,
   LogOut,
 } from "lucide-react"
@@ -47,6 +48,11 @@ export default function Sidebar() {
     window.location.href = "/"
   }
 
+  const openFeedback = (onNavigate?: () => void) => {
+    onNavigate?.()
+    window.dispatchEvent(new CustomEvent("open-feedback"))
+  }
+
   const renderLinks = (onNavigate?: () => void) => (
     <nav className="flex flex-col gap-1 px-3">
       {LINKS.map(({ href, label, Icon }) => {
@@ -68,6 +74,14 @@ export default function Sidebar() {
           </Link>
         )
       })}
+
+      <button
+        onClick={() => openFeedback(onNavigate)}
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-gray-300 transition hover:bg-white/5 hover:text-white"
+      >
+        <MessageSquarePlus size={20} className="text-gray-400" />
+        Feedback
+      </button>
 
       <button
         onClick={() => {
