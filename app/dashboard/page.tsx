@@ -7,6 +7,7 @@ import DebtStrategyRace from "@/app/components/DebtStrategyRace"
 import PaywallOverlay from "@/app/components/PaywallOverlay"
 import InfoHint from "@/app/components/InfoHint"
 import SafeToSpend from "@/app/components/SafeToSpend"
+import AchievementsStrip from "@/app/components/AchievementsStrip"
 import { canUseCharts as planCanUseCharts, canUseSnowball as planCanUseSnowball, canUseAI as planCanUseAI } from "@/lib/permissions"
 
 function monthlyFactor(freq?: string | null): number {
@@ -110,6 +111,7 @@ export default async function DashboardPage() {
         </p>
       </div>
 
+      <AchievementsStrip />
       <SafeToSpend monthlyIncome={monthlyIncome} monthlyBills={monthlyBills} monthlyDebt={monthlyPayments} />
       <SummaryCards netWorth={-totalDebt} totalDebt={totalDebt} monthlyPayments={monthlyPayments} percentPaid={0} />
       <DebtList debts={debts} />

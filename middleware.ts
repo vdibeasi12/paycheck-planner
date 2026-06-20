@@ -18,6 +18,7 @@ const PROTECTED = [
   "/debt-payoff-calculator",
   "/documents",
   "/goals",
+  "/achievements",
   "/account",
   "/insights",
   "/mfa",
