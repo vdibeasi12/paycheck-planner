@@ -10,6 +10,7 @@ import {
   Loader2,
   KeyRound,
   ShieldOff,
+  Trash2,
 } from "lucide-react";
 import AdminFeedback from "@/app/components/AdminFeedback";
 
@@ -31,6 +32,10 @@ type Metrics = {
   activeSubs: number;
   mrr: number;
   signupSources: Record<string, number>;
+  planCounts: Record<string, number>;
+  paidUsers: number;
+  conversion: number;
+  canceledSubs: number;
 };
 
 const PLAN_LABELS: Record<string, string> = {
@@ -40,6 +45,8 @@ const PLAN_LABELS: Record<string, string> = {
   connected: "Autopilot",
 };
 
+const PLAN_ORDER = ["free", "starter", "premium", "connected"];
+
 export default function AdminPage() {
   const [status, setStatus] = useState<"loading" | "ok" | "denied" | "error">("loading");
   const [metrics, setMetrics] = useState<Metrics | null>(null);
@@ -48,6 +55,9 @@ export default function AdminPage() {
   const [savingId, setSavingId] = useState<string | null>(null);
   const [actionBusyId, setActionBusyId] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<{ kind: "ok" | "err"; text: string; link?: string } | null>(null);
+  const [delTarget, setDelTarget] = useState<{ id: string; email: string } | null>(null);
+  const [delConfirm, setDelConfirm] = useState("");
+  const [delBusy, setDelBusy] = useState(false);
 
   useEffect(() => {
     load();
@@ -133,18 +143,42 @@ export default function AdminPage() {
     }
   }
 
+  async function confirmDelete() {
+    if (!delTarget) return;
+    setDelBusy(true);
+    try {
+      const res = await fetch("/api/admin/users", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: delTarget.id, confirmEmail: delConfirm }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok) {
+        setUsers((us) => us.filter((u) => u.id !== delTarget.id));
+        setActionMsg({ kind: "ok", text: `Deleted ${delTarget.email} and purged all of their data.` });
+        setDelTarget(null);
+        setDelConfirm("");
+      } else {
+        setActionMsg({ kind: "err", text: data.error || "Could not delete the user." });
+      }
+    } catch {
+      setActionMsg({ kind: "err", text: "Could not reach the server." });
+    } finally {
+      setDelBusy(false);
+    }
+  }
+
   const filtered = useMemo(
     () => users.filter((u) => u.email.toLowerCase().includes(query.toLowerCase())),
     [users, query]
   );
 
-  // Cost sheet (estimated, computed client-side from the active subs we have).
   const cost = useMemo(() => {
     const active = users.filter((u) => u.sub_status === "active" || u.sub_status === "trialing");
     const activeConnected = active.filter((u) => u.sub_tier === "connected").length;
     const gross = metrics?.mrr ?? 0;
-    const stripeFees = gross * 0.029 + active.length * 0.3; // ~2.9% + $0.30 per monthly charge
-    const plaidCost = activeConnected * 2.5; // Plaid liabilities, per connected user/mo
+    const stripeFees = gross * 0.029 + active.length * 0.3;
+    const plaidCost = activeConnected * 2.5;
     const net = gross - stripeFees - plaidCost;
     const margin = gross > 0 ? (net / gross) * 100 : 0;
     return { gross, stripeFees, plaidCost, net, margin, activeConnected };
@@ -183,6 +217,8 @@ export default function AdminPage() {
   const money = (n: number) =>
     `$${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`;
 
+  const planTotal = metrics ? PLAN_ORDER.reduce((s, k) => s + (metrics.planCounts?.[k] ?? 0), 0) || 1 : 1;
+
   return (
     <div className="min-h-screen bg-[#020617] p-6 md:p-10">
       <div className="mx-auto max-w-5xl">
@@ -198,8 +234,14 @@ export default function AdminPage() {
           <Metric icon={<TrendingUp size={16} />} label="MRR" value={money(metrics?.mrr ?? 0)} />
         </div>
 
-        {/* Cost sheet + attribution */}
-        <div className="mt-6 grid gap-4 lg:grid-cols-2">
+        <div className="mt-4 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <Metric icon={<Users size={16} />} label="Paid users" value={metrics?.paidUsers ?? 0} />
+          <Metric icon={<TrendingUp size={16} />} label="Free -> Paid" value={`${(metrics?.conversion ?? 0).toFixed(1)}%`} />
+          <Metric icon={<CreditCard size={16} />} label="Active subs" value={metrics?.activeSubs ?? 0} />
+          <Metric icon={<ShieldOff size={16} />} label="Canceled subs" value={metrics?.canceledSubs ?? 0} />
+        </div>
+
+        <div className="mt-6 grid gap-4 lg:grid-cols-3">
           <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-5 shadow-sm">
             <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">Cost sheet (est. / mo)</h2>
             <dl className="mt-3 space-y-2 text-sm">
@@ -211,6 +253,27 @@ export default function AdminPage() {
               <Line label="Net margin" value={`${cost.margin.toFixed(1)}%`} />
             </dl>
             <p className="mt-3 text-xs text-gray-500">Estimate. Stripe fees assume one charge per active sub per month.</p>
+          </div>
+
+          <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-5 shadow-sm">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">Plan mix</h2>
+            <ul className="mt-3 space-y-2">
+              {PLAN_ORDER.map((k) => {
+                const n = metrics?.planCounts?.[k] ?? 0;
+                const pctOf = Math.round((n / planTotal) * 100);
+                return (
+                  <li key={k} className="text-sm">
+                    <div className="flex justify-between text-gray-300">
+                      <span>{PLAN_LABELS[k]}</span>
+                      <span className="text-gray-400">{n} ({pctOf}%)</span>
+                    </div>
+                    <div className="mt-1 h-1.5 rounded-full bg-gray-800">
+                      <div className="h-full rounded-full bg-emerald-500" style={{ width: `${pctOf}%` }} />
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
           </div>
 
           <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-5 shadow-sm">
@@ -277,7 +340,7 @@ export default function AdminPage() {
         </div>
 
         <div className="mt-4 overflow-x-auto rounded-2xl border border-gray-700 bg-[#0f172a] shadow-sm">
-          <table className="w-full min-w-[860px] text-left text-sm">
+          <table className="w-full min-w-[920px] text-left text-sm">
             <thead className="border-b border-gray-700 text-xs uppercase tracking-wide text-gray-400">
               <tr>
                 <th className="px-4 py-3">User</th>
@@ -364,6 +427,18 @@ export default function AdminPage() {
                       >
                         <ShieldOff size={13} /> Reset 2FA
                       </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setDelConfirm("");
+                          setDelTarget({ id: u.id, email: u.email });
+                        }}
+                        disabled={u.is_admin}
+                        title={u.is_admin ? "Remove admin access before deleting" : "Delete user and purge all data"}
+                        className="flex items-center gap-1 rounded-lg border border-rose-500/40 px-2 py-1 text-xs text-rose-300 hover:bg-rose-500/10 disabled:opacity-40"
+                      >
+                        <Trash2 size={13} /> Delete
+                      </button>
                       {actionBusyId === u.id && (
                         <Loader2 size={12} className="animate-spin text-gray-400" />
                       )}
@@ -387,6 +462,50 @@ export default function AdminPage() {
 
         <AdminFeedback />
       </div>
+
+      {delTarget && (
+        <div className="fixed inset-0 z-50 flex items-end justify-center p-4 sm:items-center">
+          <div
+            className="absolute inset-0 bg-black/60"
+            onClick={() => (delBusy ? null : setDelTarget(null))}
+            aria-hidden="true"
+          />
+          <div className="relative w-full max-w-md rounded-2xl border border-rose-500/40 bg-[#020617] p-6 shadow-2xl">
+            <h2 className="text-lg font-semibold text-white">Delete user</h2>
+            <p className="mt-2 text-sm text-gray-300">
+              This permanently deletes{" "}
+              <span className="font-semibold text-white">{delTarget.email}</span> and purges all of their
+              data (debts, bills, income, goals, subscriptions, and more). This cannot be undone.
+            </p>
+            <p className="mt-3 text-xs text-gray-400">Type the email to confirm:</p>
+            <input
+              value={delConfirm}
+              onChange={(e) => setDelConfirm(e.target.value)}
+              placeholder={delTarget.email}
+              className="mt-1 w-full rounded-lg border border-gray-700 bg-[#0f172a] px-3 py-2 text-sm outline-none focus:border-rose-400"
+            />
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDelTarget(null)}
+                disabled={delBusy}
+                className="rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-300 hover:bg-[#1a233a] disabled:opacity-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={confirmDelete}
+                disabled={delBusy || delConfirm.trim().toLowerCase() !== delTarget.email.toLowerCase()}
+                className="flex items-center gap-2 rounded-lg bg-rose-600 px-3 py-2 text-sm font-semibold text-white hover:bg-rose-700 disabled:opacity-40"
+              >
+                {delBusy ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
+                Delete permanently
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

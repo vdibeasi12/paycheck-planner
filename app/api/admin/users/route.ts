@@ -4,7 +4,6 @@ import { createClient as createUserClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
-// --- access control: caller must be a logged-in admin ---
 async function requireAdmin() {
   const userClient = await createUserClient();
   const {
@@ -29,9 +28,6 @@ function serviceClient() {
   );
 }
 
-// Monthly-equivalent revenue for a subscription. Annual plans are "2 months
-// free" (annual price = monthly x 10), so a yearly sub contributes
-// (monthly x 10) / 12 per month.
 function monthlyValue(tier: string | null, planType: string | null) {
   const base =
     tier === "connected" ? 10 : tier === "premium" ? 6 : tier === "starter" ? 3 : 0;
@@ -39,7 +35,6 @@ function monthlyValue(tier: string | null, planType: string | null) {
   return annual ? (base * 10) / 12 : base;
 }
 
-// Plans an admin may assign from the dropdown.
 const ASSIGNABLE_PLANS = ["free", "starter", "premium", "connected"];
 
 export async function GET(req: Request) {
@@ -91,21 +86,36 @@ export async function GET(req: Request) {
   );
   const mrr = activeSubs.reduce((sum, s) => sum + monthlyValue(s.tier, s.plan_type), 0);
 
-  // "How did you hear about us?" rollup. Only counts users who answered after
-  // the feature shipped; everyone else falls into "unknown".
   const signupSources: Record<string, number> = {};
   (profiles || []).forEach((p) => {
     const src = ((p.signup_source as string | null) || "").trim() || "unknown";
     signupSources[src] = (signupSources[src] || 0) + 1;
   });
 
+  // Plan mix across every user (no profile row -> counts as free).
+  const planCounts: Record<string, number> = { free: 0, starter: 0, premium: 0, connected: 0 };
+  authUsers.forEach((u) => {
+    const plan = ((pMap.get(u.id)?.plan as string) || "free");
+    planCounts[plan] = (planCounts[plan] || 0) + 1;
+  });
+  const totalUsers = authUsers.length;
+  const paidUsers = totalUsers - (planCounts.free || 0);
+  const conversion = totalUsers > 0 ? (paidUsers / totalUsers) * 100 : 0;
+  const canceledSubs = (subs || []).filter(
+    (s) => s.status === "canceled" || s.status === "cancelled"
+  ).length;
+
   return NextResponse.json({
     metrics: {
-      totalUsers: authUsers.length,
+      totalUsers,
       signups30,
       activeSubs: activeSubs.length,
       mrr: Math.round(mrr * 100) / 100,
       signupSources,
+      planCounts,
+      paidUsers,
+      conversion: Math.round(conversion * 10) / 10,
+      canceledSubs,
     },
     users: rows,
   });
@@ -140,4 +150,61 @@ export async function PATCH(req: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   return NextResponse.json({ ok: true });
+}
+
+// Permanently delete a user and purge all of their data. Guards: cannot delete
+// yourself, cannot delete another admin (demote first), and the caller must pass
+// the exact confirmEmail. Data purge runs in one transaction via the
+// app_admin_purge_user function; then the auth user is removed.
+export async function DELETE(req: Request) {
+  const gate = await requireAdmin();
+  if (!gate.ok) return NextResponse.json({ error: gate.error }, { status: gate.status });
+
+  const body = await req.json().catch(() => null);
+  const userId = body?.userId;
+  const confirmEmail = body?.confirmEmail;
+
+  if (typeof userId !== "string" || !userId) {
+    return NextResponse.json({ error: "userId is required" }, { status: 400 });
+  }
+  if (userId === gate.userId) {
+    return NextResponse.json({ error: "You can't delete your own account from here." }, { status: 400 });
+  }
+
+  const sb = serviceClient();
+
+  const { data: got } = await sb.auth.admin.getUserById(userId);
+  const email = got?.user?.email;
+  if (!email) return NextResponse.json({ error: "User not found." }, { status: 404 });
+
+  if (typeof confirmEmail !== "string" || confirmEmail.trim().toLowerCase() !== email.toLowerCase()) {
+    return NextResponse.json({ error: "Confirmation email does not match." }, { status: 400 });
+  }
+
+  const { data: prof } = await sb
+    .from("profiles")
+    .select("is_admin")
+    .eq("id", userId)
+    .maybeSingle();
+  if (prof?.is_admin) {
+    return NextResponse.json(
+      { error: "This user is an admin. Remove their admin access before deleting." },
+      { status: 400 }
+    );
+  }
+
+  // 1) Purge all app data in one transaction.
+  //    (Plaid /item/remove will be called here once Plaid Phase 0 ships.)
+  const { error: purgeErr } = await sb.rpc("app_admin_purge_user", { p_uid: userId });
+  if (purgeErr) {
+    return NextResponse.json({ error: "Data purge failed: " + purgeErr.message }, { status: 500 });
+  }
+
+  // 2) Remove the auth user (also revokes their sessions).
+  const { error: authErr } = await sb.auth.admin.deleteUser(userId);
+  if (authErr) {
+    return NextResponse.json({ error: "Auth deletion failed: " + authErr.message }, { status: 500 });
+  }
+
+  return NextResponse.json({ ok: true, email });
 }
