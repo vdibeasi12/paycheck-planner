@@ -2,6 +2,7 @@
 
 import { Suspense, useState } from "react"
 import { supabase } from "@/lib/supabase/client"
+import { siteUrl } from "@/lib/siteUrl"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { isNativeApp } from "@/lib/platform"
@@ -112,7 +113,7 @@ function LoginForm() {
       const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: {
-          redirectTo: `${typeof window !== "undefined" ? window.location.origin : ""}/auth/callback`,
+          redirectTo: `${siteUrl()}/auth/callback`,
         },
       })
       if (oauthError) setError(oauthError.message)

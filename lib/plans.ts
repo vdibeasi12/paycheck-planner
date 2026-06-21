@@ -5,7 +5,7 @@
 
 export const BRAND = {
   product: "Paycheck Planner",
-  company: "DiBeasi Global Investment LLC", // confirm exact legal spelling
+  company: "DiBeasi Global Investments LLC", // DBA: "Paycheck Planner"
   supportEmail: "support@paycheckplanner.ai",
   domain: "paycheckplanner.ai",
 } as const;
@@ -43,8 +43,8 @@ export const TIERS: Tier[] = [
     id: "starter",
     name: "Momentum",
     tagline: "Start the momentum -- charts that show your debt shrinking.",
-    priceMonthly: 3,
-    priceAnnual: 30, // 10 months -- two months free
+    priceMonthly: 3.99,
+    priceAnnual: 39.99, // ~10 months -- two months free
     cta: "Build Momentum",
     stripe: {
       monthly: process.env.NEXT_PUBLIC_STRIPE_STARTER_MONTHLY,
@@ -55,8 +55,8 @@ export const TIERS: Tier[] = [
     id: "premium",
     name: "Accelerate",
     tagline: "AI in your corner and the full toolkit, so you pay off faster.",
-    priceMonthly: 6,
-    priceAnnual: 60, // 10 months -- two months free
+    priceMonthly: 6.99,
+    priceAnnual: 69.99, // ~10 months -- two months free
     highlight: true,
     cta: "Hit Accelerate",
     stripe: {
@@ -68,8 +68,8 @@ export const TIERS: Tier[] = [
     id: "connected",
     name: "Autopilot",
     tagline: "Connect your accounts and your whole plan runs itself.",
-    priceMonthly: 10,
-    priceAnnual: 100, // 2 months free vs paying monthly
+    priceMonthly: 11.99,
+    priceAnnual: 119.99, // ~2 months free vs paying monthly
     cta: "Get Autopilot",
     stripe: {
       monthly: process.env.NEXT_PUBLIC_STRIPE_CONNECTED_MONTHLY,
