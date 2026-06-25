@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import MfaSetup from "@/components/MfaSetup";
 import NotificationPreferences from "@/components/NotificationPreferences";
 import DeleteAccount from "@/components/DeleteAccount";
+import SubscriptionCard from "@/components/SubscriptionCard";
 import { KeyRound, LogOut, Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function AccountPage() {
@@ -120,6 +121,8 @@ export default function AccountPage() {
             Update password
           </button>
         </div>
+
+        <SubscriptionCard />
 
         <NotificationPreferences />
 
