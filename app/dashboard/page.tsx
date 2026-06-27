@@ -9,6 +9,7 @@ import InfoHint from "@/app/components/InfoHint"
 import SafeToSpend from "@/app/components/SafeToSpend"
 import AchievementsStrip from "@/app/components/AchievementsStrip"
 import { canUseCharts as planCanUseCharts, canUseSnowball as planCanUseSnowball, canUseAI as planCanUseAI } from "@/lib/permissions"
+import { maybeSendWelcomeEmail } from "@/lib/sendWelcomeEmail"
 
 function monthlyFactor(freq?: string | null): number {
   switch ((freq || "monthly").toLowerCase()) {
@@ -51,13 +52,18 @@ export default async function DashboardPage() {
   // - SAFER PROFILE FETCH
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("plan, onboarded")
+    .select("plan, onboarded, welcome_email_sent")
     .eq("id", user.id)
     .maybeSingle()
 
   // New users complete a short first-run setup before seeing the dashboard.
   if (profile && profile.onboarded === false) {
     redirect("/onboarding")
+  }
+
+  // One-time welcome email on the first real dashboard load (idempotent).
+  if (profile && profile.welcome_email_sent === false) {
+    await maybeSendWelcomeEmail(user.id)
   }
 
   // - FALLBACK LOGIC (CRITICAL)
