@@ -4,10 +4,12 @@ import { requireAdmin, serviceClient, logAdminAction } from "@/lib/adminGuard";
 export const dynamic = "force-dynamic";
 
 function monthlyValue(tier: string | null, planType: string | null) {
-  const base =
-    tier === "connected" ? 10 : tier === "premium" ? 6 : tier === "starter" ? 3 : 0;
-  const annual = planType === "annual" || planType === "yearly";
-  return annual ? (base * 10) / 12 : base;
+  const monthly =
+    tier === "connected" ? 11.99 : tier === "premium" ? 6.99 : tier === "starter" ? 3.99 : 0;
+  const annual =
+    tier === "connected" ? 119.99 : tier === "premium" ? 69.99 : tier === "starter" ? 39.99 : 0;
+  const isAnnual = planType === "annual" || planType === "yearly";
+  return isAnnual ? annual / 12 : monthly;
 }
 
 const ASSIGNABLE_PLANS = ["free", "starter", "premium", "connected"];

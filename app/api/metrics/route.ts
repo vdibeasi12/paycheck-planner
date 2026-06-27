@@ -4,7 +4,13 @@ import { createClient as createUserClient } from "@/lib/supabase/server"
 
 export const dynamic = "force-dynamic"
 
-const PRICE = 9
+function monthlyValue(tier: string | null, planType: string | null) {
+  const monthly =
+    tier === "connected" ? 11.99 : tier === "premium" ? 6.99 : tier === "starter" ? 3.99 : 0
+  const annual =
+    tier === "connected" ? 119.99 : tier === "premium" ? 69.99 : tier === "starter" ? 39.99 : 0
+  return planType === "annual" || planType === "yearly" ? annual / 12 : monthly
+}
 
 export async function GET() {
   // 1) Identify the caller from their session cookie.
@@ -45,9 +51,13 @@ export async function GET() {
     )
     const canceled = subs.filter((s) => s.status === "canceled")
 
-    const mrr = active.length * PRICE
+    const mrr =
+      Math.round(
+        active.reduce((sum, s) => sum + monthlyValue(s.tier, s.plan_type), 0) * 100
+      ) / 100
     const avgLifetimeMonths = 4 // placeholder
-    const ltv = PRICE * avgLifetimeMonths
+    const arpu = active.length > 0 ? mrr / active.length : 0
+    const ltv = Math.round(arpu * avgLifetimeMonths * 100) / 100
 
     const cohorts: Record<string, number> = {}
     subs.forEach((sub) => {

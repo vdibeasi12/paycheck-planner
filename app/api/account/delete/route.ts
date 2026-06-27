@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient as createServiceClient } from "@supabase/supabase-js";
 import { createClient as createUserClient } from "@/lib/supabase/server";
+import { plaid, PLAID_ENABLED } from "@/lib/plaid";
 
 export const dynamic = "force-dynamic";
 
@@ -43,8 +44,28 @@ export async function POST(req: Request) {
 
   const sb = serviceClient();
 
+  // 0) Revoke any linked Plaid items at Plaid before wiping local data, so we
+  //    never leave dangling access tokens. Best-effort: a Plaid failure must
+  //    not block the user's deletion.
+  try {
+    const { data: plaidItems } = await sb
+      .from("plaid_items")
+      .select("access_token")
+      .eq("user_id", user.id);
+    if (PLAID_ENABLED) {
+      for (const it of plaidItems ?? []) {
+        try {
+          await plaid.itemRemove({ access_token: it.access_token });
+        } catch (e) {
+          console.error("account delete: plaid itemRemove failed", e);
+        }
+      }
+    }
+  } catch (e) {
+    console.error("account delete: could not load plaid items", e);
+  }
+
   // 1) Purge all app data in one transaction.
-  //    (Plaid /item/remove will be called here once Plaid Phase 0 ships.)
   const { error: purgeErr } = await sb.rpc("app_admin_purge_user", { p_uid: user.id });
   if (purgeErr) {
     return NextResponse.json(
