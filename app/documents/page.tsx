@@ -1,6 +1,26 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { isPremium } from "@/lib/permissions";
 import DocumentCapture from "@/components/DocumentCapture";
 
-export default function DocumentsPage() {
+export default async function DocumentsPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) {
+    redirect("/login");
+  }
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("plan")
+    .eq("id", user.id)
+    .maybeSingle();
+  // Camera / document capture is an Accelerate+ feature.
+  if (!isPremium(profile?.plan || "free")) {
+    redirect("/pricing");
+  }
+
   return (
     <div className="min-h-screen bg-[#020617] p-6 md:p-10">
       <div className="mx-auto max-w-3xl">

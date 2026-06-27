@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { Plus, Trash2, Upload } from 'lucide-react'
 import BillOCR from '../components/BillOCR'
+import { useRouter } from 'next/navigation'
+import { isPremium } from '@/lib/permissions'
 
 interface Bill {
   id: string
@@ -20,11 +22,22 @@ export default function BillsPage() {
   const [dueDay, setDueDay] = useState('')
   const [showOCR, setShowOCR] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [plan, setPlan] = useState('free')
+  const router = useRouter()
 
   async function loadBills() {
     try {
       const { data } = await supabase.from('bills').select('*')
       if (data) setBills(data)
+      const { data: auth } = await supabase.auth.getUser()
+      if (auth.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('plan')
+          .eq('id', auth.user.id)
+          .maybeSingle()
+        if (profile?.plan) setPlan(profile.plan)
+      }
     } catch (error) {
       console.error('Error loading bills:', error)
     } finally {
@@ -166,7 +179,7 @@ export default function BillsPage() {
 
                 {/* OCR Option */}
                 <button
-                  onClick={() => setShowOCR(true)}
+                  onClick={() => { if (isPremium(plan)) { setShowOCR(true) } else { router.push('/pricing') } }}
                   className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
                 >
                   <Upload size={20} /> Upload Bill Image

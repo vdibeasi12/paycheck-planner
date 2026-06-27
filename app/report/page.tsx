@@ -33,6 +33,17 @@ export default function ReportPage() {
         return
       }
 
+      // PDF reports & export is a Momentum+ feature.
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("plan")
+        .eq("id", user.id)
+        .maybeSingle()
+      if ((profile?.plan || "free") === "free") {
+        router.replace("/pricing")
+        return
+      }
+
       const { data } = await supabase
         .from("debts")
         .select("*")
