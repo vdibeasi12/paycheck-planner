@@ -16,7 +16,7 @@ const config: CapacitorConfig = {
     // the canonical production alias that tracks `main` -- keep it identical to
     // the web app so mobile never runs a stale deployment. Switch this to
     // https://paycheckplanner.ai once that custom domain is live in Vercel.
-    url: 'https://paycheck-planner-two.vercel.app',
+    url: 'https://paycheckplanner.ai',
     // Only allow HTTPS. Leave false unless you are testing against a local
     // http:// dev server (then set true AND use your machine's LAN IP).
     cleartext: false,

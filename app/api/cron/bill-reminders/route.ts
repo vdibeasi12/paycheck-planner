@@ -5,6 +5,13 @@ import { resend } from "@/lib/email"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
+// Canonical app origin for links in outbound emails. Tracks the production
+// domain via env, with a safe fallback to the live custom domain.
+const APP_URL =
+  process.env.NEXT_PUBLIC_APP_URL ||
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  "https://paycheckplanner.ai"
+
 function adminDb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL as string
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY as string
@@ -110,7 +117,7 @@ export async function GET(req: Request) {
       '<table style="border-collapse:collapse;width:100%;max-width:420px;"><tbody>' +
       rows +
       "</tbody></table>" +
-      '<p style="margin-top:20px;"><a style="color:#34d399;" href="https://paycheck-planner-two.vercel.app/bills">Review your bills</a></p>' +
+      '<p style="margin-top:20px;"><a style="color:#34d399;" href="' + APP_URL + '/bills">Review your bills</a></p>' +
       "</div>"
 
     const r = await resend.emails.send({
