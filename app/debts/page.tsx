@@ -1,8 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
-import { Plus, Trash2, CreditCard, Pencil, Check, X } from 'lucide-react'
+import { Plus, Trash2, CreditCard, Pencil, Check, X, Lock } from 'lucide-react'
+import { getMaxDebts } from '@/lib/permissions'
 
 interface Debt {
   id: string
@@ -31,6 +33,26 @@ export default function DebtsPage() {
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [edit, setEdit] = useState<EditState>(EMPTY_EDIT)
+  const [plan, setPlan] = useState<string>('free')
+  const [isAdmin, setIsAdmin] = useState<boolean>(false)
+
+  async function loadPlan() {
+    try {
+      const { data: userAuth } = await supabase.auth.getUser()
+      if (!userAuth.user) return
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('plan, is_admin')
+        .eq('id', userAuth.user.id)
+        .maybeSingle()
+      if (profile) {
+        setPlan((profile.plan as string) || 'free')
+        setIsAdmin(!!profile.is_admin)
+      }
+    } catch (error) {
+      console.error('Error loading plan:', error)
+    }
+  }
 
   async function loadDebts() {
     try {
@@ -48,6 +70,7 @@ export default function DebtsPage() {
 
   useEffect(() => {
     loadDebts()
+    loadPlan()
   }, [])
 
   async function addDebt(e: React.FormEvent) {
@@ -62,10 +85,20 @@ export default function DebtsPage() {
         alert('You must be logged in to add a debt')
         return
       }
+      const limit = isAdmin ? Infinity : getMaxDebts(plan)
+      if (items.length >= limit) {
+        alert(
+          'You have reached your plan limit of ' +
+            limit +
+            ' debts. Upgrade your plan to track more.'
+        )
+        return
+      }
       const { error } = await supabase.from('debts').insert({
         user_id: userAuth.user.id,
         name,
         balance: Number(balance),
+        original_balance: Number(balance),
         interest_rate: rate === '' ? 0 : Number(rate),
         minimum_payment: minPayment === '' ? 0 : Number(minPayment),
       })
@@ -122,6 +155,10 @@ export default function DebtsPage() {
       alert('Failed to delete debt')
     }
   }
+
+  const maxDebts = isAdmin ? Infinity : getMaxDebts(plan)
+  const unlimited = !isFinite(maxDebts) || maxDebts >= 999999
+  const atLimit = !unlimited && items.length >= maxDebts
 
   const totalBalance = items.reduce((sum, d) => sum + (Number(d.balance) || 0), 0)
   const totalMin = items.reduce((sum, d) => sum + (Number(d.minimum_payment) || 0), 0)
@@ -193,11 +230,35 @@ export default function DebtsPage() {
                 </div>
                 <button
                   type="submit"
-                  className="w-full bg-green-500 hover:bg-green-600 text-black font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
+                  disabled={atLimit}
+                  className="w-full bg-green-500 hover:bg-green-600 text-black font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-500"
                 >
                   <Plus size={20} /> Add Debt
                 </button>
               </form>
+
+              <p className="text-gray-500 text-xs mt-4">
+                {unlimited
+                  ? items.length + ' debts tracked - unlimited on your plan'
+                  : items.length + ' of ' + maxDebts + ' debts used on your plan'}
+              </p>
+
+              {atLimit && (
+                <div className="mt-3 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+                  <p className="flex items-center gap-2 text-sm font-semibold text-amber-300">
+                    <Lock size={14} /> Plan limit reached
+                  </p>
+                  <p className="mt-1 text-xs text-amber-200/80">
+                    You are tracking the maximum of {maxDebts} debts on your current plan.
+                  </p>
+                  <Link
+                    href="/pricing"
+                    className="mt-2 inline-block rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-amber-400"
+                  >
+                    Upgrade to track more
+                  </Link>
+                </div>
+              )}
             </div>
           </div>
 
