@@ -57,10 +57,6 @@ export default async function DashboardPage() {
     .eq("id", user.id)
     .maybeSingle()
 
-  // New users complete a short first-run setup before seeing the dashboard.
-  if (profile && profile.onboarded === false) {
-    redirect("/onboarding")
-  }
 
   // One-time welcome email on the first real dashboard load (idempotent).
   if (profile && profile.welcome_email_sent === false) {

@@ -23,9 +23,6 @@ export default async function AmortizationPage() {
     .eq("id", user.id)
     .maybeSingle()
 
-  if (profile && profile.onboarded === false) {
-    redirect("/onboarding")
-  }
 
   let plan = "free"
   if (profile?.plan) {

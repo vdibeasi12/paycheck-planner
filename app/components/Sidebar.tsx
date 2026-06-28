@@ -52,10 +52,13 @@ export default function Sidebar() {
       if (!user) return
       const { data: prof } = await supabase
         .from("profiles")
-        .select("is_admin")
+        .select("is_admin, onboarded")
         .eq("id", user.id)
         .single()
-      if (active && prof?.is_admin) setIsAdmin(true)
+      if (!active) return
+      if (prof?.is_admin) setIsAdmin(true)
+      // First-run: open the tier-aware checklist for users who haven't finished setup.
+      if (prof?.onboarded === false) setGsOpen(true)
     })
     return () => {
       active = false
