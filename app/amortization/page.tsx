@@ -19,7 +19,7 @@ export default async function AmortizationPage() {
 
   const { data: profile } = await supabase
     .from("profiles")
-    .select("plan, onboarded")
+    .select("plan, onboarded, is_admin")
     .eq("id", user.id)
     .maybeSingle()
 
@@ -28,6 +28,8 @@ export default async function AmortizationPage() {
   if (profile?.plan) {
     plan = profile.plan
   }
+  // Admins act as the top (connected) tier.
+  const effectivePlan = profile?.is_admin ? "connected" : plan
 
   // Tier gate for the payoff (amortization) schedule.
   // Default: Starter and Premium - a low-cost, high-value win that makes the
@@ -37,7 +39,7 @@ export default async function AmortizationPage() {
   //   PaywallOverlay priceId below to the Premium Monthly price
   //   (price_1TO2SSFv1EcTs6LYVswF0AwU) plus matching copy.
   // To make it free for everyone: set this to true.
-  const canUseAmortization = plan === "starter" || plan === "premium" || plan === "connected"
+  const canUseAmortization = effectivePlan === "premium" || effectivePlan === "connected"
 
   const { data: debtsData } = await supabase
     .from("debts")
@@ -76,9 +78,9 @@ export default async function AmortizationPage() {
             </p>
           </div>
           <PaywallOverlay
-            priceId="price_1TO2RmFv1EcTs6LYp5OOlvOK"
+            priceId="price_1TO2SSFv1EcTs6LYVswF0AwU"
             title="Unlock your Payoff Plan"
-            description="Upgrade to Starter to view and export your full amortization schedule."
+            description="Upgrade to Accelerate to view and export your full amortization schedule."
           />
         </div>
       ) : debts.length === 0 ? (

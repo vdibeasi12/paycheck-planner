@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
 import {
   CheckCircle2,
@@ -91,6 +91,7 @@ type Props = { open: boolean; onClose: () => void }
 
 export default function GettingStartedModal({ open, onClose }: Props) {
   const router = useRouter()
+  const pathname = usePathname()
   const [steps, setSteps] = useState<Step[] | null>(null)
   const [source, setSource] = useState("")
   const [busy, setBusy] = useState(false)
@@ -234,7 +235,11 @@ export default function GettingStartedModal({ open, onClose }: Props) {
           <button
             onClick={() => {
               onClose()
-              router.push("/dashboard?tour=1")
+              if (pathname === "/dashboard") {
+                setTimeout(() => window.dispatchEvent(new Event("pp:start-tour")), 120)
+              } else {
+                router.push("/dashboard?tour=1")
+              }
             }}
             className="mt-3 inline-flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-1.5 text-sm font-medium text-gray-200 transition hover:bg-white/5"
           >

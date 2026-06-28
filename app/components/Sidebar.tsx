@@ -23,6 +23,7 @@ import {
 } from "lucide-react"
 import Logo from "./Logo"
 import GettingStartedModal from "./GettingStartedModal"
+import ProductTour from "./ProductTour"
 import { supabase } from "@/lib/supabase/client"
 
 const LINKS = [
@@ -214,6 +215,7 @@ export default function Sidebar() {
       )}
 
       <GettingStartedModal open={gsOpen} onClose={() => setGsOpen(false)} />
+      <ProductTour />
     </>
   )
 }

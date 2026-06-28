@@ -9,7 +9,8 @@ import InfoHint from "@/app/components/InfoHint"
 import SafeToSpend from "@/app/components/SafeToSpend"
 import AchievementsStrip from "@/app/components/AchievementsStrip"
 import { canUseCharts as planCanUseCharts, canUseSnowball as planCanUseSnowball, canUseAI as planCanUseAI } from "@/lib/permissions"
-import ProductTour from "@/app/components/ProductTour"
+import DashboardCharts from "@/app/components/DashboardCharts"
+import AIInsightPanel from "@/app/components/AIInsightPanel"
 import { maybeSendWelcomeEmail } from "@/lib/sendWelcomeEmail"
 
 function monthlyFactor(freq?: string | null): number {
@@ -50,27 +51,22 @@ export default async function DashboardPage() {
     redirect("/login")
   }
 
-  // - SAFER PROFILE FETCH
   const { data: profile, error } = await supabase
     .from("profiles")
-    .select("plan, onboarded, welcome_email_sent")
+    .select("plan, onboarded, welcome_email_sent, is_admin")
     .eq("id", user.id)
     .maybeSingle()
-
 
   // One-time welcome email on the first real dashboard load (idempotent).
   if (profile && profile.welcome_email_sent === false) {
     await maybeSendWelcomeEmail(user.id)
   }
 
-  // - FALLBACK LOGIC (CRITICAL)
   let plan = "free"
-
   if (profile?.plan) {
     plan = profile.plan
   }
 
-  // Fetch debts for summary cards + list
   const { data: debtsData } = await supabase
     .from("debts")
     .select("*")
@@ -79,7 +75,6 @@ export default async function DashboardPage() {
   const totalDebt = debts.reduce((sum, d) => sum + (Number(d.balance) || 0), 0)
   const monthlyPayments = debts.reduce((sum, d) => sum + (Number(d.minimum_payment) || 0), 0)
 
-  // Safe-to-spend inputs: monthly income and monthly bills (normalized by frequency)
   const { data: incomeData } = await supabase
     .from("income")
     .select("amount, frequency")
@@ -100,14 +95,14 @@ export default async function DashboardPage() {
     0
   )
 
-  const canUseCharts = planCanUseCharts(plan)
-  const canUseSnowball = planCanUseSnowball(plan)
-  const canUseAI = planCanUseAI(plan)
+  // Admins act as the top (connected) tier so they can use/test every feature.
+  const effectivePlan = profile?.is_admin ? "connected" : plan
+  const canUseCharts = planCanUseCharts(effectivePlan)
+  const canUseSnowball = planCanUseSnowball(effectivePlan)
+  const canUseAI = planCanUseAI(effectivePlan)
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
-
-      <ProductTour />
 
       <div data-tour="dash-title">
         <h1 className="text-3xl font-bold">Dashboard</h1>
@@ -132,37 +127,37 @@ export default async function DashboardPage() {
         </div>
 
         <div className={!canUseCharts ? "opacity-40 pointer-events-none" : ""}>
-          <div>{/* chart component */}</div>
+          <DashboardCharts debts={debts} />
         </div>
 
         {!canUseCharts && (
           <PaywallOverlay
             priceId="price_1TO2RmFv1EcTs6LYp5OOlvOK"
             title="Unlock Charts"
-            description="Upgrade to Starter to access charts."
+            description="Upgrade to Momentum to access charts."
           />
         )}
       </div>
 
-      {/* SNOWBALL (PREMIUM ONLY - FIXED) */}
+      {/* SNOWBALL */}
       <div className="relative bg-[#0f172a] border border-gray-700 rounded-xl p-6 overflow-hidden">
         <div className="mb-4 flex items-center gap-2">
           <h2 className="text-lg font-semibold">Snowball &amp; Avalanche</h2>
           <InfoHint
             label="About Snowball & Avalanche"
-            text="Compares two payoff strategies - Snowball (smallest balance first) vs Avalanche (highest interest first) - so you can see which clears your debt faster. Premium."
+            text="Compares two payoff strategies - Snowball (smallest balance first) vs Avalanche (highest interest first) - so you can see which clears your debt faster. Accelerate."
           />
         </div>
 
         <div className={!canUseSnowball ? "opacity-40 pointer-events-none" : ""}>
-          <DebtStrategyRace plan={plan} />
+          <DebtStrategyRace plan={effectivePlan} />
         </div>
 
         {!canUseSnowball && (
           <PaywallOverlay
             priceId="price_1TO2SSFv1EcTs6LYVswF0AwU"
             title="Unlock Debt Strategies"
-            description="Premium plan required."
+            description="Accelerate plan required."
           />
         )}
       </div>
@@ -173,12 +168,12 @@ export default async function DashboardPage() {
           <h2 className="text-lg font-semibold">AI Insights</h2>
           <InfoHint
             label="About AI Insights"
-            text="Personalized, AI-generated suggestions based on your debts and budget. Premium."
+            text="Personalized, AI-generated suggestions based on your debts and budget. Accelerate."
           />
         </div>
 
         <div className={!canUseAI ? "opacity-40 pointer-events-none" : ""}>
-          <div>{/* AI component */}</div>
+          <AIInsightPanel debts={debts} />
         </div>
 
         {!canUseAI && (

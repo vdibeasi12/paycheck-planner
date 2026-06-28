@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
+import { canUseAI } from "@/lib/permissions"
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6"
@@ -23,12 +24,13 @@ export async function POST(req: Request) {
     }
     const { data: profile } = await supabase
       .from("profiles")
-      .select("plan")
+      .select("plan, is_admin")
       .eq("id", user.id)
       .maybeSingle()
-    if (profile?.plan !== "premium") {
+    const effectivePlan = profile?.is_admin ? "connected" : (profile?.plan || "free")
+    if (!canUseAI(effectivePlan)) {
       return NextResponse.json({
-        advice: "Upgrade to Premium to unlock personalized AI insights on your debts.",
+        advice: "Upgrade to Accelerate to unlock personalized AI insights on your debts.",
       })
     }
 

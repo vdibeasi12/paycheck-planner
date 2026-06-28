@@ -4,7 +4,7 @@
 // premium-level check here.
 
 export function canUseSnowball(plan: string): boolean {
-  return plan === 'premium' || plan === 'starter' || plan === 'connected'
+  return plan === 'premium' || plan === 'connected'
 }
 
 export function canUseCharts(plan: string): boolean {
