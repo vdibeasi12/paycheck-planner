@@ -7,6 +7,7 @@ import MfaSetup from "@/components/MfaSetup";
 import NotificationPreferences from "@/components/NotificationPreferences";
 import DeleteAccount from "@/components/DeleteAccount";
 import SubscriptionCard from "@/components/SubscriptionCard";
+import BankConnections from "@/components/BankConnections";
 import { KeyRound, LogOut, Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function AccountPage() {
@@ -123,6 +124,8 @@ export default function AccountPage() {
         </div>
 
         <SubscriptionCard />
+
+        <BankConnections />
 
         <NotificationPreferences />
 
