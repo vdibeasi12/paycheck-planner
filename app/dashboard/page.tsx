@@ -9,6 +9,7 @@ import InfoHint from "@/app/components/InfoHint"
 import SafeToSpend from "@/app/components/SafeToSpend"
 import AchievementsStrip from "@/app/components/AchievementsStrip"
 import { canUseCharts as planCanUseCharts, canUseSnowball as planCanUseSnowball, canUseAI as planCanUseAI } from "@/lib/permissions"
+import ProductTour from "@/app/components/ProductTour"
 import { maybeSendWelcomeEmail } from "@/lib/sendWelcomeEmail"
 
 function monthlyFactor(freq?: string | null): number {
@@ -110,7 +111,9 @@ export default async function DashboardPage() {
   return (
     <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
 
-      <div>
+      <ProductTour />
+
+      <div data-tour="dash-title">
         <h1 className="text-3xl font-bold">Dashboard</h1>
         <p className="text-gray-400 mt-1">
           Plan: <span className="text-white capitalize">{plan}</span>

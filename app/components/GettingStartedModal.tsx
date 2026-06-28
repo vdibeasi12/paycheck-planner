@@ -19,6 +19,7 @@ import {
 
 type Tier = "free" | "starter" | "premium" | "connected"
 const RANK: Record<Tier, number> = { free: 0, starter: 1, premium: 2, connected: 3 }
+const TIER_LABEL: Record<number, string> = { 1: "Momentum", 2: "Accelerate", 3: "Autopilot" }
 
 type StepDef = {
   key: string
@@ -71,7 +72,7 @@ const STEP_DEFS: StepDef[] = [
   },
 ]
 
-type Step = StepDef & { done: boolean; locked: boolean }
+type Step = StepDef & { done: boolean; locked: boolean; upgrade: boolean }
 
 const SOURCES = [
   { value: "", label: "Select an option (optional)" },
@@ -127,7 +128,8 @@ export default function GettingStartedModal({ open, onClose }: Props) {
       const plan = ((prof?.plan as Tier) || "free")
       // Admins (and the connected tier) see every feature.
       const userRank = prof?.is_admin ? RANK.connected : (RANK[plan] ?? 0)
-      const defs = STEP_DEFS.filter((d) => d.rank <= userRank)
+      // Show every step; ones above the user's tier render as locked upgrade previews.
+      const defs = STEP_DEFS
 
       const { data: progRows } = await supabase
         .from("onboarding_progress")
@@ -137,13 +139,17 @@ export default function GettingStartedModal({ open, onClose }: Props) {
 
       const out = await Promise.all(
         defs.map(async (d): Promise<Step> => {
-          if (d.kind === "locked") return { ...d, done: false, locked: true }
-          if (d.kind === "action") return { ...d, done: doneKeys.has(d.progressKey || ""), locked: false }
+          const aboveTier = d.rank > userRank
+          // Not-yet-available features ("locked") show "Soon"; features above the
+          // user's tier show an upgrade preview. Both are non-actionable.
+          if (d.kind === "locked") return { ...d, done: false, locked: true, upgrade: false }
+          if (aboveTier) return { ...d, done: false, locked: true, upgrade: true }
+          if (d.kind === "action") return { ...d, done: doneKeys.has(d.progressKey || ""), locked: false, upgrade: false }
           const { count } = await supabase
             .from(d.table as string)
             .select("id", { count: "exact", head: true })
             .eq("user_id", user.id)
-          return { ...d, done: (count || 0) > 0, locked: false }
+          return { ...d, done: (count || 0) > 0, locked: false, upgrade: false }
         })
       )
 
@@ -225,6 +231,16 @@ export default function GettingStartedModal({ open, onClose }: Props) {
             Let's get you set up. Here's everything your plan unlocks.
           </p>
 
+          <button
+            onClick={() => {
+              onClose()
+              router.push("/dashboard?tour=1")
+            }}
+            className="mt-3 inline-flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-1.5 text-sm font-medium text-gray-200 transition hover:bg-white/5"
+          >
+            Take a quick tour
+          </button>
+
           <div className="mt-6">
             <div className="mb-2 flex justify-between text-sm text-gray-400">
               <span>
@@ -263,10 +279,25 @@ export default function GettingStartedModal({ open, onClose }: Props) {
                     <div className="flex items-center gap-2">
                       <s.Icon size={18} className="shrink-0 text-gray-300" />
                       <h3 className="font-semibold">{s.title}</h3>
+                      {s.upgrade && (
+                        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide text-amber-400">
+                          {TIER_LABEL[s.rank]}
+                        </span>
+                      )}
                     </div>
                     <p className="mt-1 text-sm text-gray-400">{s.desc}</p>
                   </div>
-                  {s.locked ? (
+                  {s.upgrade ? (
+                    <button
+                      onClick={() => {
+                        onClose()
+                        router.push("/pricing")
+                      }}
+                      className="shrink-0 self-center rounded-lg bg-amber-500 px-4 py-2 text-sm font-semibold text-black transition hover:bg-amber-400"
+                    >
+                      Upgrade
+                    </button>
+                  ) : s.locked ? (
                     <span className="shrink-0 self-center rounded-full bg-gray-800 px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-gray-400">
                       Soon
                     </span>

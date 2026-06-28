@@ -84,6 +84,7 @@ export default function Sidebar() {
             <Link
               href={href}
               onClick={onNavigate}
+              data-tour={"nav-" + href.replace(/\//g, "")}
               aria-current={active ? "page" : undefined}
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition ${
                 active

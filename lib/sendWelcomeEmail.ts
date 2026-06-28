@@ -34,7 +34,7 @@ function welcomeHtml(name: string): string {
     '<div style="margin:0;padding:0;background:#f1f5f9;">' +
     '<div style="max-width:560px;margin:0 auto;padding:32px 16px;font-family:Arial,Helvetica,sans-serif;">' +
     '<div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">' +
-    '<div style="background:#0b1220;padding:28px 32px;text-align:center;">' +
+    '<div style="background:#ffffff;padding:28px 32px;text-align:center;border-bottom:1px solid #e2e8f0;">' +
     '<img src="' + logo + '" alt="Paycheck Planner" width="180" style="display:inline-block;max-width:180px;height:auto;" />' +
     "</div>" +
     '<div style="padding:32px;">' +
