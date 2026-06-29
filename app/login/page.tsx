@@ -127,10 +127,6 @@ function LoginForm() {
   return (
     <div className="min-h-screen bg-[#020617] text-white flex items-center justify-center px-6">
       <div className="bg-[#0f172a] border border-gray-800 p-8 rounded-lg w-full max-w-md">
-        <Link href="/" className="flex justify-center mb-6">
-          <img src="/logo.png" alt="Paycheck Planner" style={{ height: "48px" }} />
-        </Link>
-
         {error && (
           <div className="bg-red-500/10 border border-red-500/50 text-red-400 p-3 rounded text-sm mb-4">
             {error}
