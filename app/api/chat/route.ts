@@ -121,7 +121,7 @@ export async function POST(request: Request) {
       : ""
 
     return NextResponse.json({
-      response: text || "I'm not sure how to answer that—could you rephrase?",
+      response: text || "I'm not sure how to answer that - could you rephrase?",
     })
   } catch (error) {
     console.error("Chat API error:", error)

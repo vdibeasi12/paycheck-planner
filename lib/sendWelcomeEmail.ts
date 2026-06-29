@@ -30,60 +30,79 @@ function welcomeHtml(name: string): string {
   const logo = appUrl + "/logo.png"
   const safeName = escapeHtml(name) || "there"
 
-  return (
-    '<div style="margin:0;padding:0;background:#f1f5f9;">' +
-    '<div style="max-width:560px;margin:0 auto;padding:32px 16px;font-family:Arial,Helvetica,sans-serif;">' +
-    '<div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;">' +
-    '<div style="background:#ffffff;padding:28px 32px;text-align:center;border-bottom:1px solid #e2e8f0;">' +
-    '<img src="' + logo + '" alt="Paycheck Planner" width="180" style="display:inline-block;max-width:180px;height:auto;" />' +
-    "</div>" +
-    '<div style="padding:32px;">' +
-    '<h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;color:#0f172a;">Welcome, ' +
-    safeName +
-    "!</h1>" +
-    '<p style="margin:0 0 16px;font-size:15px;line-height:1.6;color:#334155;">' +
-    "Your account is ready. Paycheck Planner helps you plan every paycheck, track your debts, " +
-    "and see exactly when you'll be debt-free." +
-    "</p>" +
-    '<p style="margin:0 0 24px;font-size:15px;line-height:1.6;color:#334155;">' +
-    "Here's a great way to start:" +
-    "</p>" +
-    '<table role="presentation" width="100%" style="border-collapse:collapse;margin:0 0 28px;">' +
-    "<tbody>" +
-    welcomeStep("1", "Add your income", "Enter each paycheck so the budget math is right.") +
-    welcomeStep("2", "Add your debts", "Balances, APRs, and minimums power your payoff plan.") +
-    welcomeStep("3", "See your payoff date", "Watch your debt-free date come into focus.") +
-    "</tbody></table>" +
-    '<div style="text-align:center;margin:0 0 8px;">' +
-    '<a href="' + appUrl + '/dashboard" ' +
-    'style="display:inline-block;background:#10b981;color:#04210f;text-decoration:none;font-weight:bold;font-size:15px;padding:14px 28px;border-radius:10px;">' +
-    "Open your dashboard</a>" +
-    "</div>" +
-    "</div>" +
-    '<div style="padding:20px 32px;border-top:1px solid #e2e8f0;background:#f8fafc;">' +
-    '<p style="margin:0;font-size:12px;line-height:1.5;color:#94a3b8;">' +
-    "Paycheck Planner, a service of DiBeasi Global Investments LLC. " +
-    "You're receiving this because you created an account at paycheckplanner.ai." +
-    "</p>" +
-    "</div>" +
-    "</div>" +
-    "</div>" +
-    "</div>"
-  )
-}
+  const feature = (accent: string, title: string, body: string): string => `
+            <td valign="top" width="50%" style="padding:8px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;background:#0f172a;border:1px solid #1e293b;border-radius:12px;">
+                <tr><td style="padding:18px;">
+                  <div style="width:38px;height:6px;border-radius:3px;background:${accent};margin-bottom:12px;font-size:1px;line-height:1px;">&nbsp;</div>
+                  <div style="font-size:15px;font-weight:bold;color:#f8fafc;margin-bottom:6px;">${title}</div>
+                  <div style="font-size:13px;line-height:1.55;color:#94a3b8;">${body}</div>
+                </td></tr>
+              </table>
+            </td>`
 
-function welcomeStep(n: string, title: string, desc: string): string {
-  return (
-    "<tr>" +
-    '<td valign="top" style="width:34px;padding:6px 0;">' +
-    '<div style="width:26px;height:26px;border-radius:13px;background:#10b981;color:#04210f;font-weight:bold;font-size:14px;text-align:center;line-height:26px;">' +
-    n +
-    "</div></td>" +
-    '<td style="padding:6px 0 6px 12px;">' +
-    '<div style="font-size:15px;font-weight:bold;color:#0f172a;">' + title + "</div>" +
-    '<div style="font-size:13px;line-height:1.5;color:#64748b;">' + desc + "</div>" +
-    "</td></tr>"
-  )
+  return `
+  <div style="margin:0;padding:0;background:#eef2f7;">
+    <div style="max-width:600px;margin:0 auto;padding:24px 14px;font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;">
+        <tr><td style="background:#ffffff;border:1px solid #e2e8f0;border-bottom:none;border-radius:16px 16px 0 0;padding:24px;text-align:center;">
+          <img src="${logo}" alt="Paycheck Planner" width="190" style="display:inline-block;max-width:190px;height:auto;" />
+        </td></tr>
+      </table>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;">
+        <tr><td style="background:#0b1220;padding:38px 28px;text-align:center;">
+          <div style="display:inline-block;background:#0e3b2e;color:#34d399;font-size:12px;font-weight:bold;letter-spacing:1px;padding:6px 14px;border-radius:999px;margin-bottom:16px;">YOU'RE IN</div>
+          <h1 style="margin:0 0 12px;font-size:26px;line-height:1.25;color:#ffffff;font-weight:800;">Welcome to a smarter financial future, ${safeName}!</h1>
+          <p style="margin:0 auto 26px;max-width:430px;font-size:15px;line-height:1.6;color:#cbd5e1;">You just took the first step toward planning every paycheck, crushing debt faster, and finally seeing your debt-free date. Let's get you set up in about two minutes.</p>
+          <a href="${appUrl}/dashboard" style="display:inline-block;background:#10b981;color:#04210f;text-decoration:none;font-weight:bold;font-size:15px;padding:14px 30px;border-radius:10px;">Complete your setup -&gt;</a>
+        </td></tr>
+      </table>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;background:#0b1220;">
+        <tr>
+          ${feature("#10b981", "Plan every paycheck", "Know exactly where every dollar should go before payday arrives.")}
+          ${feature("#3b82f6", "Eliminate debt faster", "Snowball or avalanche - we map the fastest route to debt-free.")}
+        </tr>
+        <tr>
+          ${feature("#a855f7", "AI-powered insights", "Personalized guidance based on your real balances and goals.")}
+          ${feature("#f59e0b", "Your data stays secure", "Bank-level encryption. We never sell your personal information.")}
+        </tr>
+      </table>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;">
+        <tr><td style="background:#0b1220;padding:10px 28px 34px;text-align:center;">
+          <p style="margin:16px 0 4px;font-size:14px;line-height:1.6;color:#e2e8f0;">Every great financial journey begins with one paycheck. We're excited to be part of yours.</p>
+          <p style="margin:0;font-size:14px;font-weight:bold;color:#34d399;">- The Paycheck Planner Team</p>
+        </td></tr>
+      </table>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;">
+        <tr><td style="background:#ffffff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 16px 16px;padding:22px 28px;text-align:center;">
+          <p style="margin:0 0 10px;font-size:13px;color:#475569;">
+            <strong>Need help?</strong>&nbsp;
+            <a href="${appUrl}/support" style="color:#0f766e;text-decoration:none;">Support Center</a>
+            &nbsp;|&nbsp;
+            <a href="${appUrl}/contact" style="color:#0f766e;text-decoration:none;">Contact Us</a>
+          </p>
+          <p style="margin:0 0 10px;font-size:11px;color:#94a3b8;">
+            <a href="${appUrl}/privacy" style="color:#94a3b8;text-decoration:none;">Privacy Policy</a>
+            &nbsp;|&nbsp;
+            <a href="${appUrl}/terms" style="color:#94a3b8;text-decoration:none;">Terms of Service</a>
+            &nbsp;|&nbsp;
+            <a href="${appUrl}/disclaimer" style="color:#94a3b8;text-decoration:none;">Disclaimer</a>
+          </p>
+          <p style="margin:0;font-size:11px;line-height:1.5;color:#a0aec0;">
+            Independent financial management platform. No financial, legal, or investment advice.<br/>
+            (c) 2026 Paycheck Planner - DiBeasi Global Investments LLC (DBA Paycheck Planner).<br/>
+            You're receiving this because you created an account at paycheckplanner.ai.
+          </p>
+        </td></tr>
+      </table>
+
+    </div>
+  </div>`
 }
 
 export async function maybeSendWelcomeEmail(userId: string): Promise<void> {
@@ -112,7 +131,7 @@ export async function maybeSendWelcomeEmail(userId: string): Promise<void> {
     const r = await resend.emails.send({
       from,
       to,
-      subject: "Welcome to Paycheck Planner",
+      subject: "Welcome to Paycheck Planner - let's plan your first paycheck!",
       html: welcomeHtml(name),
     })
     if (r && (r as any).error) throw new Error((r as any).error.message || "send error")
