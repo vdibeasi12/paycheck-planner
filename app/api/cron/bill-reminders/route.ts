@@ -18,10 +18,12 @@ function adminDb() {
   return createClient(url, key, { auth: { persistSession: false } })
 }
 
-function targetDayOfMonth(daysAhead: number): number {
+function reminderTarget(daysAhead: number): { day: number; daysInMonth: number } {
   const d = new Date()
   d.setDate(d.getDate() + daysAhead)
-  return d.getDate()
+  const day = d.getDate()
+  const daysInMonth = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate()
+  return { day, daysInMonth }
 }
 
 function escapeHtml(s: any): string {
@@ -61,17 +63,23 @@ export async function GET(req: Request) {
   for (const pref of prefs || []) {
     const daysBefore =
       typeof pref.reminder_days_before === "number" ? pref.reminder_days_before : 3
-    const day = targetDayOfMonth(daysBefore)
+    const { day: targetDay, daysInMonth } = reminderTarget(daysBefore)
 
     const { data: bills } = await db
       .from("bills")
       .select("name, amount, due_date, status")
       .eq("user_id", pref.user_id)
-      .eq("due_date", day)
 
+    // Match on the bill's effective due day for the target month. A bill stored
+    // as due on the 31st (or 30th/29th) is clamped to the last day of shorter
+    // months, so end-of-month bills still fire instead of being silently skipped.
     const due = (bills || []).filter((b: any) => {
       const s = (b.status || "").toString().toLowerCase()
-      return s !== "paid"
+      if (s === "paid") return false
+      const dd = Number(b.due_date)
+      if (!Number.isFinite(dd)) return false
+      const effective = Math.min(dd, daysInMonth)
+      return effective === targetDay
     })
 
     if (due.length === 0) {

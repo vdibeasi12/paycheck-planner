@@ -33,13 +33,14 @@ export default function ReportPage() {
         return
       }
 
-      // PDF reports & export is a Momentum+ feature.
+      // PDF reports & export is a Momentum+ feature. Admins act as connected.
       const { data: profile } = await supabase
         .from("profiles")
-        .select("plan")
+        .select("plan, is_admin")
         .eq("id", user.id)
         .maybeSingle()
-      if ((profile?.plan || "free") === "free") {
+      const effectivePlan = profile?.is_admin ? "connected" : (profile?.plan || "free")
+      if (effectivePlan === "free") {
         router.replace("/pricing")
         return
       }

@@ -34,6 +34,17 @@ export async function POST(req: Request) {
       })
     }
 
+    // Per-user rate limit, DB-backed so it holds across serverless instances.
+    // Protects the Anthropic budget from a single account hammering the route.
+    const { data: underLimit } = await supabase.rpc("check_and_increment_rate_limit", {
+      p_bucket: "ai",
+    })
+    if (underLimit === false) {
+      return NextResponse.json({
+        advice: "You have reached the AI insight limit for now. Please try again a bit later.",
+      })
+    }
+
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
       console.error("ANTHROPIC_API_KEY is not set")

@@ -46,6 +46,20 @@ export async function POST(request: Request) {
       })
     }
 
+    // Per-user rate limit, DB-backed so it holds across serverless instances.
+    const { data: underLimit } = await supabase.rpc("check_and_increment_rate_limit", {
+      p_bucket: "chat",
+    })
+    if (underLimit === false) {
+      return NextResponse.json(
+        {
+          response:
+            "You have reached the usage limit for the AI assistant for now. Please try again in a little while.",
+        },
+        { status: 429 }
+      )
+    }
+
     const apiKey = process.env.ANTHROPIC_API_KEY
     if (!apiKey) {
       console.error("ANTHROPIC_API_KEY is not set")

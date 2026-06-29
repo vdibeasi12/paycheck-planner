@@ -13,11 +13,13 @@ export default async function DocumentsPage() {
   }
   const { data: profile } = await supabase
     .from("profiles")
-    .select("plan")
+    .select("plan, is_admin")
     .eq("id", user.id)
     .maybeSingle();
-  // Camera / document capture is an Accelerate+ feature.
-  if (!isPremium(profile?.plan || "free")) {
+  // Camera / document capture is an Accelerate+ feature. Admins act as the
+  // connected tier everywhere.
+  const effectivePlan = profile?.is_admin ? "connected" : (profile?.plan || "free");
+  if (!isPremium(effectivePlan)) {
     redirect("/pricing");
   }
 
