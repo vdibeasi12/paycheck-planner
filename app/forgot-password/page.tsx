@@ -36,9 +36,6 @@ export default function ForgotPassword() {
   return (
     <div className="min-h-screen bg-[#020617] text-white flex items-center justify-center px-6">
       <div className="bg-[#0f172a] border border-gray-800 p-8 rounded-lg w-full max-w-md">
-        <Link href="/" className="flex justify-center mb-6">
-          <img src="/logo.png" alt="Paycheck Planner" style={{ height: "48px" }} />
-        </Link>
 
         {sent ? (
           <div className="text-center">

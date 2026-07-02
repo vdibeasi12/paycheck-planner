@@ -129,18 +129,6 @@ export default function PricingPage() {
           "radial-gradient(1200px 600px at 50% -10%, #16243f 0%, #0a1228 55%, #070d1c 100%)",
       }}
     >
-      {/* Top bar */}
-      <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <Link href="/" aria-label={`${BRAND.product} home`}>
-          <PaycheckPlannerLogo />
-        </Link>
-        <Link
-          href="/login"
-          className="text-sm font-medium text-slate-300 transition-colors hover:text-white"
-        >
-          Sign in
-        </Link>
-      </header>
 
       <div className="mx-auto max-w-6xl px-6 pb-24">
         {/* Hero */}
