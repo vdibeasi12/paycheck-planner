@@ -1,0 +1,77 @@
+name: Storage Bucket Backup (documents)
+
+# Copies the Supabase Storage "documents" bucket to encrypted, off-site,
+# S3-compatible object storage (Cloudflare R2 / AWS S3 / Backblaze B2).
+# Runs daily; the archive is GPG-encrypted (AES-256) before it leaves the
+# runner, so the off-site copy is encrypted independently of the provider.
+#
+# Required repository secrets:
+#   SUPABASE_URL                  https://<ref>.supabase.co
+#   SUPABASE_SERVICE_ROLE_KEY     service_role key
+#   BACKUP_GPG_PASSPHRASE         symmetric passphrase (KEEP IT SAFE - losing it makes backups undecryptable)
+#   BACKUP_S3_ENDPOINT            e.g. https://<accountid>.r2.cloudflarestorage.com
+#   BACKUP_S3_BUCKET              destination bucket name
+#   BACKUP_S3_ACCESS_KEY_ID       access key for the destination
+#   BACKUP_S3_SECRET_ACCESS_KEY   secret key for the destination
+#   BACKUP_S3_REGION              region ("auto" for R2)
+#
+# Restore:  aws s3 cp s3://$BUCKET/documents/<date>.tar.gz.gpg . --endpoint-url $ENDPOINT
+#           gpg --batch --passphrase "$PASS" -d <date>.tar.gz.gpg > backup.tar.gz
+#           tar -xzf backup.tar.gz
+
+on:
+  schedule:
+    - cron: "17 6 * * *"   # daily at 06:17 UTC
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+
+      - name: Install Supabase client
+        run: npm install --no-save @supabase/supabase-js@^2.103.3
+
+      - name: Download bucket objects
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          BUCKET: documents
+          OUT_DIR: backup-out
+        run: node scripts/backup-storage.mjs
+
+      - name: Archive and encrypt
+        env:
+          BACKUP_GPG_PASSPHRASE: ${{ secrets.BACKUP_GPG_PASSPHRASE }}
+        run: |
+          STAMP=$(date -u +%Y%m%d-%H%M%S)
+          echo "STAMP=$STAMP" >> "$GITHUB_ENV"
+          tar -czf "documents-$STAMP.tar.gz" -C backup-out .
+          gpg --batch --yes --pinentry-mode loopback \
+            --passphrase "$BACKUP_GPG_PASSPHRASE" \
+            --cipher-algo AES256 -c "documents-$STAMP.tar.gz"
+          rm -f "documents-$STAMP.tar.gz"
+
+      - name: Upload to off-site storage
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.BACKUP_S3_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.BACKUP_S3_SECRET_ACCESS_KEY }}
+          AWS_DEFAULT_REGION: ${{ secrets.BACKUP_S3_REGION }}
+          # Keep aws-cli's newer default integrity checks off; R2 rejects them.
+          AWS_REQUEST_CHECKSUM_CALCULATION: WHEN_REQUIRED
+          AWS_RESPONSE_CHECKSUM_VALIDATION: WHEN_REQUIRED
+        run: |
+          aws s3 cp "documents-$STAMP.tar.gz.gpg" \
+            "s3://${{ secrets.BACKUP_S3_BUCKET }}/documents/documents-$STAMP.tar.gz.gpg" \
+            --endpoint-url "${{ secrets.BACKUP_S3_ENDPOINT }}"
+
+      - name: Clean up
+        if: always()
+        run: rm -rf backup-out "documents-$STAMP.tar.gz.gpg"
