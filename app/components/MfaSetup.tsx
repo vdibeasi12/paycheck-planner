@@ -6,7 +6,7 @@ import { ShieldCheck, ShieldPlus, Trash2, Loader2 } from "lucide-react";
 
 type Factor = { id: string; friendly_name: string | null; status: string };
 
-export default function MfaSetup() {
+export default function MfaSetup({ onVerified }: { onVerified?: () => void } = {}) {
   const [factors, setFactors] = useState<Factor[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -80,6 +80,7 @@ export default function MfaSetup() {
       // success -- reset and reload
       cancelEnroll();
       await loadFactors();
+      onVerified?.();
     } finally {
       setBusy(false);
     }
