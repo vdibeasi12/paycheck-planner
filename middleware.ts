@@ -93,10 +93,12 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(url)
   }
 
-  // MFA enforcement: a logged-in user with a verified second factor whose
-  // session is still AAL1 must complete the step-up challenge before reaching
-  // any protected route. /mfa itself is exempt to avoid a redirect loop.
-  if (user && isProtected && path !== "/mfa") {
+  // MFA enforcement: every logged-in user must be at AAL2 before reaching any
+  // protected route. Users without a verified factor yet are sent to the
+  // mandatory enrollment page; users with a verified factor whose session is
+  // still AAL1 are sent to the step-up challenge. Both MFA routes are exempt
+  // from this check themselves to avoid a redirect loop.
+  if (user && isProtected && path !== "/mfa" && path !== "/mfa/setup") {
     const {
       data: { session },
     } = await supabase.auth.getSession()
@@ -104,27 +106,21 @@ export async function middleware(request: NextRequest) {
 
     // The JWT `aal` claim is authoritative for "has this session stepped up?":
     //   aal2 -> already verified this session, let them through.
-    //   aal1 -> only force /mfa if the user actually has a verified factor to
-    //           challenge against (otherwise there is nothing to step up to and
-    //           we would bounce them into a dead end).
+    //   anything else -> force either enrollment or the step-up challenge.
     // We deliberately do NOT call getAuthenticatorAssuranceLevel() here: in a
     // fresh per-request Edge client it cannot resolve `nextLevel` and always
     // reports aal1/aal1, so the step-up redirect never fired.
     // Secure-by-default: only an explicit aal2 claim counts as stepped-up.
-    // A missing or unreadable claim (some OAuth sessions) or aal1 both
-    // force the challenge whenever the user has a verified factor.
     if (getAalClaim(token) !== "aal2") {
       const { data: factors } = await supabase.auth.mfa.listFactors()
       const hasVerifiedFactor =
         !!factors &&
         Array.isArray(factors.all) &&
         factors.all.some((f) => f.status === "verified")
-      if (hasVerifiedFactor) {
-        const url = request.nextUrl.clone()
-        url.pathname = "/mfa"
-        url.searchParams.set("redirectTo", path)
-        return NextResponse.redirect(url)
-      }
+      const url = request.nextUrl.clone()
+      url.pathname = hasVerifiedFactor ? "/mfa" : "/mfa/setup"
+      url.searchParams.set("redirectTo", path)
+      return NextResponse.redirect(url)
     }
   }
 
