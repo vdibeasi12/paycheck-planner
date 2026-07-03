@@ -45,8 +45,14 @@ export default function Sidebar() {
   const [gsOpen, setGsOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
 
+  // The MFA gate pages are full-screen, blocking interstitials the user must
+  // complete before touching the rest of the app. No nav chrome and no
+  // onboarding modal should ever render on top of them.
+  const onMfaGate = (pathname || "").startsWith("/mfa")
+
   // Show the Admin link only to admin accounts.
   useEffect(() => {
+    if (onMfaGate) return
     let active = true
     supabase.auth.getUser().then(async ({ data }) => {
       const user = data.user
@@ -64,7 +70,9 @@ export default function Sidebar() {
     return () => {
       active = false
     }
-  }, [])
+  }, [onMfaGate])
+
+  if (onMfaGate) return null
 
   const p = pathname || ""
   const isActive = (href: string) => p === href || p.startsWith(href + "/")
