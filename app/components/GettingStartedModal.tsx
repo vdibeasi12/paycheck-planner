@@ -61,12 +61,12 @@ const STEP_DEFS: StepDef[] = [
     desc: "Ask a question in plain English and get answers tied to your numbers.",
   },
   {
-    key: "connect_bank", rank: 3, kind: "locked", href: "#", Icon: Landmark,
+    key: "connect_bank", rank: 3, kind: "data", href: "/account", Icon: Landmark, table: "plaid_items",
     title: "Connect your bank",
     desc: "Securely link an institution so balances and APRs update on their own.",
   },
   {
-    key: "auto_sync", rank: 3, kind: "locked", href: "#", Icon: RefreshCw,
+    key: "auto_sync", rank: 3, kind: "data", href: "/account", Icon: RefreshCw, table: "plaid_liabilities",
     title: "Set up automatic debt sync",
     desc: "Let balances refresh automatically so your plan stays accurate without manual entry.",
   },

@@ -27,8 +27,8 @@ const STEP_DEFS: StepDef[] = [
   { key: "bills", label: "Add a bill", href: "/bills", rank: 0, kind: "data", table: "bills" },
   { key: "payoff", label: "Review your payoff plan", href: "/amortization", rank: 1, kind: "action", progressKey: "payoff_reviewed" },
   { key: "ai", label: "Try AI Insights", href: "/ai-chat", rank: 2, kind: "action", progressKey: "ai_tried" },
-  { key: "connect_bank", label: "Connect your bank", href: "#", rank: 3, kind: "locked" },
-  { key: "auto_sync", label: "Set up automatic debt sync", href: "#", rank: 3, kind: "locked" },
+  { key: "connect_bank", label: "Connect your bank", href: "/account", rank: 3, kind: "data", table: "plaid_items" },
+  { key: "auto_sync", label: "Set up automatic debt sync", href: "/account", rank: 3, kind: "data", table: "plaid_liabilities" },
 ]
 
 type Step = StepDef & { done: boolean; locked: boolean }
