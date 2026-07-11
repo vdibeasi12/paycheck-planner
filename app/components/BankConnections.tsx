@@ -115,19 +115,24 @@ export default function BankConnections() {
                   {b.status && b.status !== "active" ? ` - ${b.status}` : ""}
                 </p>
               </div>
-              <button
-                type="button"
-                onClick={() => disconnect(b.item_id)}
-                disabled={busyItem === b.item_id}
-                className="flex items-center gap-1.5 rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-300 hover:bg-[#1a233a] disabled:opacity-60"
-              >
-                {busyItem === b.item_id ? (
-                  <Loader2 size={14} className="animate-spin" />
-                ) : (
-                  <Unplug size={14} />
+              <div className="flex items-center gap-2">
+                {b.status && b.status !== "active" && (
+                  <PlaidConnectButton itemId={b.item_id} label="Reconnect" onLinked={load} />
                 )}
-                Disconnect
-              </button>
+                <button
+                  type="button"
+                  onClick={() => disconnect(b.item_id)}
+                  disabled={busyItem === b.item_id}
+                  className="flex items-center gap-1.5 rounded-lg border border-gray-700 px-3 py-1.5 text-xs font-medium text-gray-300 hover:bg-[#1a233a] disabled:opacity-60"
+                >
+                  {busyItem === b.item_id ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Unplug size={14} />
+                  )}
+                  Disconnect
+                </button>
+              </div>
             </li>
           ))}
         </ul>
