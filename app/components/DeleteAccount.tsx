@@ -75,6 +75,14 @@ export default function DeleteAccount() {
         debts, bills, goals, documents, notification settings, and history. It
         cannot be undone.
       </p>
+      
+        href="/account/delete-info"
+        target="_blank"
+        rel="noreferrer"
+        className="mt-1 inline-block text-xs text-blue-400 underline"
+      >
+        Learn more about what gets deleted
+      </a>
 
       {!open ? (
         <button
