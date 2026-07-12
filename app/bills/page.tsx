@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
 import { Plus, Trash2, Upload } from 'lucide-react'
 import BillOCR from '../components/BillOCR'
 import { useRouter } from 'next/navigation'

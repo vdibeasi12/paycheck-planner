@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { supabase } from '@/lib/supabase'
+import { supabase } from '@/lib/supabase/client'
 import { Plus, Trash2, CreditCard, Pencil, Check, X, Lock } from 'lucide-react'
 import { getMaxDebts } from '@/lib/permissions'
 
