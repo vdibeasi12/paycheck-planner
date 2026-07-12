@@ -36,6 +36,14 @@ jobs:
       - name: Decode keystore
         run: echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > android/app/upload-keystore.jks
 
+      - name: Print signing certificate fingerprint
+        run: |
+          keytool -list -v \
+            -keystore android/app/upload-keystore.jks \
+            -storepass "${{ secrets.ANDROID_STORE_PASSWORD }}" \
+            -alias "${{ secrets.ANDROID_KEY_ALIAS }}" \
+            | grep -E "SHA256|SHA1"
+
       - name: Write keystore.properties
         run: |
           cat > android/keystore.properties <<EOF
