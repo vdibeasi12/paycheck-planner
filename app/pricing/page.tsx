@@ -22,6 +22,9 @@ export default function PricingPage() {
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const native = useIsNativeApp();
+  const [mobileTierId, setMobileTierId] = useState<TierId>(
+    VISIBLE_TIERS.find((t) => t.highlight)?.id ?? VISIBLE_TIERS[0].id
+  );
 
   async function handleCheckout(tier: Tier) {
     setError(null);
@@ -199,7 +202,8 @@ export default function PricingPage() {
             Everything in each plan, side by side.
           </p>
 
-          <div className="mt-8 overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/40">
+          {/* Desktop / tablet: full side-by-side table (plenty of width, no scrolling needed) */}
+          <div className="mt-8 hidden overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/40 md:block">
             <table className="w-full min-w-[560px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-slate-800">
@@ -224,6 +228,62 @@ export default function PricingPage() {
                 ))}
               </tbody>
             </table>
+          </div>
+
+          {/* Mobile: pick one plan at a time, no horizontal scrolling at all */}
+          <div className="mt-8 md:hidden">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {VISIBLE_TIERS.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setMobileTierId(t.id)}
+                  className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    mobileTierId === t.id
+                      ? "bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950"
+                      : "border border-slate-700 text-slate-300"
+                  }`}
+                >
+                  {t.name}
+                </button>
+              ))}
+            </div>
+
+            <div className="mt-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
+              {FEATURE_GROUPS.map((group) => (
+                <div key={group.group}>
+                  <div className="bg-[#0f172a] px-5 pt-4 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                    {group.group}
+                  </div>
+                  {group.rows.map((row, i) => {
+                    const value = row[mobileTierId];
+                    return (
+                      <div
+                        key={row.label}
+                        className={`flex items-center justify-between gap-3 px-5 py-3 ${
+                          i % 2 ? "bg-slate-900/20" : ""
+                        }`}
+                      >
+                        <span className="text-sm text-slate-300">{row.label}</span>
+                        {typeof value === "string" ? (
+                          <span className="shrink-0 text-right text-sm font-medium text-slate-200">
+                            {value}
+                          </span>
+                        ) : value ? (
+                          <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
+                            <Check size={15} strokeWidth={3} aria-label="Included" />
+                          </span>
+                        ) : (
+                          <span className="inline-flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-rose-500/10 text-rose-400">
+                            <X size={15} strokeWidth={3} aria-label="Not included" />
+                          </span>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
         </section>
 
@@ -256,7 +316,7 @@ export default function PricingPage() {
           <PaycheckPlannerLogo size={26} />
           <p className="text-sm text-slate-500">
             A product of {BRAND.company} ·{" "}
-            <a
+            
               href={`mailto:${BRAND.supportEmail}`}
               className="text-slate-400 underline-offset-4 hover:text-emerald-400 hover:underline"
             >
