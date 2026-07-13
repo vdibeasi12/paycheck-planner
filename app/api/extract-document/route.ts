@@ -6,6 +6,11 @@ const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6"
 
 const ALLOWED_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"])
 
+// ~8MB decoded (Anthropic's own image limit is 5MB per image; this is a
+// generous ceiling that rejects obviously-oversized payloads before they
+// reach the API call, protecting cost and latency).
+const MAX_BASE64_LENGTH = 11_000_000
+
 const BILL_INSTRUCTIONS = `Look at this photo of a bill or invoice. Extract these fields as JSON only, no other text:
 {
   "name": string or null,        // vendor/company name, e.g. "Commonwealth Edison"
@@ -52,6 +57,12 @@ export async function POST(req: Request) {
     }
     if (typeof mediaType !== "string" || !ALLOWED_MEDIA_TYPES.has(mediaType)) {
       return NextResponse.json({ success: false, error: "Unsupported image type." }, { status: 400 })
+    }
+    if (image.length > MAX_BASE64_LENGTH) {
+      return NextResponse.json(
+        { success: false, error: "That photo is too large. Please try a smaller image." },
+        { status: 413 }
+      )
     }
     if (docType !== "bill" && docType !== "debt" && docType !== "income") {
       return NextResponse.json({ success: false, error: "Invalid document type." }, { status: 400 })
