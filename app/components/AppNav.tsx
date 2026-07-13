@@ -9,6 +9,7 @@ import { supabase } from "@/lib/supabase/client"
 // Primary in-app destinations for a logged-in user.
 const LINKS = [
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/calendar", label: "Calendar" },
   { href: "/debts", label: "Debts" },
   { href: "/bills", label: "Bills" },
   { href: "/goals", label: "Goals" },

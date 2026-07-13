@@ -24,6 +24,7 @@ interface Income {
   frequency: string
   created_at: string
   details: IncomeDetails | null
+  next_pay_date: string | null
 }
 
 const FREQUENCIES = [
@@ -70,6 +71,7 @@ export default function IncomePage() {
   const [source, setSource] = useState('')
   const [amount, setAmount] = useState('')
   const [frequency, setFrequency] = useState('monthly')
+  const [nextPayDate, setNextPayDate] = useState('')
   const [loading, setLoading] = useState(true)
   const [showCapture, setShowCapture] = useState(false)
 
@@ -128,12 +130,14 @@ export default function IncomePage() {
         source,
         amount: Number(amount),
         frequency,
+        next_pay_date: nextPayDate || null,
         details: detailsPayload(),
       })
       if (error) throw error
       setSource('')
       setAmount('')
       setFrequency('monthly')
+      setNextPayDate('')
       setShowDetails(false)
       setDetails(EMPTY_DETAILS)
       loadIncome()
@@ -247,6 +251,17 @@ export default function IncomePage() {
                       </option>
                     ))}
                   </select>
+                </div>
+                <div>
+                  <label className="text-gray-400 text-sm block mb-2">
+                    Next pay date <span className="text-gray-500">(so it shows on your Calendar)</span>
+                  </label>
+                  <input
+                    type="date"
+                    value={nextPayDate}
+                    onChange={(e) => setNextPayDate(e.target.value)}
+                    className="w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white"
+                  />
                 </div>
 
                 {/* Optional paycheck breakdown */}
