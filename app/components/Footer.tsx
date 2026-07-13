@@ -1,57 +1,55 @@
 'use client'
 
 import Link from 'next/link'
-import { useIsNativeApp } from '@/lib/platform'
 
 export default function Footer() {
-  const native = useIsNativeApp()
-
   return (
     <footer className="border-t border-gray-800 bg-[#020617]">
       <div className="flex justify-center px-6 py-12">
         <div className="w-full max-w-6xl">
-          {/* Get the App - store badges + QR placeholder. Only shown on the web:
-              someone already inside the native app doesn't need to be told to
-              go get the app.
+          {/* Get the App - store badges + QR placeholder. Hidden on any
+              phone-width screen (Chrome mobile, Safari mobile, the native
+              app -- all of them) via a pure CSS breakpoint, since JS-based
+              native-app detection wasn't reliably matching what's actually
+              being tested against. Only ever shows on desktop/tablet-width
+              web.
               NOTE: swap the two placeholder buttons for the official
               "Download on the App Store" and "Get it on Google Play" badge
               assets (per Apple/Google brand guidelines) once the apps are live,
               and replace the QR box with a real QR linking to the store pages. */}
-          {!native && (
-            <div className="mb-12 rounded-2xl border border-gray-800 bg-[#0f172a] p-6">
-              <div className="flex flex-col items-center gap-6 md:flex-row md:justify-between">
-                <div className="text-center md:text-left">
-                  <h3 className="text-lg font-bold text-white">Get the Paycheck Planner app</h3>
-                  <p className="mt-1 text-sm text-gray-400">
-                    Available on the App Store and Google Play (coming soon).
-                  </p>
-                  <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row md:items-start">
-                    <span
-                      className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-black px-4 py-2 text-sm text-gray-200 opacity-70"
-                      title="Coming soon to the App Store"
-                    >
-                      <span className="text-xs text-gray-500">Download on the</span>
-                      <span className="font-semibold">App Store</span>
-                    </span>
-                    <span
-                      className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-black px-4 py-2 text-sm text-gray-200 opacity-70"
-                      title="Coming soon to Google Play"
-                    >
-                      <span className="text-xs text-gray-500">Get it on</span>
-                      <span className="font-semibold">Google Play</span>
-                    </span>
-                  </div>
-                </div>
-
-                <div className="flex flex-col items-center">
-                  <div className="flex h-28 w-28 items-center justify-center rounded-lg border border-dashed border-gray-700 bg-[#020617] text-center">
-                    <span className="px-2 text-xs text-gray-500">QR code at launch</span>
-                  </div>
-                  <p className="mt-2 text-xs text-gray-500">Scan to download</p>
+          <div className="mb-12 hidden rounded-2xl border border-gray-800 bg-[#0f172a] p-6 md:block">
+            <div className="flex flex-col items-center gap-6 md:flex-row md:justify-between">
+              <div className="text-center md:text-left">
+                <h3 className="text-lg font-bold text-white">Get the Paycheck Planner app</h3>
+                <p className="mt-1 text-sm text-gray-400">
+                  Available on the App Store and Google Play (coming soon).
+                </p>
+                <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row md:items-start">
+                  <span
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-black px-4 py-2 text-sm text-gray-200 opacity-70"
+                    title="Coming soon to the App Store"
+                  >
+                    <span className="text-xs text-gray-500">Download on the</span>
+                    <span className="font-semibold">App Store</span>
+                  </span>
+                  <span
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-black px-4 py-2 text-sm text-gray-200 opacity-70"
+                    title="Coming soon to Google Play"
+                  >
+                    <span className="text-xs text-gray-500">Get it on</span>
+                    <span className="font-semibold">Google Play</span>
+                  </span>
                 </div>
               </div>
+
+              <div className="flex flex-col items-center">
+                <div className="flex h-28 w-28 items-center justify-center rounded-lg border border-dashed border-gray-700 bg-[#020617] text-center">
+                  <span className="px-2 text-xs text-gray-500">QR code at launch</span>
+                </div>
+                <p className="mt-2 text-xs text-gray-500">Scan to download</p>
+              </div>
             </div>
-          )}
+          </div>
 
           {/* Footer Links Grid - Centered */}
           <div className="grid grid-cols-3 gap-16 mb-12">
