@@ -45,6 +45,20 @@ export async function middleware(request: NextRequest) {
   // Start with a pass-through response we can attach refreshed cookies to.
   let response = NextResponse.next({ request: { headers: request.headers } })
 
+  // Any time we redirect below, the redirect must carry whatever cookies
+  // got attached to `response` (e.g. a session token refreshed moments ago
+  // by getUser()/getSession() during this same request). A bare
+  // NextResponse.redirect() does NOT inherit those -- that gap was the
+  // root cause of the intermittent "signed in, then bounced back out"
+  // behavior right after OAuth login.
+  function redirect(url: URL) {
+    const redirectResponse = NextResponse.redirect(url)
+    response.cookies.getAll().forEach((cookie) => {
+      redirectResponse.cookies.set(cookie)
+    })
+    return redirectResponse
+  }
+
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
@@ -83,14 +97,14 @@ export async function middleware(request: NextRequest) {
   if (user && path === "/") {
     const url = request.nextUrl.clone()
     url.pathname = "/dashboard"
-    return NextResponse.redirect(url)
+    return redirect(url)
   }
 
   if (!user && isProtected) {
     const url = request.nextUrl.clone()
     url.pathname = "/login"
     url.searchParams.set("redirectTo", path)
-    return NextResponse.redirect(url)
+    return redirect(url)
   }
 
   // MFA enforcement: every logged-in user must be at AAL2 before reaching any
@@ -120,7 +134,7 @@ export async function middleware(request: NextRequest) {
       const url = request.nextUrl.clone()
       url.pathname = hasVerifiedFactor ? "/mfa" : "/mfa/setup"
       url.searchParams.set("redirectTo", path)
-      return NextResponse.redirect(url)
+      return redirect(url)
     }
   }
 
