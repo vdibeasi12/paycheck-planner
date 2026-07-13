@@ -18,7 +18,6 @@ export default function SubscriptionCard() {
   const [plan, setPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -46,18 +45,22 @@ export default function SubscriptionCard() {
   }, []);
 
   async function manage() {
-    setErr(null);
     setBusy(true);
     try {
       const res = await fetch("/api/billing", { method: "POST" });
       const body = await res.json().catch(() => ({}));
       if (!res.ok || !body?.url) {
-        setErr(body?.error || "Could not open the billing portal.");
+        // Most common cause: the plan was set directly (e.g. an admin or
+        // reviewer account) rather than through an actual Stripe checkout,
+        // so there's no stripe_customer_id to open a portal session for.
+        // Rather than dead-end on an error, send them somewhere they can
+        // actually act -- the pricing page lets them pick/change a plan.
+        window.location.href = "/pricing";
         return;
       }
       window.location.href = body.url;
     } catch {
-      setErr("Could not open the billing portal.");
+      window.location.href = "/pricing";
     } finally {
       setBusy(false);
     }
@@ -116,8 +119,6 @@ export default function SubscriptionCard() {
                 : "Upgrade from the web app at paycheckplanner.ai."}
             </p>
           ) : null}
-
-          {err && <p className="mt-3 text-sm text-rose-500">{err}</p>}
         </>
       )}
     </div>
