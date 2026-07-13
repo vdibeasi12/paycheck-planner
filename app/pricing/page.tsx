@@ -376,7 +376,7 @@ function GroupRows({ group, rows }: { group: string; rows: typeof FEATURE_GROUPS
       <tr>
         <td
           colSpan={VISIBLE_TIERS.length + 1}
-          className="bg-slate-900/60 px-5 pt-5 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-500"
+          className="sticky left-0 z-10 bg-[#0f172a] px-5 pt-5 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-500"
         >
           {group}
         </td>
