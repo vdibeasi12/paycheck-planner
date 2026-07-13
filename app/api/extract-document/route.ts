@@ -23,6 +23,14 @@ const DEBT_INSTRUCTIONS = `Look at this photo of a credit card or loan statement
 }
 If a field isn't visible or you aren't confident, use null for that field rather than guessing. Respond with ONLY the JSON object, no markdown fences, no commentary.`
 
+const INCOME_INSTRUCTIONS = `Look at this photo of a paycheck stub or direct deposit notice. Extract these fields as JSON only, no other text:
+{
+  "name": string or null,        // employer/company name, e.g. "Acme Corp"
+  "amount": number or null,      // the NET pay amount for this one paycheck (take-home, after deductions), digits only. If only gross pay is visible, use that instead and do not guess a net figure.
+  "frequency": string or null    // one of exactly: "weekly", "biweekly", "monthly", "quarterly", "annual" -- infer from the pay period start/end dates shown (e.g. a 14-day span is "biweekly"). Use null if the pay period isn't shown or doesn't clearly match one of these.
+}
+If a field isn't visible or you aren't confident, use null for that field rather than guessing. Respond with ONLY the JSON object, no markdown fences, no commentary.`
+
 export async function POST(req: Request) {
   try {
     const body = await req.json()
@@ -34,7 +42,7 @@ export async function POST(req: Request) {
     if (typeof mediaType !== "string" || !ALLOWED_MEDIA_TYPES.has(mediaType)) {
       return NextResponse.json({ success: false, error: "Unsupported image type." }, { status: 400 })
     }
-    if (docType !== "bill" && docType !== "debt") {
+    if (docType !== "bill" && docType !== "debt" && docType !== "income") {
       return NextResponse.json({ success: false, error: "Invalid document type." }, { status: 400 })
     }
 
@@ -69,7 +77,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Photo scan isn't configured yet." }, { status: 500 })
     }
 
-    const instructions = docType === "bill" ? BILL_INSTRUCTIONS : DEBT_INSTRUCTIONS
+    const instructions =
+      docType === "bill" ? BILL_INSTRUCTIONS : docType === "debt" ? DEBT_INSTRUCTIONS : INCOME_INSTRUCTIONS
 
     const res = await fetch(ANTHROPIC_URL, {
       method: "POST",

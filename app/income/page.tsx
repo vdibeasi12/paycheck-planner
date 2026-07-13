@@ -3,10 +3,11 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Plus, Trash2, Wallet } from 'lucide-react'
+import SmartCapture from '@/components/SmartCapture'
 
 interface Income {
   id: string
-  name: string
+  source: string
   amount: number
   frequency: string
   created_at: string
@@ -43,6 +44,7 @@ export default function IncomePage() {
   const [amount, setAmount] = useState('')
   const [frequency, setFrequency] = useState('monthly')
   const [loading, setLoading] = useState(true)
+  const [showCapture, setShowCapture] = useState(false)
 
   async function loadIncome() {
     try {
@@ -73,7 +75,7 @@ export default function IncomePage() {
       }
       const { error } = await supabase.from('income').insert({
         user_id: userAuth.user.id,
-        name: source,
+        source,
         amount: Number(amount),
         frequency,
       })
@@ -86,6 +88,17 @@ export default function IncomePage() {
       console.error('Error adding income:', error)
       alert('Failed to add income')
     }
+  }
+
+  const VALID_FREQUENCIES = new Set(FREQUENCIES.map((f) => f.value))
+
+  function handleExtractedIncome(fields: { name: string | null; amount: number | null; frequency: string | null }) {
+    if (fields.name) setSource(fields.name)
+    if (fields.amount != null) setAmount(String(fields.amount))
+    if (fields.frequency && VALID_FREQUENCIES.has(fields.frequency)) {
+      setFrequency(fields.frequency)
+    }
+    setShowCapture(false)
   }
 
   async function deleteIncome(id: string) {
@@ -160,6 +173,21 @@ export default function IncomePage() {
                   <Plus size={20} /> Add Income
                 </button>
               </form>
+
+              {/* Photo capture (real Claude-vision extraction) */}
+              <div className="mt-4 pt-4 border-t border-gray-700">
+                {showCapture ? (
+                  <SmartCapture docType="income" onExtracted={handleExtractedIncome} />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowCapture(true)}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    Scan a paycheck stub
+                  </button>
+                )}
+              </div>
             </div>
           </div>
 
@@ -189,7 +217,7 @@ export default function IncomePage() {
                   >
                     <div>
                       <h3 className="font-semibold text-lg flex items-center gap-2">
-                        <Wallet size={16} className="text-green-400" /> {i.name}
+                        <Wallet size={16} className="text-green-400" /> {i.source}
                       </h3>
                       <p className="text-gray-400 text-sm capitalize">{i.frequency}</p>
                     </div>

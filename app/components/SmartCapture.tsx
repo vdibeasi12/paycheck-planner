@@ -3,7 +3,7 @@
 import { useRef, useState } from "react"
 import { Camera, Upload, Loader2, AlertCircle } from "lucide-react"
 
-type DocType = "bill" | "debt"
+type DocType = "bill" | "debt" | "income"
 
 type BillFields = { name: string | null; amount: number | null; dueDate: string | null }
 type DebtFields = {
@@ -12,8 +12,13 @@ type DebtFields = {
   interest_rate: number | null
   minimum_payment: number | null
 }
+type IncomeFields = { name: string | null; amount: number | null; frequency: string | null }
 
-type ExtractedFields<T extends DocType> = T extends "bill" ? BillFields : DebtFields
+type ExtractedFields<T extends DocType> = T extends "bill"
+  ? BillFields
+  : T extends "debt"
+  ? DebtFields
+  : IncomeFields
 
 export default function SmartCapture<T extends DocType>({
   docType,
@@ -110,7 +115,9 @@ export default function SmartCapture<T extends DocType>({
       <p className="mt-2 text-xs text-gray-500">
         {docType === "bill"
           ? "Snap a photo of the bill and we'll fill in the name, amount, and due date for you to review."
-          : "Snap a photo of the statement and we'll fill in the name, balance, APR, and minimum payment for you to review."}
+          : docType === "debt"
+          ? "Snap a photo of the statement and we'll fill in the name, balance, APR, and minimum payment for you to review."
+          : "Snap a photo of your paycheck stub and we'll fill in the employer, amount, and pay frequency for you to review."}
       </p>
 
       {error && (
