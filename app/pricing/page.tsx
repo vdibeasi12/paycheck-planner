@@ -316,7 +316,7 @@ export default function PricingPage() {
           <PaycheckPlannerLogo size={26} />
           <p className="text-sm text-slate-500">
             A product of {BRAND.company} ·{" "}
-            
+            <a
               href={`mailto:${BRAND.supportEmail}`}
               className="text-slate-400 underline-offset-4 hover:text-emerald-400 hover:underline"
             >
