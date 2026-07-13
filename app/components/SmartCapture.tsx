@@ -12,7 +12,23 @@ type DebtFields = {
   interest_rate: number | null
   minimum_payment: number | null
 }
-type IncomeFields = { name: string | null; amount: number | null; frequency: string | null }
+type IncomeDetails = {
+  grossPay: number | null
+  federalTax: number | null
+  stateTax: number | null
+  socialSecurity: number | null
+  medicare: number | null
+  retirement401k: number | null
+  healthInsurance: number | null
+  otherDeductions: number | null
+  netPay: number | null
+}
+type IncomeFields = {
+  name: string | null
+  amount: number | null
+  frequency: string | null
+  details: IncomeDetails | null
+}
 
 type ExtractedFields<T extends DocType> = T extends "bill"
   ? BillFields

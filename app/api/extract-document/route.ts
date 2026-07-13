@@ -27,9 +27,20 @@ const INCOME_INSTRUCTIONS = `Look at this photo of a paycheck stub or direct dep
 {
   "name": string or null,        // employer/company name, e.g. "Acme Corp"
   "amount": number or null,      // the NET pay amount for this one paycheck (take-home, after deductions), digits only. If only gross pay is visible, use that instead and do not guess a net figure.
-  "frequency": string or null    // one of exactly: "weekly", "biweekly", "monthly", "quarterly", "annual" -- infer from the pay period start/end dates shown (e.g. a 14-day span is "biweekly"). Use null if the pay period isn't shown or doesn't clearly match one of these.
+  "frequency": string or null,   // one of exactly: "weekly", "biweekly", "monthly", "quarterly", "annual" -- infer from the pay period start/end dates shown (e.g. a 14-day span is "biweekly"). Use null if the pay period isn't shown or doesn't clearly match one of these.
+  "details": {
+    "grossPay": number or null,          // gross pay before any deductions
+    "federalTax": number or null,        // federal income tax withheld
+    "stateTax": number or null,          // state income tax withheld
+    "socialSecurity": number or null,    // Social Security / FICA withheld
+    "medicare": number or null,          // Medicare withheld
+    "retirement401k": number or null,    // 401(k) / retirement plan contribution
+    "healthInsurance": number or null,   // health/dental/vision insurance premium
+    "otherDeductions": number or null,   // sum of any other deductions not covered above
+    "netPay": number or null             // net/take-home pay, should match "amount" above when both are visible
+  }
 }
-If a field isn't visible or you aren't confident, use null for that field rather than guessing. Respond with ONLY the JSON object, no markdown fences, no commentary.`
+Only include a value in "details" if it is actually printed on the stub -- use null for anything not shown, and never estimate or infer a deduction amount that isn't visible. If the whole details breakdown isn't visible at all, return every field in "details" as null rather than omitting the object. Respond with ONLY the JSON object, no markdown fences, no commentary.`
 
 export async function POST(req: Request) {
   try {

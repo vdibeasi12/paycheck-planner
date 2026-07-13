@@ -2,8 +2,20 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Plus, Trash2, Wallet } from 'lucide-react'
+import { Plus, Trash2, Wallet, ChevronDown, ChevronUp } from 'lucide-react'
 import SmartCapture from '@/components/SmartCapture'
+
+interface IncomeDetails {
+  grossPay: number | null
+  federalTax: number | null
+  stateTax: number | null
+  socialSecurity: number | null
+  medicare: number | null
+  retirement401k: number | null
+  healthInsurance: number | null
+  otherDeductions: number | null
+  netPay: number | null
+}
 
 interface Income {
   id: string
@@ -11,6 +23,7 @@ interface Income {
   amount: number
   frequency: string
   created_at: string
+  details: IncomeDetails | null
 }
 
 const FREQUENCIES = [
@@ -20,6 +33,20 @@ const FREQUENCIES = [
   { value: 'quarterly', label: 'Quarterly' },
   { value: 'annual', label: 'Annual' },
 ]
+
+const EMPTY_DETAILS = {
+  grossPay: '',
+  federalTax: '',
+  stateTax: '',
+  socialSecurity: '',
+  medicare: '',
+  retirement401k: '',
+  healthInsurance: '',
+  otherDeductions: '',
+  netPay: '',
+}
+
+type DetailsTab = 'taxes' | 'deductions'
 
 // Keep these in sync with the dashboard's monthlyFactor so the safe-to-spend
 // figure matches what users see here.
@@ -46,6 +73,10 @@ export default function IncomePage() {
   const [loading, setLoading] = useState(true)
   const [showCapture, setShowCapture] = useState(false)
 
+  const [showDetails, setShowDetails] = useState(false)
+  const [detailsTab, setDetailsTab] = useState<DetailsTab>('taxes')
+  const [details, setDetails] = useState(EMPTY_DETAILS)
+
   async function loadIncome() {
     try {
       const { data } = await supabase.from('income').select('*')
@@ -60,6 +91,25 @@ export default function IncomePage() {
   useEffect(() => {
     loadIncome()
   }, [])
+
+  function detailsPayload(): IncomeDetails | null {
+    if (!showDetails) return null
+    const toNum = (v: string) => (v === '' ? null : Number(v))
+    const payload: IncomeDetails = {
+      grossPay: toNum(details.grossPay),
+      federalTax: toNum(details.federalTax),
+      stateTax: toNum(details.stateTax),
+      socialSecurity: toNum(details.socialSecurity),
+      medicare: toNum(details.medicare),
+      retirement401k: toNum(details.retirement401k),
+      healthInsurance: toNum(details.healthInsurance),
+      otherDeductions: toNum(details.otherDeductions),
+      netPay: toNum(details.netPay),
+    }
+    // Don't store an all-null object -- treat "checked but nothing entered" as no details.
+    const hasAnyValue = Object.values(payload).some((v) => v !== null)
+    return hasAnyValue ? payload : null
+  }
 
   async function addIncome(e: React.FormEvent) {
     e.preventDefault()
@@ -78,11 +128,14 @@ export default function IncomePage() {
         source,
         amount: Number(amount),
         frequency,
+        details: detailsPayload(),
       })
       if (error) throw error
       setSource('')
       setAmount('')
       setFrequency('monthly')
+      setShowDetails(false)
+      setDetails(EMPTY_DETAILS)
       loadIncome()
     } catch (error) {
       console.error('Error adding income:', error)
@@ -92,12 +145,38 @@ export default function IncomePage() {
 
   const VALID_FREQUENCIES = new Set(FREQUENCIES.map((f) => f.value))
 
-  function handleExtractedIncome(fields: { name: string | null; amount: number | null; frequency: string | null }) {
+  function handleExtractedIncome(fields: {
+    name: string | null
+    amount: number | null
+    frequency: string | null
+    details: IncomeDetails | null
+  }) {
     if (fields.name) setSource(fields.name)
     if (fields.amount != null) setAmount(String(fields.amount))
     if (fields.frequency && VALID_FREQUENCIES.has(fields.frequency)) {
       setFrequency(fields.frequency)
     }
+
+    if (fields.details) {
+      const toStr = (v: number | null) => (v == null ? '' : String(v))
+      const extracted = {
+        grossPay: toStr(fields.details.grossPay),
+        federalTax: toStr(fields.details.federalTax),
+        stateTax: toStr(fields.details.stateTax),
+        socialSecurity: toStr(fields.details.socialSecurity),
+        medicare: toStr(fields.details.medicare),
+        retirement401k: toStr(fields.details.retirement401k),
+        healthInsurance: toStr(fields.details.healthInsurance),
+        otherDeductions: toStr(fields.details.otherDeductions),
+        netPay: toStr(fields.details.netPay),
+      }
+      const foundAnything = Object.values(extracted).some((v) => v !== '')
+      if (foundAnything) {
+        setDetails(extracted)
+        setShowDetails(true)
+      }
+    }
+
     setShowCapture(false)
   }
 
@@ -116,6 +195,9 @@ export default function IncomePage() {
     (sum, i) => sum + (Number(i.amount) || 0) * monthlyFactor(i.frequency),
     0
   )
+
+  const detailInputClass =
+    'mt-1 w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white placeholder-gray-500 text-sm'
 
   return (
     <div className="min-h-screen bg-[#020617] text-white py-12">
@@ -166,6 +248,156 @@ export default function IncomePage() {
                     ))}
                   </select>
                 </div>
+
+                {/* Optional paycheck breakdown */}
+                <label className="flex items-center gap-2 text-sm text-gray-300 select-none cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={showDetails}
+                    onChange={(e) => setShowDetails(e.target.checked)}
+                    className="rounded border-gray-700 bg-[#1a233a]"
+                  />
+                  Add paycheck details (taxes, 401(k), etc.)
+                  {showDetails ? (
+                    <ChevronUp size={16} className="text-gray-500" />
+                  ) : (
+                    <ChevronDown size={16} className="text-gray-500" />
+                  )}
+                </label>
+
+                {showDetails && (
+                  <div className="rounded-lg border border-gray-700 bg-[#0b1220] p-3">
+                    {/* Always-visible summary fields */}
+                    <div className="grid grid-cols-2 gap-3 mb-3">
+                      <label className="block">
+                        <span className="text-gray-500 text-xs">Gross pay ($)</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={details.grossPay}
+                          onChange={(e) => setDetails({ ...details, grossPay: e.target.value })}
+                          placeholder="0.00"
+                          className={detailInputClass}
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-gray-500 text-xs">Net pay ($)</span>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={details.netPay}
+                          onChange={(e) => setDetails({ ...details, netPay: e.target.value })}
+                          placeholder="0.00"
+                          className={detailInputClass}
+                        />
+                      </label>
+                    </div>
+
+                    {/* Tabs */}
+                    <div className="flex gap-1 mb-3 border-b border-gray-700">
+                      {(['taxes', 'deductions'] as DetailsTab[]).map((tab) => (
+                        <button
+                          key={tab}
+                          type="button"
+                          onClick={() => setDetailsTab(tab)}
+                          className={`px-3 py-1.5 text-sm font-medium capitalize border-b-2 -mb-px transition ${
+                            detailsTab === tab
+                              ? 'border-emerald-400 text-emerald-400'
+                              : 'border-transparent text-gray-400 hover:text-gray-200'
+                          }`}
+                        >
+                          {tab}
+                        </button>
+                      ))}
+                    </div>
+
+                    {detailsTab === 'taxes' ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="block">
+                          <span className="text-gray-500 text-xs">Federal tax ($)</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={details.federalTax}
+                            onChange={(e) => setDetails({ ...details, federalTax: e.target.value })}
+                            placeholder="0.00"
+                            className={detailInputClass}
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-gray-500 text-xs">State tax ($)</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={details.stateTax}
+                            onChange={(e) => setDetails({ ...details, stateTax: e.target.value })}
+                            placeholder="0.00"
+                            className={detailInputClass}
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-gray-500 text-xs">Social Security ($)</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={details.socialSecurity}
+                            onChange={(e) => setDetails({ ...details, socialSecurity: e.target.value })}
+                            placeholder="0.00"
+                            className={detailInputClass}
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-gray-500 text-xs">Medicare ($)</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={details.medicare}
+                            onChange={(e) => setDetails({ ...details, medicare: e.target.value })}
+                            placeholder="0.00"
+                            className={detailInputClass}
+                          />
+                        </label>
+                      </div>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        <label className="block">
+                          <span className="text-gray-500 text-xs">401(k) ($)</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={details.retirement401k}
+                            onChange={(e) => setDetails({ ...details, retirement401k: e.target.value })}
+                            placeholder="0.00"
+                            className={detailInputClass}
+                          />
+                        </label>
+                        <label className="block">
+                          <span className="text-gray-500 text-xs">Health insurance ($)</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={details.healthInsurance}
+                            onChange={(e) => setDetails({ ...details, healthInsurance: e.target.value })}
+                            placeholder="0.00"
+                            className={detailInputClass}
+                          />
+                        </label>
+                        <label className="block col-span-2">
+                          <span className="text-gray-500 text-xs">Other deductions ($)</span>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={details.otherDeductions}
+                            onChange={(e) => setDetails({ ...details, otherDeductions: e.target.value })}
+                            placeholder="0.00"
+                            className={detailInputClass}
+                          />
+                        </label>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <button
                   type="submit"
                   className="w-full bg-green-500 hover:bg-green-600 text-black font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
@@ -213,30 +445,46 @@ export default function IncomePage() {
                 {items.map((i) => (
                   <div
                     key={i.id}
-                    className="bg-[#0f172a] border border-gray-700 rounded-lg p-4 flex items-center justify-between"
+                    className="bg-[#0f172a] border border-gray-700 rounded-lg p-4"
                   >
-                    <div>
-                      <h3 className="font-semibold text-lg flex items-center gap-2">
-                        <Wallet size={16} className="text-green-400" /> {i.source}
-                      </h3>
-                      <p className="text-gray-400 text-sm capitalize">{i.frequency}</p>
-                    </div>
-                    <div className="flex items-center gap-4">
-                      <div className="text-right">
-                        <p className="text-2xl font-bold text-green-400">
-                          ${Number(i.amount).toFixed(2)}
-                        </p>
-                        <p className="text-xs text-gray-500">
-                          ~${(Number(i.amount) * monthlyFactor(i.frequency)).toFixed(2)}/mo
-                        </p>
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <h3 className="font-semibold text-lg flex items-center gap-2">
+                          <Wallet size={16} className="text-green-400" /> {i.source}
+                        </h3>
+                        <p className="text-gray-400 text-sm capitalize">{i.frequency}</p>
                       </div>
-                      <button
-                        onClick={() => deleteIncome(i.id)}
-                        className="text-red-400 hover:text-red-300 transition p-2"
-                      >
-                        <Trash2 size={20} />
-                      </button>
+                      <div className="flex items-center gap-4">
+                        <div className="text-right">
+                          <p className="text-2xl font-bold text-green-400">
+                            ${Number(i.amount).toFixed(2)}
+                          </p>
+                          <p className="text-xs text-gray-500">
+                            ~${(Number(i.amount) * monthlyFactor(i.frequency)).toFixed(2)}/mo
+                          </p>
+                        </div>
+                        <button
+                          onClick={() => deleteIncome(i.id)}
+                          className="text-red-400 hover:text-red-300 transition p-2"
+                        >
+                          <Trash2 size={20} />
+                        </button>
+                      </div>
                     </div>
+
+                    {i.details && (
+                      <div className="mt-3 pt-3 border-t border-gray-800 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-gray-400">
+                        {i.details.grossPay != null && <p>Gross: ${Number(i.details.grossPay).toFixed(2)}</p>}
+                        {i.details.federalTax != null && <p>Federal tax: ${Number(i.details.federalTax).toFixed(2)}</p>}
+                        {i.details.stateTax != null && <p>State tax: ${Number(i.details.stateTax).toFixed(2)}</p>}
+                        {i.details.socialSecurity != null && <p>Social Security: ${Number(i.details.socialSecurity).toFixed(2)}</p>}
+                        {i.details.medicare != null && <p>Medicare: ${Number(i.details.medicare).toFixed(2)}</p>}
+                        {i.details.retirement401k != null && <p>401(k): ${Number(i.details.retirement401k).toFixed(2)}</p>}
+                        {i.details.healthInsurance != null && <p>Health insurance: ${Number(i.details.healthInsurance).toFixed(2)}</p>}
+                        {i.details.otherDeductions != null && <p>Other: ${Number(i.details.otherDeductions).toFixed(2)}</p>}
+                        {i.details.netPay != null && <p>Net: ${Number(i.details.netPay).toFixed(2)}</p>}
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
