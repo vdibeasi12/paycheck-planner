@@ -9,6 +9,7 @@ import {
   LayoutDashboard,
   CreditCard,
   CalendarClock,
+  Calendar,
   Receipt,
   Wallet,
   Target,
@@ -24,10 +25,12 @@ import {
 import Logo from "./Logo"
 import GettingStartedModal from "./GettingStartedModal"
 import ProductTour from "./ProductTour"
+import CalendarPeek from "./CalendarPeek"
 import { supabase } from "@/lib/supabase/client"
 
 const LINKS = [
   { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
+  { href: "/calendar", label: "Calendar", Icon: Calendar },
   { href: "/debts", label: "Debts", Icon: CreditCard },
   { href: "/amortization", label: "Payoff Plan", Icon: CalendarClock },
   { href: "/bills", label: "Bills", Icon: Receipt },
@@ -142,6 +145,10 @@ export default function Sidebar() {
           Admin
         </Link>
       )}
+
+      <div className="my-1 border-t border-gray-800" />
+
+      <CalendarPeek onNavigate={onNavigate} />
 
       <button
         onClick={() => openFeedback(onNavigate)}
