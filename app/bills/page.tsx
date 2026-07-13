@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Plus, Trash2, Upload } from 'lucide-react'
-import BillOCR from '../components/BillOCR'
+import SmartCapture from '../components/SmartCapture'
 import { useRouter } from 'next/navigation'
 import { isPremium } from '@/lib/permissions'
 
@@ -20,7 +20,7 @@ export default function BillsPage() {
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
   const [dueDay, setDueDay] = useState('')
-  const [showOCR, setShowOCR] = useState(false)
+  const [showCapture, setShowCapture] = useState(false)
   const [loading, setLoading] = useState(true)
   const [plan, setPlan] = useState('free')
   const router = useRouter()
@@ -84,6 +84,20 @@ export default function BillsPage() {
     }
   }
 
+  function handleExtractedBill(fields: { name: string | null; amount: number | null; dueDate: string | null }) {
+    if (fields.name) setName(fields.name)
+    if (fields.amount != null) setAmount(String(fields.amount))
+    if (fields.dueDate) {
+      // Bills store only the day-of-month (1-31); derive it from the full
+      // extracted date. Parsed as UTC to avoid local-timezone day-shift.
+      const parsed = new Date(fields.dueDate + 'T00:00:00Z')
+      if (!isNaN(parsed.getTime())) {
+        setDueDay(String(parsed.getUTCDate()))
+      }
+    }
+    setShowCapture(false)
+  }
+
   async function deleteBill(id: string) {
     try {
       const { error } = await supabase
@@ -110,22 +124,8 @@ export default function BillsPage() {
           Track your monthly bills and automate payments
         </p>
 
-        {/* OCR Section */}
-        {showOCR && (
-          <div className="mb-8">
-            <button
-              onClick={() => setShowOCR(false)}
-              className="text-gray-400 hover:text-white text-sm mb-4"
-            >
-              ← Back to bills
-            </button>
-            <BillOCR />
-          </div>
-        )}
-
         {/* Main Content */}
-        {!showOCR && (
-          <div className="grid lg:grid-cols-3 gap-6">
+        <div className="grid lg:grid-cols-3 gap-6">
             {/* Add Bill Form */}
             <div className="lg:col-span-1">
               <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-6 sticky top-6">
@@ -177,13 +177,17 @@ export default function BillsPage() {
                   </button>
                 </form>
 
-                {/* OCR Option */}
-                <button
-                  onClick={() => { if (isPremium(plan)) { setShowOCR(true) } else { router.push('/pricing') } }}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
-                >
-                  <Upload size={20} /> Upload Bill Image
-                </button>
+                {/* Photo capture (real Claude-vision extraction) */}
+                {showCapture ? (
+                  <SmartCapture docType="bill" onExtracted={handleExtractedBill} />
+                ) : (
+                  <button
+                    onClick={() => { if (isPremium(plan)) { setShowCapture(true) } else { router.push('/pricing') } }}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    <Upload size={20} /> Scan a bill photo
+                  </button>
+                )}
               </div>
             </div>
 
@@ -245,7 +249,6 @@ export default function BillsPage() {
               )}
             </div>
           </div>
-        )}
       </div>
     </div>
   )

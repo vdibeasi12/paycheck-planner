@@ -3,8 +3,9 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
-import { Plus, Trash2, CreditCard, Pencil, Check, X, Lock } from 'lucide-react'
+import { Plus, Trash2, CreditCard, Pencil, Check, X, Lock, Camera } from 'lucide-react'
 import { getMaxDebts } from '@/lib/permissions'
+import SmartCapture from '../components/SmartCapture'
 
 interface Debt {
   id: string
@@ -35,6 +36,7 @@ export default function DebtsPage() {
   const [edit, setEdit] = useState<EditState>(EMPTY_EDIT)
   const [plan, setPlan] = useState<string>('free')
   const [isAdmin, setIsAdmin] = useState<boolean>(false)
+  const [showCapture, setShowCapture] = useState(false)
 
   async function loadPlan() {
     try {
@@ -112,6 +114,19 @@ export default function DebtsPage() {
       console.error('Error adding debt:', error)
       alert('Failed to add debt')
     }
+  }
+
+  function handleExtractedDebt(fields: {
+    name: string | null
+    balance: number | null
+    interest_rate: number | null
+    minimum_payment: number | null
+  }) {
+    if (fields.name) setName(fields.name)
+    if (fields.balance != null) setBalance(String(fields.balance))
+    if (fields.interest_rate != null) setRate(String(fields.interest_rate))
+    if (fields.minimum_payment != null) setMinPayment(String(fields.minimum_payment))
+    setShowCapture(false)
   }
 
   function startEdit(d: Debt) {
@@ -236,6 +251,21 @@ export default function DebtsPage() {
                   <Plus size={20} /> Add Debt
                 </button>
               </form>
+
+              {/* Photo capture (real Claude-vision extraction) */}
+              <div className="mt-4 pt-4 border-t border-gray-700">
+                {showCapture ? (
+                  <SmartCapture docType="debt" onExtracted={handleExtractedDebt} />
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => setShowCapture(true)}
+                    className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
+                  >
+                    <Camera size={20} /> Scan a statement photo
+                  </button>
+                )}
+              </div>
 
               <p className="text-gray-500 text-xs mt-4">
                 {unlimited
