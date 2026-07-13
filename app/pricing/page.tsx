@@ -1,6 +1,6 @@
 "use client";
 
-import { isNativeApp, useIsNativeApp } from "@/lib/platform";
+import { isNativeApp } from "@/lib/platform";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -21,7 +21,6 @@ export default function PricingPage() {
   const [billing, setBilling] = useState<Billing>("annual");
   const [loadingId, setLoadingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const native = useIsNativeApp();
   const [mobileTierId, setMobileTierId] = useState<TierId>(
     VISIBLE_TIERS.find((t) => t.highlight)?.id ?? VISIBLE_TIERS[0].id
   );
@@ -92,50 +91,6 @@ export default function PricingPage() {
     } finally {
       setLoadingId(null);
     }
-  }
-
-  // Native shell: never render prices or purchase CTAs (App Store 3.1.1).
-  // Pre-mount (null) renders nothing to avoid a price flash; native shows a
-  // manage-on-web screen; web (false) falls through to the full pricing page.
-  if (native === null) return null;
-  if (native) {
-    return (
-      <main
-        className="flex min-h-screen items-center justify-center px-6 text-slate-100"
-        style={{
-          background:
-            "radial-gradient(1200px 600px at 50% -10%, #16243f 0%, #0a1228 55%, #070d1c 100%)",
-        }}
-      >
-        <div className="max-w-md text-center">
-          <div className="mb-6 flex justify-center">
-            <PaycheckPlannerLogo />
-          </div>
-          <h1 className="text-2xl font-bold tracking-tight">
-            Manage your plan on the web
-          </h1>
-          <p className="mt-3 text-sm text-slate-400">
-            Subscriptions are purchased and managed at paycheckplanner.ai. Once
-            your plan is active, everything unlocks here in the app
-            automatically.
-          </p>
-
-          <div className="mt-8 space-y-2 text-left">
-            {VISIBLE_TIERS.map((t) => (
-              <div
-                key={t.id}
-                className="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-3"
-              >
-                <span className="text-sm font-medium text-slate-200">{t.name}</span>
-                <span className="text-sm text-slate-400">
-                  {t.id === "free" ? "Free" : `$${t.priceMonthly}/mo`}
-                </span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </main>
-    );
   }
 
   return (
@@ -316,7 +271,7 @@ export default function PricingPage() {
           <PaycheckPlannerLogo size={26} />
           <p className="text-sm text-slate-500">
             A product of {BRAND.company} ·{" "}
-            <a
+            
               href={`mailto:${BRAND.supportEmail}`}
               className="text-slate-400 underline-offset-4 hover:text-emerald-400 hover:underline"
             >
