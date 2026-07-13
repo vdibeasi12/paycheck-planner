@@ -6,7 +6,7 @@ import { Plus, Trash2, Wallet } from 'lucide-react'
 
 interface Income {
   id: string
-  source: string
+  name: string
   amount: number
   frequency: string
   created_at: string
@@ -73,7 +73,7 @@ export default function IncomePage() {
       }
       const { error } = await supabase.from('income').insert({
         user_id: userAuth.user.id,
-        source,
+        name: source,
         amount: Number(amount),
         frequency,
       })
@@ -189,7 +189,7 @@ export default function IncomePage() {
                   >
                     <div>
                       <h3 className="font-semibold text-lg flex items-center gap-2">
-                        <Wallet size={16} className="text-green-400" /> {i.source}
+                        <Wallet size={16} className="text-green-400" /> {i.name}
                       </h3>
                       <p className="text-gray-400 text-sm capitalize">{i.frequency}</p>
                     </div>
