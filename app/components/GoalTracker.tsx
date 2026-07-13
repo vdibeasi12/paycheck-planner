@@ -162,7 +162,7 @@ export default function GoalTracker() {
         <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-5 shadow-sm">
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="block sm:col-span-2">
-              <span className="text-xs font-medium text-gray-400">Goal</span>
+              <span className="text-xs font-medium text-gray-300">Goal</span>
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
@@ -171,9 +171,9 @@ export default function GoalTracker() {
               />
             </label>
             <label className="block">
-              <span className="text-xs font-medium text-gray-400">Target amount</span>
+              <span className="text-xs font-medium text-gray-300">Target amount</span>
               <div className="mt-1 flex items-center rounded-lg border border-gray-700 px-3 focus-within:border-emerald-400">
-                <span className="text-gray-400">$</span>
+                <span className="text-gray-300">$</span>
                 <input
                   value={target}
                   onChange={(e) => setTarget(e.target.value)}
@@ -184,7 +184,7 @@ export default function GoalTracker() {
               </div>
             </label>
             <label className="block">
-              <span className="text-xs font-medium text-gray-400">Category</span>
+              <span className="text-xs font-medium text-gray-300">Category</span>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
@@ -196,7 +196,7 @@ export default function GoalTracker() {
               </select>
             </label>
             <label className="block sm:col-span-2">
-              <span className="text-xs font-medium text-gray-400">Target date (optional)</span>
+              <span className="text-xs font-medium text-gray-300">Target date (optional)</span>
               <input
                 type="date"
                 value={deadline}
@@ -300,7 +300,7 @@ function GoalCard({
       {!done && (
         <div className="mt-4 flex gap-2">
           <div className="flex flex-1 items-center rounded-lg border border-gray-700 px-3 focus-within:border-emerald-400">
-            <span className="text-gray-400">$</span>
+            <span className="text-gray-300">$</span>
             <input
               value={amt}
               onChange={(e) => setAmt(e.target.value)}
