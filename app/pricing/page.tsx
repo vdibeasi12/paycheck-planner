@@ -203,7 +203,7 @@ export default function PricingPage() {
             <table className="w-full min-w-[560px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-slate-800">
-                  <th className="sticky left-0 bg-slate-900/80 px-5 py-4 text-sm font-semibold text-slate-300 backdrop-blur">
+                  <th className="sticky left-0 z-10 bg-[#0f172a] px-5 py-4 text-sm font-semibold text-slate-300">
                     Feature
                   </th>
                   {VISIBLE_TIERS.map((t) => (
@@ -383,7 +383,7 @@ function GroupRows({ group, rows }: { group: string; rows: typeof FEATURE_GROUPS
       </tr>
       {rows.map((row, i) => (
         <tr key={row.label} className={i % 2 ? "bg-slate-900/20" : ""}>
-          <td className="sticky left-0 bg-inherit px-5 py-3 text-sm text-slate-300">
+          <td className="sticky left-0 z-10 bg-[#0f172a] px-5 py-3 text-sm text-slate-300">
             {row.label}
           </td>
           {VISIBLE_TIERS.map((col) => (
