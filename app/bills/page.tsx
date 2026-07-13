@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Plus, Trash2, Upload } from 'lucide-react'
+import { Plus, Trash2, Upload, Pencil, Check, X } from 'lucide-react'
 import SmartCapture from '../components/SmartCapture'
 import { useRouter } from 'next/navigation'
 import { isPremium } from '@/lib/permissions'
@@ -23,6 +23,10 @@ export default function BillsPage() {
   const [showCapture, setShowCapture] = useState(false)
   const [loading, setLoading] = useState(true)
   const [plan, setPlan] = useState('free')
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editName, setEditName] = useState('')
+  const [editAmount, setEditAmount] = useState('')
+  const [editDueDay, setEditDueDay] = useState('')
   const router = useRouter()
 
   async function loadBills() {
@@ -96,6 +100,36 @@ export default function BillsPage() {
       }
     }
     setShowCapture(false)
+  }
+
+  function startEdit(bill: Bill) {
+    setEditingId(bill.id)
+    setEditName(bill.name ?? '')
+    setEditAmount(String(bill.amount ?? ''))
+    setEditDueDay(String(bill.due_date ?? ''))
+  }
+
+  async function saveEdit(id: string) {
+    if (!editName || !editAmount || !editDueDay) {
+      alert('Please fill in all fields')
+      return
+    }
+    try {
+      const { error } = await supabase
+        .from('bills')
+        .update({
+          name: editName,
+          amount: Number(editAmount),
+          due_date: Number(editDueDay),
+        })
+        .eq('id', id)
+      if (error) throw error
+      setEditingId(null)
+      loadBills()
+    } catch (error) {
+      console.error('Error updating bill:', error)
+      alert('Failed to save changes')
+    }
   }
 
   async function deleteBill(id: string) {
@@ -217,27 +251,85 @@ export default function BillsPage() {
                     .map((bill) => (
                       <div
                         key={bill.id}
-                        className="bg-[#0f172a] border border-gray-700 rounded-lg p-4 flex items-center justify-between"
+                        className="bg-[#0f172a] border border-gray-700 rounded-lg p-4"
                       >
-                        <div>
-                          <h3 className="font-semibold text-lg">{bill.name}</h3>
-                          <p className="text-gray-400 text-sm">
-                            Due on day {bill.due_date} of each month
-                          </p>
-                        </div>
-                        <div className="flex items-center gap-4">
-                          <div className="text-right">
-                            <p className="text-2xl font-bold text-green-400">
-                              ${Number(bill.amount).toFixed(2)}
-                            </p>
+                        {editingId === bill.id ? (
+                          <div className="space-y-3">
+                            <input
+                              value={editName}
+                              onChange={(e) => setEditName(e.target.value)}
+                              placeholder="Bill name"
+                              className="w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white placeholder-gray-500"
+                            />
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className="text-gray-500 text-xs block mb-1">Amount ($)</label>
+                                <input
+                                  type="number"
+                                  step="0.01"
+                                  value={editAmount}
+                                  onChange={(e) => setEditAmount(e.target.value)}
+                                  className="w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white"
+                                />
+                              </div>
+                              <div>
+                                <label className="text-gray-500 text-xs block mb-1">Due day</label>
+                                <input
+                                  type="number"
+                                  min="1"
+                                  max="31"
+                                  value={editDueDay}
+                                  onChange={(e) => setEditDueDay(e.target.value)}
+                                  className="w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white"
+                                />
+                              </div>
+                            </div>
+                            <div className="flex gap-2">
+                              <button
+                                onClick={() => saveEdit(bill.id)}
+                                className="flex items-center gap-1 rounded-lg bg-green-500 px-3 py-1.5 text-sm font-semibold text-black hover:bg-green-600"
+                              >
+                                <Check size={16} /> Save
+                              </button>
+                              <button
+                                onClick={() => setEditingId(null)}
+                                className="flex items-center gap-1 rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-[#1a233a]"
+                              >
+                                <X size={16} /> Cancel
+                              </button>
+                            </div>
                           </div>
-                          <button
-                            onClick={() => deleteBill(bill.id)}
-                            className="text-red-400 hover:text-red-300 transition p-2"
-                          >
-                            <Trash2 size={20} />
-                          </button>
-                        </div>
+                        ) : (
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="font-semibold text-lg">{bill.name}</h3>
+                              <p className="text-gray-400 text-sm">
+                                Due on day {bill.due_date} of each month
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="text-right">
+                                <p className="text-2xl font-bold text-green-400">
+                                  ${Number(bill.amount).toFixed(2)}
+                                </p>
+                              </div>
+                              <button
+                                onClick={() => startEdit(bill)}
+                                className="text-gray-400 hover:text-white transition p-2"
+                                aria-label="Edit"
+                              >
+                                <Pencil size={18} />
+                              </button>
+                              <button
+                                onClick={() => deleteBill(bill.id)}
+                                className="text-red-400 hover:text-red-300 transition p-2"
+                                aria-label="Delete"
+                              >
+                                <Trash2 size={20} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ))}
                 </div>

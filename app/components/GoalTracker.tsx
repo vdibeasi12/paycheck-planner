@@ -167,19 +167,19 @@ export default function GoalTracker() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="e.g. $1,000 emergency fund"
-                className="mt-1 w-full rounded-lg border border-gray-700 px-3 py-2 text-sm outline-none focus:border-emerald-400"
+                className="mt-1 w-full rounded-lg border border-gray-700 bg-[#1a233a] px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-emerald-400"
               />
             </label>
             <label className="block">
               <span className="text-xs font-medium text-gray-300">Target amount</span>
-              <div className="mt-1 flex items-center rounded-lg border border-gray-700 px-3 focus-within:border-emerald-400">
+              <div className="mt-1 flex items-center rounded-lg border border-gray-700 bg-[#1a233a] px-3 focus-within:border-emerald-400">
                 <span className="text-gray-300">$</span>
                 <input
                   value={target}
                   onChange={(e) => setTarget(e.target.value)}
                   inputMode="decimal"
                   placeholder="1000"
-                  className="w-full bg-transparent py-2 pl-1 text-sm outline-none"
+                  className="w-full bg-transparent py-2 pl-1 text-sm text-white placeholder-gray-500 outline-none"
                 />
               </div>
             </label>
@@ -188,7 +188,7 @@ export default function GoalTracker() {
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-gray-700 px-3 py-2 text-sm outline-none focus:border-emerald-400"
+                className="mt-1 w-full rounded-lg border border-gray-700 bg-[#1a233a] px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
               >
                 {CATEGORIES.map((c) => (
                   <option key={c}>{c}</option>
@@ -201,7 +201,7 @@ export default function GoalTracker() {
                 type="date"
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
-                className="mt-1 w-full rounded-lg border border-gray-700 px-3 py-2 text-sm outline-none focus:border-emerald-400"
+                className="mt-1 w-full rounded-lg border border-gray-700 bg-[#1a233a] px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
               />
             </label>
           </div>
@@ -257,7 +257,7 @@ function GoalCard({
           <div className="flex items-center gap-2">
             <h3 className="font-semibold text-white">{goal.title}</h3>
             {done && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-xs font-semibold text-emerald-400">
                 <Trophy size={12} /> Reached
               </span>
             )}
@@ -270,7 +270,7 @@ function GoalCard({
         <button
           type="button"
           onClick={() => onRemove(goal.id)}
-          className="rounded-lg p-2 text-gray-400 hover:bg-rose-50 hover:text-rose-500"
+          className="rounded-lg p-2 text-gray-400 hover:bg-rose-500/10 hover:text-rose-400"
           aria-label="Delete goal"
         >
           <Trash2 size={16} />
@@ -299,14 +299,14 @@ function GoalCard({
       {/* Add contribution */}
       {!done && (
         <div className="mt-4 flex gap-2">
-          <div className="flex flex-1 items-center rounded-lg border border-gray-700 px-3 focus-within:border-emerald-400">
+          <div className="flex flex-1 items-center rounded-lg border border-gray-700 bg-[#1a233a] px-3 focus-within:border-emerald-400">
             <span className="text-gray-300">$</span>
             <input
               value={amt}
               onChange={(e) => setAmt(e.target.value)}
               inputMode="decimal"
               placeholder="Add a contribution"
-              className="w-full bg-transparent py-2 pl-1 text-sm outline-none"
+              className="w-full bg-transparent py-2 pl-1 text-sm text-white placeholder-gray-500 outline-none"
             />
           </div>
           <button

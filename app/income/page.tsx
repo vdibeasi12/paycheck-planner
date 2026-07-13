@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Plus, Trash2, Wallet, ChevronDown, ChevronUp } from 'lucide-react'
+import { Plus, Trash2, Wallet, ChevronDown, ChevronUp, Pencil, Check, X } from 'lucide-react'
 import SmartCapture from '@/components/SmartCapture'
 
 interface IncomeDetails {
@@ -78,6 +78,12 @@ export default function IncomePage() {
   const [showDetails, setShowDetails] = useState(false)
   const [detailsTab, setDetailsTab] = useState<DetailsTab>('taxes')
   const [details, setDetails] = useState(EMPTY_DETAILS)
+
+  const [editingId, setEditingId] = useState<string | null>(null)
+  const [editSource, setEditSource] = useState('')
+  const [editAmount, setEditAmount] = useState('')
+  const [editFrequency, setEditFrequency] = useState('monthly')
+  const [editNextPayDate, setEditNextPayDate] = useState('')
 
   async function loadIncome() {
     try {
@@ -182,6 +188,38 @@ export default function IncomePage() {
     }
 
     setShowCapture(false)
+  }
+
+  function startEdit(i: Income) {
+    setEditingId(i.id)
+    setEditSource(i.source ?? '')
+    setEditAmount(String(i.amount ?? ''))
+    setEditFrequency(i.frequency ?? 'monthly')
+    setEditNextPayDate(i.next_pay_date ?? '')
+  }
+
+  async function saveEdit(id: string) {
+    if (!editSource || !editAmount) {
+      alert('Please enter a source and amount')
+      return
+    }
+    try {
+      const { error } = await supabase
+        .from('income')
+        .update({
+          source: editSource,
+          amount: Number(editAmount),
+          frequency: editFrequency,
+          next_pay_date: editNextPayDate || null,
+        })
+        .eq('id', id)
+      if (error) throw error
+      setEditingId(null)
+      loadIncome()
+    } catch (error) {
+      console.error('Error updating income:', error)
+      alert('Failed to save changes')
+    }
   }
 
   async function deleteIncome(id: string) {
@@ -462,6 +500,65 @@ export default function IncomePage() {
                     key={i.id}
                     className="bg-[#0f172a] border border-gray-700 rounded-lg p-4"
                   >
+                    {editingId === i.id ? (
+                      <div className="space-y-3">
+                        <input
+                          value={editSource}
+                          onChange={(e) => setEditSource(e.target.value)}
+                          placeholder="Source"
+                          className="w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white placeholder-gray-500"
+                        />
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-gray-500 text-xs block mb-1">Amount ($)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editAmount}
+                              onChange={(e) => setEditAmount(e.target.value)}
+                              className="w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white"
+                            />
+                          </div>
+                          <div>
+                            <label className="text-gray-500 text-xs block mb-1">Frequency</label>
+                            <select
+                              value={editFrequency}
+                              onChange={(e) => setEditFrequency(e.target.value)}
+                              className="w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white"
+                            >
+                              {FREQUENCIES.map((f) => (
+                                <option key={f.value} value={f.value}>
+                                  {f.label}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-gray-500 text-xs block mb-1">Next pay date</label>
+                          <input
+                            type="date"
+                            value={editNextPayDate}
+                            onChange={(e) => setEditNextPayDate(e.target.value)}
+                            className="w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white"
+                          />
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => saveEdit(i.id)}
+                            className="flex items-center gap-1 rounded-lg bg-green-500 px-3 py-1.5 text-sm font-semibold text-black hover:bg-green-600"
+                          >
+                            <Check size={16} /> Save
+                          </button>
+                          <button
+                            onClick={() => setEditingId(null)}
+                            className="flex items-center gap-1 rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-[#1a233a]"
+                          >
+                            <X size={16} /> Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-semibold text-lg flex items-center gap-2">
@@ -479,6 +576,13 @@ export default function IncomePage() {
                           </p>
                         </div>
                         <button
+                          onClick={() => startEdit(i)}
+                          className="text-gray-400 hover:text-white transition p-2"
+                          aria-label="Edit"
+                        >
+                          <Pencil size={18} />
+                        </button>
+                        <button
                           onClick={() => deleteIncome(i.id)}
                           className="text-red-400 hover:text-red-300 transition p-2"
                         >
@@ -486,6 +590,7 @@ export default function IncomePage() {
                         </button>
                       </div>
                     </div>
+                    )}
 
                     {i.details && (
                       <div className="mt-3 pt-3 border-t border-gray-800 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-gray-400">
