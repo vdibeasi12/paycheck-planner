@@ -116,6 +116,20 @@ export default function PricingPage() {
             your plan is active, everything unlocks here in the app
             automatically.
           </p>
+
+          <div className="mt-8 space-y-2 text-left">
+            {VISIBLE_TIERS.map((t) => (
+              <div
+                key={t.id}
+                className="flex items-center justify-between rounded-lg border border-slate-700 bg-slate-900/50 px-4 py-3"
+              >
+                <span className="text-sm font-medium text-slate-200">{t.name}</span>
+                <span className="text-sm text-slate-400">
+                  {t.id === "free" ? "Free" : `$${t.priceMonthly}/mo`}
+                </span>
+              </div>
+            ))}
+          </div>
         </div>
       </main>
     );
