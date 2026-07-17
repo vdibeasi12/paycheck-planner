@@ -124,6 +124,37 @@ export default function PricingPage() {
     );
   }
 
+  // Native app users see a simplified screen instead of the full pricing
+  // table/checkout flow (App Store Guideline 3.1.1 -- no in-app purchase
+  // mechanism is wired up here yet, so we don't show purchase UI natively).
+  if (isNativeApp()) {
+    return (
+      <main
+        className="flex min-h-screen flex-col items-center justify-center px-6 text-center text-slate-100"
+        style={{
+          background:
+            "radial-gradient(1200px 600px at 50% -10%, #16243f 0%, #0a1228 55%, #070d1c 100%)",
+        }}
+      >
+        <PaycheckPlannerLogo size={40} />
+        <h1 className="mt-6 text-2xl font-bold tracking-tight">
+          Manage your plan on the web
+        </h1>
+        <p className="mt-3 max-w-sm text-sm text-slate-400">
+          To view plans or upgrade your subscription, visit{" "}
+          <span className="text-emerald-400">paycheckplanner.ai</span> in a
+          web browser.
+        </p>
+        <Link
+          href="/dashboard"
+          className="mt-8 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 px-6 py-2.5 text-sm font-semibold text-slate-950 transition hover:brightness-110"
+        >
+          Back to Dashboard
+        </Link>
+      </main>
+    );
+  }
+
   return (
     <main
       className="min-h-screen text-slate-100"
