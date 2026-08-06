@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react"
 import { Download, CalendarClock, TrendingDown, AlertTriangle } from "lucide-react"
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 
 type Debt = {
   id: string
@@ -61,12 +62,6 @@ type Sim = {
 const MAX_MONTHS = 600
 
 const round2 = (n: number) => Math.round(n * 100) / 100
-
-const fmt = (n: number) =>
-  n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 2 })
-
-const fmt0 = (n: number) =>
-  n.toLocaleString("en-US", { style: "currency", currency: "USD", maximumFractionDigits: 0 })
 
 function monthLabel(start: Date, offset: number): string {
   const d = new Date(start.getFullYear(), start.getMonth() + offset, 1)
@@ -254,6 +249,9 @@ function toCsv(rows: DebtRow[]): string {
 }
 
 export default function AmortizationSchedule({ debts }: Props) {
+  const formatMoney = useFormatCurrency()
+  const fmt = formatMoney
+  const fmt0 = (n: number) => formatMoney(Math.round(n))
   const [strategy, setStrategy] = useState<Strategy>("snowball")
   const [extra, setExtra] = useState<number>(0)
 

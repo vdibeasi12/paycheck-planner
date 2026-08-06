@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { X, Wallet, CreditCard, CalendarDays } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { occurrencesInMonth, billOccurrenceInMonth, type Frequency } from '@/lib/schedule'
+import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
 
 interface DebtRow {
   id: string
@@ -86,6 +87,7 @@ function upcomingOccurrences(
 }
 
 export default function CalendarPeek({ onNavigate }: { onNavigate?: () => void }) {
+  const formatMoney = useFormatCurrency()
   const [open, setOpen] = useState(false)
   const [debts, setDebts] = useState<DebtRow[]>([])
   const [income, setIncome] = useState<IncomeRow[]>([])
@@ -182,7 +184,7 @@ export default function CalendarPeek({ onNavigate }: { onNavigate?: () => void }
                           e.type === 'income' ? 'text-emerald-400' : 'text-amber-400'
                         }`}
                       >
-                        {e.type === 'income' ? '+' : '-'}${e.amount.toFixed(2)}
+                        {e.type === 'income' ? `+${formatMoney(e.amount)}` : `-${formatMoney(e.amount)}`}
                       </p>
                     </div>
                   ))}

@@ -6,6 +6,7 @@ import { Plus, Trash2, Upload, Pencil, Check, X } from 'lucide-react'
 import SmartCapture from '../components/SmartCapture'
 import { useRouter } from 'next/navigation'
 import { isPremium } from '@/lib/permissions'
+import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
 
 interface Bill {
   id: string
@@ -16,6 +17,7 @@ interface Bill {
 }
 
 export default function BillsPage() {
+  const formatMoney = useFormatCurrency()
   const [bills, setBills] = useState<Bill[]>([])
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
@@ -232,7 +234,7 @@ export default function BillsPage() {
                 <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
                   <p className="text-gray-400 text-sm">Total Monthly Bills</p>
                   <p className="text-3xl font-bold text-green-400">
-                    ${totalBills.toFixed(2)}
+                    {formatMoney(totalBills)}
                   </p>
                 </div>
                 <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
@@ -310,7 +312,7 @@ export default function BillsPage() {
                             <div className="flex items-center gap-3">
                               <div className="text-right">
                                 <p className="text-2xl font-bold text-green-400">
-                                  ${Number(bill.amount).toFixed(2)}
+                                  {formatMoney(Number(bill.amount))}
                                 </p>
                               </div>
                               <button

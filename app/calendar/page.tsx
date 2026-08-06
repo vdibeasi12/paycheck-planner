@@ -5,6 +5,7 @@ import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
 import { ChevronLeft, ChevronRight, Wallet, Receipt, AlertCircle } from 'lucide-react'
 import { occurrencesInMonth, billOccurrenceInMonth, type Frequency } from '@/lib/schedule'
+import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
 
 interface BillRow {
   id: string
@@ -36,6 +37,7 @@ function todayISO(): string {
 }
 
 export default function CalendarPage() {
+  const formatMoney = useFormatCurrency()
   const [cursor, setCursor] = useState(() => {
     const d = new Date()
     return { year: d.getFullYear(), month: d.getMonth() } // month is 0-indexed
@@ -206,9 +208,9 @@ export default function CalendarPage() {
                                 ? 'bg-emerald-500/15 text-emerald-300'
                                 : 'bg-rose-500/15 text-rose-300'
                             }`}
-                            title={`${e.name} — $${e.amount.toFixed(2)}`}
+                            title={`${e.name} — ${formatMoney(e.amount)}`}
                           >
-                            {e.type === 'income' ? '+' : '-'}${e.amount.toFixed(0)}
+                            {e.type === 'income' ? `+${formatMoney(Math.round(e.amount))}` : `-${formatMoney(Math.round(e.amount))}`}
                           </div>
                         ))}
                         {dayEvents.length > 3 && (
@@ -255,7 +257,7 @@ export default function CalendarPage() {
                           e.type === 'income' ? 'text-emerald-400' : 'text-rose-400'
                         }`}
                       >
-                        {e.type === 'income' ? '+' : '-'}${e.amount.toFixed(2)}
+                        {e.type === 'income' ? `+${formatMoney(e.amount)}` : `-${formatMoney(e.amount)}`}
                       </p>
                     </div>
                   ))}

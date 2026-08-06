@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Plus, Trash2, Download, BarChart3 } from 'lucide-react'
 import Link from 'next/link'
+import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
 
 interface Debt {
   id: string
@@ -25,6 +26,7 @@ interface PayoffResult {
 }
 
 export default function DebtPayoffCalculator() {
+  const formatMoney = useFormatCurrency()
   const [debts, setDebts] = useState<Debt[]>([
     { id: '1', name: 'Credit Card', balance: 5000, interestRate: 18.5, minimumPayment: 150 },
   ])
@@ -127,22 +129,22 @@ Generated: ${new Date().toLocaleDateString()}
 
 SNOWBALL STRATEGY (Pay smallest balance first):
 Months to Debt Freedom: ${snowballResult.monthsToPayoff}
-Total Interest Paid: $${snowballResult.totalInterestPaid.toFixed(2)}
-Monthly Payments: $${(totalMinimum + extraPayment).toFixed(2)}
+Total Interest Paid: ${formatMoney(snowballResult.totalInterestPaid)}
+Monthly Payments: ${formatMoney(totalMinimum + extraPayment)}
 
 AVALANCHE STRATEGY (Pay highest interest first):
 Months to Debt Freedom: ${avalancheResult.monthsToPayoff}
-Total Interest Paid: $${avalancheResult.totalInterestPaid.toFixed(2)}
-Monthly Payments: $${(totalMinimum + extraPayment).toFixed(2)}
+Total Interest Paid: ${formatMoney(avalancheResult.totalInterestPaid)}
+Monthly Payments: ${formatMoney(totalMinimum + extraPayment)}
 
 SAVINGS WITH ${avalancheResult.totalInterestPaid < snowballResult.totalInterestPaid ? 'AVALANCHE' : 'SNOWBALL'}:
-Interest Saved: $${Math.abs(snowballResult.totalInterestPaid - avalancheResult.totalInterestPaid).toFixed(2)}
+Interest Saved: ${formatMoney(Math.abs(snowballResult.totalInterestPaid - avalancheResult.totalInterestPaid))}
 Time Saved: ${Math.abs(snowballResult.monthsToPayoff - avalancheResult.monthsToPayoff)} months
 
 DEBTS:
-${debts.map(d => `${d.name}: $${d.balance.toFixed(2)} @ ${d.interestRate}% APR`).join('\n')}
+${debts.map(d => `${d.name}: ${formatMoney(d.balance)} @ ${d.interestRate}% APR`).join('\n')}
 
-Extra Monthly Payment: $${extraPayment.toFixed(2)}
+Extra Monthly Payment: ${formatMoney(extraPayment)}
 `
 
     const element = document.createElement('a')
@@ -269,11 +271,11 @@ Extra Monthly Payment: $${extraPayment.toFixed(2)}
                   <div className="grid grid-cols-2 gap-4">
                     <div>
                       <p className="text-gray-400 text-sm">Total Debt</p>
-                      <p className="text-2xl font-bold text-green-400">${totalDebt.toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-green-400">{formatMoney(totalDebt)}</p>
                     </div>
                     <div>
                       <p className="text-gray-400 text-sm">Total Monthly Payment</p>
-                      <p className="text-2xl font-bold text-blue-400">${(totalMinimum + extraPayment).toFixed(2)}</p>
+                      <p className="text-2xl font-bold text-blue-400">{formatMoney(totalMinimum + extraPayment)}</p>
                     </div>
                   </div>
                 </div>
@@ -297,7 +299,7 @@ Extra Monthly Payment: $${extraPayment.toFixed(2)}
                     <div>
                       <p className="text-gray-400 text-sm">Total Interest Paid</p>
                       <p className="text-3xl font-bold text-orange-400">
-                        ${snowballResult.totalInterestPaid.toFixed(2)}
+                        {formatMoney(snowballResult.totalInterestPaid)}
                       </p>
                     </div>
                   </div>
@@ -322,7 +324,7 @@ Extra Monthly Payment: $${extraPayment.toFixed(2)}
                     <div>
                       <p className="text-gray-400 text-sm">Total Interest Paid</p>
                       <p className="text-3xl font-bold text-blue-400">
-                        ${avalancheResult.totalInterestPaid.toFixed(2)}
+                        {formatMoney(avalancheResult.totalInterestPaid)}
                       </p>
                     </div>
                   </div>
@@ -341,7 +343,7 @@ Extra Monthly Payment: $${extraPayment.toFixed(2)}
                     <div className="flex justify-between items-center">
                       <span className="text-gray-400">Interest Savings</span>
                       <span className="font-bold text-green-400">
-                        ${Math.abs(snowballResult.totalInterestPaid - avalancheResult.totalInterestPaid).toFixed(2)}
+                        {formatMoney(Math.abs(snowballResult.totalInterestPaid - avalancheResult.totalInterestPaid))}
                       </span>
                     </div>
                     <div className="flex justify-between items-center">

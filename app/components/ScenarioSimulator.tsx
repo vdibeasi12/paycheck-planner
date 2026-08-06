@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { simulatePayoff } from "@/lib/financeEngine"
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 
 interface Debt {
   id: string
@@ -17,7 +18,7 @@ interface Props {
 }
 
 export default function ScenarioSimulator({ debts, strategy }: Props) {
-
+  const formatMoney = useFormatCurrency()
   const [extraPayment, setExtraPayment] = useState(0)
 
   if (!debts || debts.length === 0) {
@@ -109,7 +110,7 @@ export default function ScenarioSimulator({ debts, strategy }: Props) {
           </p>
 
           <p className="text-lg font-semibold text-green-600">
-            ${interestSaved > 0 ? interestSaved.toLocaleString() : 0}
+            {formatMoney(interestSaved > 0 ? interestSaved : 0)}
           </p>
 
         </div>

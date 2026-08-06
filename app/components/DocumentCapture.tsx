@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { Camera, Upload, Trash2, ExternalLink, Loader2, FileText } from "lucide-react";
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency";
 
 type DocType = "bill" | "paycheck" | "receipt" | "other";
 
@@ -24,6 +25,7 @@ const TYPES: { id: DocType; label: string }[] = [
 ];
 
 export default function DocumentCapture() {
+  const formatMoney = useFormatCurrency();
   const [docType, setDocType] = useState<DocType>("bill");
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
@@ -254,7 +256,7 @@ export default function DocumentCapture() {
                       {doc.doc_type}
                     </span>
                     {doc.file_name || "Untitled"}
-                    {doc.amount != null ? ` · $${Number(doc.amount).toFixed(2)}` : ""}
+                    {doc.amount != null ? ` · ${formatMoney(Number(doc.amount))}` : ""}
                   </p>
                   <p className="text-xs text-gray-400">
                     {new Date(doc.created_at).toLocaleDateString()}

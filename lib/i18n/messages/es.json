@@ -1,0 +1,23 @@
+{
+  "nav": {
+    "dashboard": "Panel",
+    "calendar": "Calendario",
+    "debts": "Deudas",
+    "payoffPlan": "Plan de pago",
+    "bills": "Facturas",
+    "income": "Ingresos",
+    "goals": "Metas",
+    "achievements": "Logros",
+    "insights": "Estadísticas",
+    "aiChat": "Chat IA",
+    "account": "Cuenta",
+    "admin": "Administrador",
+    "gettingStarted": "Primeros pasos",
+    "feedback": "Comentarios",
+    "signOut": "Cerrar sesión"
+  },
+  "selector": {
+    "language": "Idioma",
+    "currency": "Moneda"
+  }
+}

@@ -12,8 +12,10 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts"
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 
 export default function Analytics() {
+  const formatMoney = useFormatCurrency()
   const [debts, setDebts] = useState<any[]>([])
   const [totalDebt, setTotalDebt] = useState(0)
   const [avgInterest, setAvgInterest] = useState(0)
@@ -113,7 +115,7 @@ export default function Analytics() {
       <div className="mb-10 grid grid-cols-3 gap-6">
         <div className="rounded bg-gray-900 p-6">
           <p>Total Debt</p>
-          <p className="text-2xl font-bold">${totalDebt.toFixed(2)}</p>
+          <p className="text-2xl font-bold">{formatMoney(totalDebt)}</p>
         </div>
 
         <div className="rounded bg-gray-900 p-6">

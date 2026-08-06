@@ -2,9 +2,7 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { supabase } from "@/lib/supabase/client";
-
-const money = (n: number) =>
-  Number(n || 0).toLocaleString(undefined, { style: "currency", currency: "USD" });
+import { formatCurrency } from "@/lib/i18n/formatCurrency";
 
 async function logoDataUrl(): Promise<string | null> {
   try {
@@ -21,7 +19,11 @@ async function logoDataUrl(): Promise<string | null> {
   }
 }
 
-export async function generateSummaryPdf() {
+export async function generateSummaryPdf(
+  currency: string = "USD",
+  locale: string = "en-US"
+) {
+  const money = (n: number) => formatCurrency(Number(n || 0), currency, locale);
   const doc = new jsPDF();
   const pageW = doc.internal.pageSize.getWidth();
 

@@ -3,8 +3,10 @@
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import MetricCard from "./MetricCard"
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 
 export default function BudgetShockDetector() {
+  const formatMoney = useFormatCurrency()
   const [billsTotal, setBillsTotal] = useState(0)
   const [debtMinimums, setDebtMinimums] = useState(0)
 
@@ -68,17 +70,17 @@ export default function BudgetShockDetector() {
 
         <MetricCard
           title="Monthly Income"
-          value={`$${estimatedIncome.toLocaleString()}`}
+          value={formatMoney(estimatedIncome)}
         />
 
         <MetricCard
           title="Required Payments"
-          value={`$${totalRequired.toLocaleString()}`}
+          value={formatMoney(totalRequired)}
         />
 
         <MetricCard
           title="Remaining Buffer"
-          value={`$${remaining.toLocaleString()}`}
+          value={formatMoney(remaining)}
         />
 
       </div>

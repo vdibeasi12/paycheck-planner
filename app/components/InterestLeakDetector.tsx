@@ -3,9 +3,10 @@
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
 import { calculatePayoff } from "@/lib/payoffEngine"
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 
 export default function InterestLeakDetector() {
-
+  const formatMoney = useFormatCurrency()
   const [minimumInterest, setMinimumInterest] = useState(0)
   const [optimizedInterest, setOptimizedInterest] = useState(0)
 
@@ -49,16 +50,16 @@ export default function InterestLeakDetector() {
 
         <p>
           Minimum Payments Interest:
-          <strong> ${minimumInterest.toLocaleString()}</strong>
+          <strong> {formatMoney(minimumInterest)}</strong>
         </p>
 
         <p>
           Optimized Strategy Interest:
-          <strong> ${optimizedInterest.toLocaleString()}</strong>
+          <strong> {formatMoney(optimizedInterest)}</strong>
         </p>
 
         <p className="text-green-600 font-semibold">
-          Interest Saved: ${saved.toLocaleString()}
+          Interest Saved: {formatMoney(saved)}
         </p>
 
       </div>

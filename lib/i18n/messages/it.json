@@ -1,0 +1,23 @@
+{
+  "nav": {
+    "dashboard": "Pannello",
+    "calendar": "Calendario",
+    "debts": "Debiti",
+    "payoffPlan": "Piano di rimborso",
+    "bills": "Bollette",
+    "income": "Entrate",
+    "goals": "Obiettivi",
+    "achievements": "Traguardi",
+    "insights": "Approfondimenti",
+    "aiChat": "Chat IA",
+    "account": "Account",
+    "admin": "Amministratore",
+    "gettingStarted": "Per iniziare",
+    "feedback": "Feedback",
+    "signOut": "Esci"
+  },
+  "selector": {
+    "language": "Lingua",
+    "currency": "Valuta"
+  }
+}

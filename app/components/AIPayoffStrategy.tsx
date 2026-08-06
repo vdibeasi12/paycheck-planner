@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { simulatePayoff, type Debt, type Strategy } from "@/lib/financeEngine"
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 
 function months(n: number): string {
   if (n <= 0) return "—"
@@ -13,15 +14,8 @@ function months(n: number): string {
   return `${y} yr ${m} mo`
 }
 
-function usd(n: number): string {
-  return n.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  })
-}
-
 export default function AIPayoffStrategy() {
+  const usd = useFormatCurrency()
   const [debts, setDebts] = useState<Debt[]>([])
   const [loading, setLoading] = useState(true)
   const [strategy, setStrategy] = useState<Strategy>("avalanche")

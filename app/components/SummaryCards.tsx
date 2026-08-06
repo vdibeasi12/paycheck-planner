@@ -1,6 +1,7 @@
 "use client"
 
 import InfoHint from "./InfoHint"
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 
 type Props = {
   netWorth: number
@@ -15,25 +16,26 @@ export default function SummaryCards({
   monthlyPayments,
   percentPaid,
 }: Props) {
+  const formatMoney = useFormatCurrency()
   return (
     <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
 
       <Card
         label="Net Worth"
-        value={`$${netWorth.toLocaleString()}`}
+        value={formatMoney(netWorth)}
         hint="Everything you own minus everything you owe. Until you track assets, this mirrors your total debt as a negative number."
       />
 
       <Card
         label="Total Debt"
-        value={`$${totalDebt.toLocaleString()}`}
+        value={formatMoney(totalDebt)}
         valueClass="text-red-400"
         hint="The combined balance across every debt you've added. Watch this shrink as you pay things down."
       />
 
       <Card
         label="Monthly Payments"
-        value={`$${monthlyPayments.toLocaleString()}`}
+        value={formatMoney(monthlyPayments)}
         hint="The total of the minimum payments due across all your debts each month."
       />
 

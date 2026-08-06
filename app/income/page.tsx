@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
 import { Plus, Trash2, Wallet, ChevronDown, ChevronUp, Pencil, Check, X } from 'lucide-react'
 import SmartCapture from '@/components/SmartCapture'
+import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
 
 interface IncomeDetails {
   grossPay: number | null
@@ -67,6 +68,7 @@ function monthlyFactor(freq: string): number {
 }
 
 export default function IncomePage() {
+  const formatMoney = useFormatCurrency()
   const [items, setItems] = useState<Income[]>([])
   const [source, setSource] = useState('')
   const [amount, setAmount] = useState('')
@@ -482,7 +484,7 @@ export default function IncomePage() {
               <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
                 <p className="text-gray-400 text-sm">Total Monthly Income</p>
                 <p className="text-3xl font-bold text-green-400">
-                  ${monthlyTotal.toFixed(2)}
+                  {formatMoney(monthlyTotal)}
                 </p>
               </div>
               <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
@@ -569,10 +571,10 @@ export default function IncomePage() {
                       <div className="flex items-center gap-4">
                         <div className="text-right">
                           <p className="text-2xl font-bold text-green-400">
-                            ${Number(i.amount).toFixed(2)}
+                            {formatMoney(Number(i.amount))}
                           </p>
                           <p className="text-xs text-gray-500">
-                            ~${(Number(i.amount) * monthlyFactor(i.frequency)).toFixed(2)}/mo
+                            ~{formatMoney(Number(i.amount) * monthlyFactor(i.frequency))}/mo
                           </p>
                         </div>
                         <button
@@ -594,15 +596,15 @@ export default function IncomePage() {
 
                     {i.details && (
                       <div className="mt-3 pt-3 border-t border-gray-800 grid grid-cols-2 sm:grid-cols-3 gap-x-4 gap-y-1 text-xs text-gray-400">
-                        {i.details.grossPay != null && <p>Gross: ${Number(i.details.grossPay).toFixed(2)}</p>}
-                        {i.details.federalTax != null && <p>Federal tax: ${Number(i.details.federalTax).toFixed(2)}</p>}
-                        {i.details.stateTax != null && <p>State tax: ${Number(i.details.stateTax).toFixed(2)}</p>}
-                        {i.details.socialSecurity != null && <p>Social Security: ${Number(i.details.socialSecurity).toFixed(2)}</p>}
-                        {i.details.medicare != null && <p>Medicare: ${Number(i.details.medicare).toFixed(2)}</p>}
-                        {i.details.retirement401k != null && <p>401(k): ${Number(i.details.retirement401k).toFixed(2)}</p>}
-                        {i.details.healthInsurance != null && <p>Health insurance: ${Number(i.details.healthInsurance).toFixed(2)}</p>}
-                        {i.details.otherDeductions != null && <p>Other: ${Number(i.details.otherDeductions).toFixed(2)}</p>}
-                        {i.details.netPay != null && <p>Net: ${Number(i.details.netPay).toFixed(2)}</p>}
+                        {i.details.grossPay != null && <p>Gross: {formatMoney(Number(i.details.grossPay))}</p>}
+                        {i.details.federalTax != null && <p>Federal tax: {formatMoney(Number(i.details.federalTax))}</p>}
+                        {i.details.stateTax != null && <p>State tax: {formatMoney(Number(i.details.stateTax))}</p>}
+                        {i.details.socialSecurity != null && <p>Social Security: {formatMoney(Number(i.details.socialSecurity))}</p>}
+                        {i.details.medicare != null && <p>Medicare: {formatMoney(Number(i.details.medicare))}</p>}
+                        {i.details.retirement401k != null && <p>401(k): {formatMoney(Number(i.details.retirement401k))}</p>}
+                        {i.details.healthInsurance != null && <p>Health insurance: {formatMoney(Number(i.details.healthInsurance))}</p>}
+                        {i.details.otherDeductions != null && <p>Other: {formatMoney(Number(i.details.otherDeductions))}</p>}
+                        {i.details.netPay != null && <p>Net: {formatMoney(Number(i.details.netPay))}</p>}
                       </div>
                     )}
                   </div>

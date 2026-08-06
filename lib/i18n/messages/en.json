@@ -1,0 +1,23 @@
+{
+  "nav": {
+    "dashboard": "Dashboard",
+    "calendar": "Calendar",
+    "debts": "Debts",
+    "payoffPlan": "Payoff Plan",
+    "bills": "Bills",
+    "income": "Income",
+    "goals": "Goals",
+    "achievements": "Achievements",
+    "insights": "Insights",
+    "aiChat": "AI Chat",
+    "account": "Account",
+    "admin": "Admin",
+    "gettingStarted": "Getting Started",
+    "feedback": "Feedback",
+    "signOut": "Sign out"
+  },
+  "selector": {
+    "language": "Language",
+    "currency": "Currency"
+  }
+}

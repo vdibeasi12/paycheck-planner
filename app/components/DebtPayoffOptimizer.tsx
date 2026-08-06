@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency";
 
 type Debt = {
   balance: number;
@@ -10,6 +11,7 @@ type Debt = {
 };
 
 export default function DebtPayoffOptimizer() {
+  const formatMoney = useFormatCurrency();
   const [monthsSaved, setMonthsSaved] = useState<number | null>(null);
   const [interestSaved, setInterestSaved] = useState<number | null>(null);
 
@@ -95,7 +97,7 @@ export default function DebtPayoffOptimizer() {
           </p>
 
           <p className="text-green-600">
-            ${interestSaved?.toLocaleString()} interest saved
+            {interestSaved != null ? formatMoney(interestSaved) : ""} interest saved
           </p>
         </>
       )}

@@ -1,6 +1,7 @@
 "use client"
 
 import { safeArray } from "@/lib/safeArray"
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 
 type Bill = {
   id: string
@@ -14,6 +15,7 @@ type Props = {
 }
 
 export default function BillsList({ bills }: Props) {
+  const formatMoney = useFormatCurrency()
   const safeBills = safeArray(bills)
 
   if (safeBills.length === 0) {
@@ -43,7 +45,7 @@ export default function BillsList({ bills }: Props) {
             </div>
 
             <p className="font-semibold">
-              ${bill.amount.toLocaleString()}
+              {formatMoney(bill.amount)}
             </p>
           </div>
         ))}

@@ -1,0 +1,23 @@
+{
+  "nav": {
+    "dashboard": "Panel",
+    "calendar": "Kalendarz",
+    "debts": "Długi",
+    "payoffPlan": "Plan spłaty",
+    "bills": "Rachunki",
+    "income": "Dochody",
+    "goals": "Cele",
+    "achievements": "Osiągnięcia",
+    "insights": "Analizy",
+    "aiChat": "Czat AI",
+    "account": "Konto",
+    "admin": "Administrator",
+    "gettingStarted": "Pierwsze kroki",
+    "feedback": "Opinie",
+    "signOut": "Wyloguj się"
+  },
+  "selector": {
+    "language": "Język",
+    "currency": "Waluta"
+  }
+}

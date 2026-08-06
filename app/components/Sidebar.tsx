@@ -26,24 +26,27 @@ import Logo from "./Logo"
 import GettingStartedModal from "./GettingStartedModal"
 import ProductTour from "./ProductTour"
 import CalendarPeek from "./CalendarPeek"
+import LocaleCurrencySelector from "./LocaleCurrencySelector"
+import { useLocale } from "@/lib/i18n/LocaleProvider"
 import { supabase } from "@/lib/supabase/client"
 
 const LINKS = [
-  { href: "/dashboard", label: "Dashboard", Icon: LayoutDashboard },
-  { href: "/calendar", label: "Calendar", Icon: Calendar },
-  { href: "/debts", label: "Debts", Icon: CreditCard },
-  { href: "/amortization", label: "Payoff Plan", Icon: CalendarClock },
-  { href: "/bills", label: "Bills", Icon: Receipt },
-  { href: "/income", label: "Income", Icon: Wallet },
-  { href: "/goals", label: "Goals", Icon: Target },
-  { href: "/achievements", label: "Achievements", Icon: Trophy },
-  { href: "/insights", label: "Insights", Icon: BarChart3 },
-  { href: "/ai-chat", label: "AI Chat", Icon: MessageSquare },
-  { href: "/account", label: "Account", Icon: Settings },
+  { href: "/dashboard", labelKey: "nav.dashboard", Icon: LayoutDashboard },
+  { href: "/calendar", labelKey: "nav.calendar", Icon: Calendar },
+  { href: "/debts", labelKey: "nav.debts", Icon: CreditCard },
+  { href: "/amortization", labelKey: "nav.payoffPlan", Icon: CalendarClock },
+  { href: "/bills", labelKey: "nav.bills", Icon: Receipt },
+  { href: "/income", labelKey: "nav.income", Icon: Wallet },
+  { href: "/goals", labelKey: "nav.goals", Icon: Target },
+  { href: "/achievements", labelKey: "nav.achievements", Icon: Trophy },
+  { href: "/insights", labelKey: "nav.insights", Icon: BarChart3 },
+  { href: "/ai-chat", labelKey: "nav.aiChat", Icon: MessageSquare },
+  { href: "/account", labelKey: "nav.account", Icon: Settings },
 ]
 
 export default function Sidebar() {
   const pathname = usePathname()
+  const { t } = useLocale()
   const [open, setOpen] = useState(false)
   const [gsOpen, setGsOpen] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
@@ -92,7 +95,7 @@ export default function Sidebar() {
 
   const renderLinks = (onNavigate?: () => void) => (
     <nav className="flex flex-col gap-1 px-3">
-      {LINKS.map(({ href, label, Icon }) => {
+      {LINKS.map(({ href, labelKey, Icon }) => {
         const active = isActive(href)
         return (
           <Fragment key={href}>
@@ -108,7 +111,7 @@ export default function Sidebar() {
               }`}
             >
               <Icon size={20} className={active ? "text-green-400" : "text-gray-400"} />
-              {label}
+              {t(labelKey)}
             </Link>
 
             {href === "/dashboard" && (
@@ -120,7 +123,7 @@ export default function Sidebar() {
                 className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-gray-300 transition hover:bg-white/5 hover:text-white"
               >
                 <Sparkles size={20} className="text-gray-400" />
-                Getting Started
+                {t("nav.gettingStarted")}
               </button>
             )}
           </Fragment>
@@ -142,7 +145,7 @@ export default function Sidebar() {
             size={20}
             className={isActive("/admin") ? "text-green-400" : "text-gray-400"}
           />
-          Admin
+          {t("nav.admin")}
         </Link>
       )}
 
@@ -155,7 +158,7 @@ export default function Sidebar() {
         className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-gray-300 transition hover:bg-white/5 hover:text-white"
       >
         <MessageSquarePlus size={20} className="text-gray-400" />
-        Feedback
+        {t("nav.feedback")}
       </button>
 
       <button
@@ -166,7 +169,7 @@ export default function Sidebar() {
         className="mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-gray-400 transition hover:bg-white/5 hover:text-white"
       >
         <LogOut size={20} className="text-gray-500" />
-        Sign out
+        {t("nav.signOut")}
       </button>
     </nav>
   )
@@ -178,14 +181,22 @@ export default function Sidebar() {
         <Link href="/dashboard" className="flex items-center" aria-label="Paycheck Planner home">
           <Logo size="md" />
         </Link>
-        <button
-          onClick={() => setOpen(true)}
-          className="-mr-2 p-2 text-gray-200"
-          aria-label="Open menu"
-        >
-          <Menu size={26} />
-        </button>
+        <div className="flex items-center gap-2">
+          <LocaleCurrencySelector inline />
+          <button
+            onClick={() => setOpen(true)}
+            className="-mr-2 p-2 text-gray-200"
+            aria-label="Open menu"
+          >
+            <Menu size={26} />
+          </button>
+        </div>
       </header>
+
+      {/* Top-right language/currency widget (desktop only) */}
+      <div className="fixed top-4 right-4 z-50 hidden rounded-lg border border-gray-800 bg-[#0b1220]/95 px-2.5 py-2 shadow-lg backdrop-blur md:block">
+        <LocaleCurrencySelector inline />
+      </div>
 
       {/* Desktop fixed sidebar */}
       <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-gray-800 bg-[#0b1220] md:flex">

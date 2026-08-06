@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { celebrate, popMilestone } from "@/lib/confetti";
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency";
 import { Plus, Target, Trophy, Trash2, Loader2 } from "lucide-react";
 
 type Goal = {
@@ -246,6 +247,7 @@ function GoalCard({
   onContribute: (g: Goal, raw: string) => void;
   onRemove: (id: string) => void;
 }) {
+  const formatMoney = useFormatCurrency();
   const [amt, setAmt] = useState("");
   const progress = pct(goal);
   const done = progress >= 100;
@@ -281,8 +283,7 @@ function GoalCard({
       <div className="mt-4">
         <div className="mb-1 flex items-baseline justify-between text-sm">
           <span className="font-medium text-gray-200">
-            ${Number(goal.current_amount ?? 0).toLocaleString()} of $
-            {Number(goal.target_amount).toLocaleString()}
+            {formatMoney(Number(goal.current_amount ?? 0))} of {formatMoney(Number(goal.target_amount))}
           </span>
           <span className={`font-semibold ${done ? "text-emerald-600" : "text-gray-400"}`}>
             {progress}%

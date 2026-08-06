@@ -1,6 +1,7 @@
 "use client"
 
 import safeArray from "@/lib/safeArray"
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 
 type Debt = {
   balance: number
@@ -9,6 +10,7 @@ type Debt = {
 }
 
 export default function AIInsight({ debts }: { debts: Debt[] }) {
+  const formatMoney = useFormatCurrency()
   const safeDebts = safeArray(debts)
 
   // Estimate monthly interest loss
@@ -36,7 +38,7 @@ export default function AIInsight({ debts }: { debts: Debt[] }) {
           </p>
 
           <p className="text-2xl font-bold text-red-400 mb-4">
-            ${monthlyInterestLoss.toFixed(0)} / month
+            {formatMoney(Math.round(monthlyInterestLoss))} / month
           </p>
 
           <div className="bg-slate-800 rounded-xl p-4 mb-4">
@@ -44,7 +46,7 @@ export default function AIInsight({ debts }: { debts: Debt[] }) {
               With optimization, you could save:
             </p>
             <p className="text-xl font-semibold text-emerald-400">
-              ${estimatedSavings.toFixed(0)}+
+              {formatMoney(Math.round(estimatedSavings))}+
             </p>
           </div>
 

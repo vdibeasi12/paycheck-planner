@@ -1,6 +1,7 @@
 "use client";
 
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from "recharts";
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency";
 
 const COLORS = [
   "#34D399",
@@ -17,9 +18,6 @@ const COLORS = [
 
 export type Slice = { name: string; value: number };
 
-const money = (n: number) =>
-  n.toLocaleString(undefined, { style: "currency", currency: "USD", maximumFractionDigits: 0 });
-
 export function PieCard({
   title,
   data,
@@ -29,6 +27,7 @@ export function PieCard({
   data: Slice[];
   emptyHint?: string;
 }) {
+  const money = useFormatCurrency();
   const total = data.reduce((s, d) => s + d.value, 0);
 
   return (

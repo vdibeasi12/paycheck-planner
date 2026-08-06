@@ -6,6 +6,7 @@ import { supabase } from '@/lib/supabase/client'
 import { Plus, Trash2, CreditCard, Pencil, Check, X, Lock, Camera } from 'lucide-react'
 import { getMaxDebts } from '@/lib/permissions'
 import SmartCapture from '../components/SmartCapture'
+import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
 
 interface Debt {
   id: string
@@ -26,6 +27,7 @@ type EditState = {
 const EMPTY_EDIT: EditState = { name: '', balance: '', interest_rate: '', minimum_payment: '' }
 
 export default function DebtsPage() {
+  const formatMoney = useFormatCurrency()
   const [items, setItems] = useState<Debt[]>([])
   const [name, setName] = useState('')
   const [balance, setBalance] = useState('')
@@ -297,11 +299,11 @@ export default function DebtsPage() {
             <div className="grid grid-cols-3 gap-4 mb-6">
               <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
                 <p className="text-gray-400 text-sm">Total Balance</p>
-                <p className="text-2xl font-bold text-rose-400">${totalBalance.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-rose-400">{formatMoney(totalBalance)}</p>
               </div>
               <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
                 <p className="text-gray-400 text-sm">Min / month</p>
-                <p className="text-2xl font-bold text-blue-400">${totalMin.toFixed(2)}</p>
+                <p className="text-2xl font-bold text-blue-400">{formatMoney(totalMin)}</p>
               </div>
               <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
                 <p className="text-gray-400 text-sm">Avg APR</p>
@@ -379,13 +381,13 @@ export default function DebtsPage() {
                           <p className="text-gray-400 text-sm">
                             {Number(d.interest_rate).toFixed(2)}% APR
                             {Number(d.minimum_payment) > 0
-                              ? ` - min $${Number(d.minimum_payment).toFixed(2)}/mo`
+                              ? ` - min ${formatMoney(Number(d.minimum_payment))}/mo`
                               : ''}
                           </p>
                         </div>
                         <div className="flex items-center gap-3">
                           <p className="text-2xl font-bold text-rose-400">
-                            ${Number(d.balance).toFixed(2)}
+                            {formatMoney(Number(d.balance))}
                           </p>
                           <button
                             onClick={() => startEdit(d)}

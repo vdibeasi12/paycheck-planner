@@ -1,0 +1,23 @@
+{
+  "nav": {
+    "dashboard": "Yfirlit",
+    "calendar": "Dagatal",
+    "debts": "Skuldir",
+    "payoffPlan": "Greiðsluáætlun",
+    "bills": "Reikningar",
+    "income": "Tekjur",
+    "goals": "Markmið",
+    "achievements": "Afrek",
+    "insights": "Innsýn",
+    "aiChat": "Spjall við gervigreind",
+    "account": "Aðgangur",
+    "admin": "Stjórnandi",
+    "gettingStarted": "Fyrstu skref",
+    "feedback": "Ábendingar",
+    "signOut": "Skrá út"
+  },
+  "selector": {
+    "language": "Tungumál",
+    "currency": "Gjaldmiðill"
+  }
+}

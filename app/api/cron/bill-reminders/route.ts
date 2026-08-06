@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { resend } from "@/lib/email"
+import { formatCurrency } from "@/lib/i18n/formatCurrency"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -89,7 +90,7 @@ export async function GET(req: Request) {
 
     const { data: profile } = await db
       .from("profiles")
-      .select("email, full_name")
+      .select("email, full_name, locale, display_currency")
       .eq("id", pref.user_id)
       .single()
 
@@ -100,14 +101,16 @@ export async function GET(req: Request) {
     }
 
     const name = profile && profile.full_name ? String(profile.full_name) : "there"
+    const userLocale = (profile && (profile as any).locale) || "en-US"
+    const userCurrency = (profile && (profile as any).display_currency) || "USD"
 
     const rows = due
       .map((b: any) => {
-        const amt = Number(b.amount || 0).toFixed(2)
+        const amt = formatCurrency(Number(b.amount || 0), userCurrency, userLocale)
         return (
           '<tr><td style="padding:6px 12px;border-bottom:1px solid #1f2937;">' +
           escapeHtml(b.name) +
-          '</td><td style="padding:6px 12px;border-bottom:1px solid #1f2937;text-align:right;">$' +
+          '</td><td style="padding:6px 12px;border-bottom:1px solid #1f2937;text-align:right;">' +
           amt +
           "</td></tr>"
         )

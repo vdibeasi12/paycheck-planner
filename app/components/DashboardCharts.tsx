@@ -11,6 +11,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts"
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 
 type Debt = {
   id?: string
@@ -39,6 +40,7 @@ const tooltipStyle = {
 }
 
 export default function DashboardCharts({ debts }: { debts: Debt[] }) {
+  const formatMoney = useFormatCurrency()
   const items = (debts || []).filter((d) => Number(d.balance) > 0)
 
   if (items.length === 0) {
@@ -57,7 +59,7 @@ export default function DashboardCharts({ debts }: { debts: Debt[] }) {
     name: d.name || "Debt",
     apr: Number(d.interest_rate) || 0,
   }))
-  const money = (n: number) => "$" + Math.round(n).toLocaleString()
+  const money = (n: number) => formatMoney(Math.round(n))
 
   return (
     <div className="grid gap-6 md:grid-cols-2">

@@ -7,6 +7,8 @@ import AppNav from "./components/AppNav"
 import Sidebar from "./components/Sidebar"
 import FloatingChat from "./components/FloatingChat"
 import FeedbackWidget from "./components/FeedbackWidget"
+import { LocaleProvider } from "@/lib/i18n/LocaleProvider"
+import type { LocaleCode, CurrencyCode } from "@/lib/i18n/config"
 import type { Metadata, Viewport } from "next"
 import { Analytics } from "@vercel/analytics/next"
 
@@ -58,12 +60,24 @@ export default async function RootLayout({
   children: React.ReactNode
 }) {
   let user: any = null
+  let locale: LocaleCode | undefined
+  let currency: CurrencyCode | undefined
 
   try {
     const { createClient } = await import("@/lib/supabase/server")
     const supabase = await createClient()
     const { data } = await supabase.auth.getUser()
     user = data?.user || null
+
+    if (user) {
+      const { data: prof } = await supabase
+        .from("profiles")
+        .select("locale, display_currency")
+        .eq("id", user.id)
+        .single()
+      locale = (prof?.locale as LocaleCode) || undefined
+      currency = (prof?.display_currency as CurrencyCode) || undefined
+    }
   } catch (error) {
     // Supabase not configured or error - continue without auth
     user = null
@@ -77,37 +91,38 @@ export default async function RootLayout({
         <meta name="theme-color" content="#020617" />
       </head>
       <body className="bg-[#020617] text-white">
+        <LocaleProvider initialLocale={locale} initialCurrency={currency}>
+          <NativeInit />
 
-        <NativeInit />
+          {/* Logged-in users get the left sidebar (desktop) + mobile drawer. */}
+          {user && <Sidebar />}
 
-        {/* Logged-in users get the left sidebar (desktop) + mobile drawer. */}
-        {user && <Sidebar />}
+          {/* Content column. Shifted right of the fixed sidebar on desktop. */}
+          <div className={`flex min-h-screen flex-col ${user ? "md:pl-64" : ""}`}>
 
-        {/* Content column. Shifted right of the fixed sidebar on desktop. */}
-        <div className={`flex min-h-screen flex-col ${user ? "md:pl-64" : ""}`}>
+            {/* Logged-out visitors keep the original marketing top bar. */}
+            {!user && (
+              <header className="border-b border-gray-800 bg-[#020617]/95 backdrop-blur sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
+                <div className="w-full px-6 py-4 flex justify-between items-center">
+                  <Link href="/" className="flex items-center hover:opacity-80 transition">
+                    <Logo size="md" />
+                  </Link>
 
-          {/* Logged-out visitors keep the original marketing top bar. */}
-          {!user && (
-            <header className="border-b border-gray-800 bg-[#020617]/95 backdrop-blur sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
-              <div className="w-full px-6 py-4 flex justify-between items-center">
-                <Link href="/" className="flex items-center hover:opacity-80 transition">
-                  <Logo size="md" />
-                </Link>
+                  <AppNav loggedIn={false} />
+                </div>
+              </header>
+            )}
 
-                <AppNav loggedIn={false} />
-              </div>
-            </header>
-          )}
+            <main className="flex-1">
+              {children}
+            </main>
 
-          <main className="flex-1">
-            {children}
-          </main>
+            <Footer />
+          </div>
 
-          <Footer />
-        </div>
-
-        {user && <FloatingChat />}
-        {user && <FeedbackWidget />}
+          {user && <FloatingChat />}
+          {user && <FeedbackWidget />}
+        </LocaleProvider>
         <Analytics />
       </body>
     </html>

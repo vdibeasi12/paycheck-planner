@@ -1,0 +1,23 @@
+{
+  "nav": {
+    "dashboard": "Übersicht",
+    "calendar": "Kalender",
+    "debts": "Schulden",
+    "payoffPlan": "Tilgungsplan",
+    "bills": "Rechnungen",
+    "income": "Einkommen",
+    "goals": "Ziele",
+    "achievements": "Erfolge",
+    "insights": "Einblicke",
+    "aiChat": "KI-Chat",
+    "account": "Konto",
+    "admin": "Administrator",
+    "gettingStarted": "Erste Schritte",
+    "feedback": "Feedback",
+    "signOut": "Abmelden"
+  },
+  "selector": {
+    "language": "Sprache",
+    "currency": "Währung"
+  }
+}

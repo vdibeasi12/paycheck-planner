@@ -3,8 +3,10 @@
 import { useState } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { generateSummaryPdf } from "@/lib/generateSummaryPdf";
+import { useLocale } from "@/lib/i18n/LocaleProvider";
 
 export default function DownloadSummaryButton() {
+  const { currency, locale } = useLocale();
   const [busy, setBusy] = useState(false);
   return (
     <button
@@ -12,7 +14,7 @@ export default function DownloadSummaryButton() {
       onClick={async () => {
         setBusy(true);
         try {
-          await generateSummaryPdf();
+          await generateSummaryPdf(currency, locale);
         } finally {
           setBusy(false);
         }

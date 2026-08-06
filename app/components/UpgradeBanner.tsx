@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { useIsNativeApp } from "@/lib/platform"
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 
 type Props = {
   show: boolean
@@ -10,6 +11,7 @@ type Props = {
 
 export default function UpgradeBanner({ show, monthlyLoss = 0 }: Props) {
   const native = useIsNativeApp()
+  const formatMoney = useFormatCurrency()
   const [loading, setLoading] = useState(false)
 
   // Never present a purchase CTA inside the native shell (App Store 3.1.1).
@@ -38,7 +40,7 @@ export default function UpgradeBanner({ show, monthlyLoss = 0 }: Props) {
     <div className="sticky top-0 z-50 bg-emerald-500 text-black px-4 py-3 shadow-lg">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <p className="text-sm font-semibold">
-          You're losing ${monthlyLoss.toFixed(0)}/month in interest
+          You're losing {formatMoney(Math.round(monthlyLoss))}/month in interest
         </p>
         <button
           onClick={startCheckout}

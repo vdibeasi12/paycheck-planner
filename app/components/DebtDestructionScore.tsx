@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { createClient } from "@/lib/supabase/client"
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 
 type Debt = {
   id: string
@@ -9,7 +10,7 @@ type Debt = {
 }
 
 export default function DebtDestructionScore() {
-
+  const formatMoney = useFormatCurrency()
   const [score, setScore] = useState(0)
   const [totalDebt, setTotalDebt] = useState(0)
   const [debtCount, setDebtCount] = useState(0)
@@ -92,7 +93,7 @@ export default function DebtDestructionScore() {
 
       <div className="mt-6 text-sm text-gray-400">
 
-        <p>Total Debt: ${totalDebt.toLocaleString()}</p>
+        <p>Total Debt: {formatMoney(totalDebt)}</p>
         <p>Active Debts: {debtCount}</p>
 
       </div>

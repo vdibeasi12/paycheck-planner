@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase/client"
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 
 type Debt = {
 id: string
@@ -12,6 +13,7 @@ minimum_payment: number
 }
 
 export default function AIDebtAttackPlan() {
+const formatMoney = useFormatCurrency()
 const [debts, setDebts] = useState<Debt[]>([])
 const [loading, setLoading] = useState(true)
 
@@ -85,7 +87,7 @@ return ( <div className="bg-white rounded-xl shadow p-6 space-y-4">
         <div className="text-right">
 
           <p className="font-semibold">
-            ${Number(debt.balance).toFixed(0)}
+            {formatMoney(Math.round(Number(debt.balance)))}
           </p>
 
           <p className="text-sm text-gray-500">
