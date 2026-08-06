@@ -7,6 +7,7 @@ import AppNav from "./components/AppNav"
 import Sidebar from "./components/Sidebar"
 import FloatingChat from "./components/FloatingChat"
 import FeedbackWidget from "./components/FeedbackWidget"
+import LocaleCurrencySelector from "./components/LocaleCurrencySelector"
 import { LocaleProvider } from "@/lib/i18n/LocaleProvider"
 import type { LocaleCode, CurrencyCode } from "@/lib/i18n/config"
 import type { Metadata, Viewport } from "next"
@@ -103,12 +104,15 @@ export default async function RootLayout({
             {/* Logged-out visitors keep the original marketing top bar. */}
             {!user && (
               <header className="border-b border-gray-800 bg-[#020617]/95 backdrop-blur sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
-                <div className="w-full px-6 py-4 flex justify-between items-center">
+                <div className="w-full px-6 py-4 flex flex-wrap gap-y-3 justify-between items-center">
                   <Link href="/" className="flex items-center hover:opacity-80 transition">
                     <Logo size="md" />
                   </Link>
 
-                  <AppNav loggedIn={false} />
+                  <div className="flex items-center gap-4">
+                    <LocaleCurrencySelector inline />
+                    <AppNav loggedIn={false} />
+                  </div>
                 </div>
               </header>
             )}
