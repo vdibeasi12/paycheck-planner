@@ -195,6 +195,7 @@ Extra Monthly Payment: ${formatMoney(extraPayment)}
                           type="number"
                           value={debt.balance}
                           onChange={(e) => handleUpdateDebt(debt.id, 'balance', Number(e.target.value))}
+                          onFocus={(e) => e.target.select()}
                           className="w-full bg-[#0f172a] border border-gray-700 rounded px-2 py-1 text-white"
                         />
                       </div>
@@ -206,6 +207,7 @@ Extra Monthly Payment: ${formatMoney(extraPayment)}
                           step="0.1"
                           value={debt.interestRate}
                           onChange={(e) => handleUpdateDebt(debt.id, 'interestRate', Number(e.target.value))}
+                          onFocus={(e) => e.target.select()}
                           className="w-full bg-[#0f172a] border border-gray-700 rounded px-2 py-1 text-white"
                         />
                       </div>
@@ -216,6 +218,7 @@ Extra Monthly Payment: ${formatMoney(extraPayment)}
                           type="number"
                           value={debt.minimumPayment}
                           onChange={(e) => handleUpdateDebt(debt.id, 'minimumPayment', Number(e.target.value))}
+                          onFocus={(e) => e.target.select()}
                           className="w-full bg-[#0f172a] border border-gray-700 rounded px-2 py-1 text-white"
                         />
                       </div>
@@ -246,6 +249,7 @@ Extra Monthly Payment: ${formatMoney(extraPayment)}
                   type="number"
                   value={extraPayment}
                   onChange={(e) => setExtraPayment(Number(e.target.value))}
+                  onFocus={(e) => e.target.select()}
                   className="w-full bg-[#0f172a] border border-gray-700 rounded px-2 py-1 text-white mt-1"
                 />
                 <p className="text-gray-500 text-xs mt-2">Amount above minimum payments</p>

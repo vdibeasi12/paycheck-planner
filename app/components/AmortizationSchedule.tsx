@@ -329,6 +329,7 @@ export default function AmortizationSchedule({ debts }: Props) {
               step={25}
               value={Number.isFinite(extra) ? extra : 0}
               onChange={(e) => setExtra(Math.max(0, Number(e.target.value) || 0))}
+              onFocus={(e) => e.target.select()}
               className="w-28 bg-transparent px-2 py-2 text-white outline-none placeholder:text-gray-500"
               placeholder="0"
             />
