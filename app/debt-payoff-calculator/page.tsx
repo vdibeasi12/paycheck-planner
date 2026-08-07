@@ -31,6 +31,7 @@ export default function DebtPayoffCalculator() {
     { id: '1', name: 'Credit Card', balance: 5000, interestRate: 18.5, minimumPayment: 150 },
   ])
   const [extraPayment, setExtraPayment] = useState(0)
+  const [extraPaymentText, setExtraPaymentText] = useState('0')
   const [snowballResult, setSnowballResult] = useState<PayoffResult | null>(null)
   const [avalancheResult, setAvalancheResult] = useState<PayoffResult | null>(null)
 
@@ -247,9 +248,18 @@ Extra Monthly Payment: ${formatMoney(extraPayment)}
                 <label className="text-gray-400 text-sm">Extra Monthly Payment</label>
                 <input
                   type="number"
-                  value={extraPayment}
-                  onChange={(e) => setExtraPayment(Number(e.target.value))}
-                  onFocus={(e) => e.target.select()}
+                  value={extraPaymentText}
+                  onFocus={() => {
+                    if (extraPaymentText === '0') setExtraPaymentText('')
+                  }}
+                  onBlur={() => {
+                    if (extraPaymentText.trim() === '') setExtraPaymentText('0')
+                  }}
+                  onChange={(e) => {
+                    const raw = e.target.value
+                    setExtraPaymentText(raw)
+                    setExtraPayment(Number(raw) || 0)
+                  }}
                   className="w-full bg-[#0f172a] border border-gray-700 rounded px-2 py-1 text-white mt-1"
                 />
                 <p className="text-gray-500 text-xs mt-2">Amount above minimum payments</p>

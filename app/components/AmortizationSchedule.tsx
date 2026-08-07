@@ -254,6 +254,7 @@ export default function AmortizationSchedule({ debts }: Props) {
   const fmt0 = (n: number) => formatMoney(Math.round(n))
   const [strategy, setStrategy] = useState<Strategy>("snowball")
   const [extra, setExtra] = useState<number>(0)
+  const [extraText, setExtraText] = useState<string>("0")
 
   const start = useMemo(() => new Date(), [])
   const sim = useMemo(() => simulate(debts, strategy, extra, start), [debts, strategy, extra, start])
@@ -327,9 +328,18 @@ export default function AmortizationSchedule({ debts }: Props) {
               type="number"
               min={0}
               step={25}
-              value={Number.isFinite(extra) ? extra : 0}
-              onChange={(e) => setExtra(Math.max(0, Number(e.target.value) || 0))}
-              onFocus={(e) => e.target.select()}
+              value={extraText}
+              onFocus={() => {
+                if (extraText === "0") setExtraText("")
+              }}
+              onBlur={() => {
+                if (extraText.trim() === "") setExtraText("0")
+              }}
+              onChange={(e) => {
+                const raw = e.target.value
+                setExtraText(raw)
+                setExtra(Math.max(0, Number(raw) || 0))
+              }}
               className="w-28 bg-transparent px-2 py-2 text-white outline-none placeholder:text-gray-500"
               placeholder="0"
             />
