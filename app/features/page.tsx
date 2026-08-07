@@ -16,61 +16,61 @@ export default function FeaturesPage() {
         <div className="grid md:grid-cols-2 gap-8 mb-12">
           {/* Feature 1 */}
           <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-8">
-            <div className="text-4xl mb-4">ðŸ“Š</div>
+            <div className="text-4xl mb-4">📊</div>
             <h2 className="text-2xl font-bold mb-3">{t("features.f1Title")}</h2>
             <p className="text-gray-300 mb-4">
               {t("features.f1Desc")}
             </p>
             <ul className="text-gray-400 text-sm space-y-2">
-              <li>âœ“ {t("features.f1B1")}</li>
-              <li>âœ“ {t("features.f1B2")}</li>
-              <li>âœ“ {t("features.f1B3")}</li>
-              <li>âœ“ {t("features.f1B4")}</li>
+              <li>✓ {t("features.f1B1")}</li>
+              <li>✓ {t("features.f1B2")}</li>
+              <li>✓ {t("features.f1B3")}</li>
+              <li>✓ {t("features.f1B4")}</li>
             </ul>
           </div>
 
           {/* Feature 2 */}
           <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-8">
-            <div className="text-4xl mb-4">ðŸ“¸</div>
+            <div className="text-4xl mb-4">📸</div>
             <h2 className="text-2xl font-bold mb-3">{t("features.f2Title")}</h2>
             <p className="text-gray-300 mb-4">
               {t("features.f2Desc")}
             </p>
             <ul className="text-gray-400 text-sm space-y-2">
-              <li>âœ“ {t("features.f2B1")}</li>
-              <li>âœ“ {t("features.f2B2")}</li>
-              <li>âœ“ {t("features.f2B3")}</li>
-              <li>âœ“ {t("features.f2B4")}</li>
+              <li>✓ {t("features.f2B1")}</li>
+              <li>✓ {t("features.f2B2")}</li>
+              <li>✓ {t("features.f2B3")}</li>
+              <li>✓ {t("features.f2B4")}</li>
             </ul>
           </div>
 
           {/* Feature 3 */}
           <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-8">
-            <div className="text-4xl mb-4">ðŸ“ˆ</div>
+            <div className="text-4xl mb-4">📈</div>
             <h2 className="text-2xl font-bold mb-3">{t("features.f3Title")}</h2>
             <p className="text-gray-300 mb-4">
               {t("features.f3Desc")}
             </p>
             <ul className="text-gray-400 text-sm space-y-2">
-              <li>âœ“ {t("features.f3B1")}</li>
-              <li>âœ“ {t("features.f3B2")}</li>
-              <li>âœ“ {t("features.f3B3")}</li>
-              <li>âœ“ {t("features.f3B4")}</li>
+              <li>✓ {t("features.f3B1")}</li>
+              <li>✓ {t("features.f3B2")}</li>
+              <li>✓ {t("features.f3B3")}</li>
+              <li>✓ {t("features.f3B4")}</li>
             </ul>
           </div>
 
           {/* Feature 4 */}
           <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-8">
-            <div className="text-4xl mb-4">ðŸ¤–</div>
+            <div className="text-4xl mb-4">🤖</div>
             <h2 className="text-2xl font-bold mb-3">{t("features.f4Title")}</h2>
             <p className="text-gray-300 mb-4">
               {t("features.f4Desc")}
             </p>
             <ul className="text-gray-400 text-sm space-y-2">
-              <li>âœ“ {t("features.f4B1")}</li>
-              <li>âœ“ {t("features.f4B2")}</li>
-              <li>âœ“ {t("features.f4B3")}</li>
-              <li>âœ“ {t("features.f4B4")}</li>
+              <li>✓ {t("features.f4B1")}</li>
+              <li>✓ {t("features.f4B2")}</li>
+              <li>✓ {t("features.f4B3")}</li>
+              <li>✓ {t("features.f4B4")}</li>
             </ul>
           </div>
         </div>
@@ -109,10 +109,7 @@ export default function FeaturesPage() {
           <p className="text-gray-300 mb-6">
             {t("features.ctaSubtitle")}
           </p>
-          
-            href="/pricing"
-            className="inline-block bg-green-500 hover:bg-green-600 text-black font-bold px-8 py-3 rounded-lg transition"
-          >
+          <a href="/pricing" className="inline-block bg-green-500 hover:bg-green-600 text-black font-bold px-8 py-3 rounded-lg transition">
             {t("features.ctaButton")}
           </a>
         </div>
