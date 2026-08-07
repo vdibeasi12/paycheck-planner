@@ -3,12 +3,10 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
-import { Plus, Trash2, CreditCard, Pencil, Check, X, Lock, Camera, CalendarClock } from 'lucide-react'
+import { Plus, Trash2, CreditCard, Pencil, Check, X, Lock, Camera } from 'lucide-react'
 import { getMaxDebts } from '@/lib/permissions'
 import SmartCapture from '../components/SmartCapture'
 import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
-import AmortizationSchedule from '../components/AmortizationSchedule'
-import PaywallOverlay from '../components/PaywallOverlay'
 
 interface Debt {
   id: string
@@ -419,45 +417,6 @@ export default function DebtsPage() {
             )}
           </div>
         </div>
-
-        {/* Payoff Plan â€” same live schedule as the dedicated Payoff Plan page,
-            using these same saved debts, so this doesn't require a separate
-            disconnected tool with re-entered numbers. */}
-        {items.length > 0 && (
-          <div className="mt-8">
-            <div className="mb-1 flex items-center gap-2">
-              <CalendarClock size={22} className="text-emerald-400" />
-              <h2 className="text-xl font-bold text-white">Payoff Plan</h2>
-            </div>
-            <p className="mb-4 text-sm text-gray-400">
-              See exactly when each debt is paid off, and export the schedule.
-            </p>
-            {!(plan === 'premium' || plan === 'connected' || isAdmin) ? (
-              <div className="relative min-h-[200px] overflow-hidden rounded-xl border border-gray-700 bg-[#0f172a] p-6">
-                <div className="pointer-events-none opacity-40">
-                  <p className="text-gray-300">
-                    Your full month-by-month payoff schedule, Snowball vs Avalanche, with CSV export.
-                  </p>
-                </div>
-                <PaywallOverlay
-                  priceId="price_1TO2SSFv1EcTs6LYVswF0AwU"
-                  title="Unlock your Payoff Plan"
-                  description="Upgrade to Accelerate to view and export your full amortization schedule."
-                />
-              </div>
-            ) : (
-              <AmortizationSchedule
-                debts={items.map((d) => ({
-                  id: d.id,
-                  name: d.name,
-                  balance: Number(d.balance) || 0,
-                  interest_rate: Number(d.interest_rate) || 0,
-                  minimum_payment: Number(d.minimum_payment) || 0,
-                }))}
-              />
-            )}
-          </div>
-        )}
       </div>
     </div>
   )
