@@ -19,5 +19,35 @@
   "selector": {
     "language": "Idioma",
     "currency": "Moneda"
+  },
+  "home": {
+    "heroPrefix": "Planifica cada cheque. ",
+    "heroHighlight": "Elimina tus deudas",
+    "heroSuffix": " más rápido.",
+    "heroSubtitle": "Toma el control de tu futuro financiero con estrategias de eliminación de deudas impulsadas por IA, planificación de cheques en tiempo real y estadísticas financieras personalizadas.",
+    "ctaStartFree": "Comenzar gratis",
+    "ctaViewPlans": "Ver planes",
+    "statPayoffTitle": "Tiempo promedio para liquidar deudas",
+    "statPayoffDesc": "Los usuarios ven resultados en tan solo 24-36 meses",
+    "statAiTitle": "Estrategia con IA",
+    "statAiDesc": "El aprendizaje automático analiza tus finanzas para el pago óptimo",
+    "statInsightsTitle": "Estadísticas al instante",
+    "statInsightsDesc": "Paneles en tiempo real y análisis predictivo",
+    "featuresHeading": "Funciones potentes",
+    "feature1Title": "Calculadora de pago de deudas",
+    "feature1Desc": "Comparación de múltiples estrategias y proyección de plazos",
+    "feature2Title": "Seguimiento de facturas",
+    "feature2Desc": "Nunca te pierdas un pago con recordatorios inteligentes",
+    "feature3Title": "Hitos financieros",
+    "feature3Desc": "Sigue tu progreso hacia la libertad financiera",
+    "feature4Title": "Estadísticas con IA",
+    "feature4Desc": "Obtén recomendaciones personalizadas (Premium)",
+    "feature5Title": "Análisis avanzado",
+    "feature5Desc": "Proyecciones financieras profundas y planificación de escenarios",
+    "feature6Title": "Bola de nieve y avalancha",
+    "feature6Desc": "Compara múltiples estrategias de pago",
+    "ctaHeading": "¿Listo para tomar el control?",
+    "ctaSubtitle": "Comienza gratis, mejora cuando quieras. Cancela cuando quieras.",
+    "ctaButton": "Empezar gratis"
   }
 }

@@ -19,5 +19,35 @@
   "selector": {
     "language": "Język",
     "currency": "Waluta"
+  },
+  "home": {
+    "heroPrefix": "Planuj każdą wypłatę. ",
+    "heroHighlight": "Szybciej spłacaj długi",
+    "heroSuffix": ".",
+    "heroSubtitle": "Przejmij kontrolę nad swoją finansową przyszłością dzięki strategiom spłaty długów wspieranym przez AI, planowaniu wypłat w czasie rzeczywistym i spersonalizowanym analizom finansowym.",
+    "ctaStartFree": "Zacznij za darmo",
+    "ctaViewPlans": "Zobacz plany",
+    "statPayoffTitle": "Średni czas spłaty długu",
+    "statPayoffDesc": "Użytkownicy widzą efekty już po 24-36 miesiącach",
+    "statAiTitle": "Strategia oparta na AI",
+    "statAiDesc": "Uczenie maszynowe analizuje Twoje finanse pod kątem optymalnej spłaty",
+    "statInsightsTitle": "Natychmiastowe analizy",
+    "statInsightsDesc": "Panele w czasie rzeczywistym i analiza predykcyjna",
+    "featuresHeading": "Zaawansowane funkcje",
+    "feature1Title": "Kalkulator spłaty długu",
+    "feature1Desc": "Porównanie wielu strategii i prognoza harmonogramu",
+    "feature2Title": "Śledzenie rachunków",
+    "feature2Desc": "Nigdy nie przegap płatności dzięki inteligentnym przypomnieniom",
+    "feature3Title": "Kamienie milowe finansów",
+    "feature3Desc": "Śledź swoje postępy w drodze do wolności finansowej",
+    "feature4Title": "Analizy AI",
+    "feature4Desc": "Otrzymuj spersonalizowane rekomendacje (Premium)",
+    "feature5Title": "Zaawansowana analityka",
+    "feature5Desc": "Dogłębne prognozy finansowe i planowanie scenariuszy",
+    "feature6Title": "Metoda kuli śnieżnej i lawiny",
+    "feature6Desc": "Porównaj wiele strategii spłaty",
+    "ctaHeading": "Gotowy przejąć kontrolę?",
+    "ctaSubtitle": "Zacznij za darmo, ulepszaj w dowolnym momencie. Anuluj, kiedy chcesz.",
+    "ctaButton": "Zacznij za darmo"
   }
 }

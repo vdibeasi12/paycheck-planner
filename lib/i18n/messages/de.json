@@ -19,5 +19,35 @@
   "selector": {
     "language": "Sprache",
     "currency": "Währung"
+  },
+  "home": {
+    "heroPrefix": "Planen Sie jeden Gehaltsscheck. ",
+    "heroHighlight": "Schulden schneller",
+    "heroSuffix": " abbauen.",
+    "heroSubtitle": "Übernehmen Sie die Kontrolle über Ihre finanzielle Zukunft mit KI-gestützten Strategien zum Schuldenabbau, Echtzeit-Gehaltsplanung und personalisierten finanziellen Einblicken.",
+    "ctaStartFree": "Kostenlos starten",
+    "ctaViewPlans": "Pläne ansehen",
+    "statPayoffTitle": "Durchschnittliche Tilgungsdauer",
+    "statPayoffDesc": "Nutzer sehen Ergebnisse bereits nach 24-36 Monaten",
+    "statAiTitle": "KI-gestützte Strategie",
+    "statAiDesc": "Maschinelles Lernen analysiert Ihre Finanzen für die optimale Tilgung",
+    "statInsightsTitle": "Sofortige Einblicke",
+    "statInsightsDesc": "Echtzeit-Dashboards und vorausschauende Analysen",
+    "featuresHeading": "Leistungsstarke Funktionen",
+    "feature1Title": "Tilgungsrechner",
+    "feature1Desc": "Vergleich mehrerer Strategien und Zeitplanprognose",
+    "feature2Title": "Rechnungsverfolgung",
+    "feature2Desc": "Verpassen Sie nie eine Zahlung dank intelligenter Erinnerungen",
+    "feature3Title": "Finanzielle Meilensteine",
+    "feature3Desc": "Verfolgen Sie Ihren Fortschritt zur Schuldenfreiheit",
+    "feature4Title": "KI-Einblicke",
+    "feature4Desc": "Erhalten Sie personalisierte Empfehlungen (Premium)",
+    "feature5Title": "Erweiterte Analysen",
+    "feature5Desc": "Detaillierte Finanzprognosen und Szenarioplanung",
+    "feature6Title": "Schneeball & Lawine",
+    "feature6Desc": "Vergleichen Sie mehrere Tilgungsstrategien",
+    "ctaHeading": "Bereit, die Kontrolle zu übernehmen?",
+    "ctaSubtitle": "Kostenlos starten, jederzeit upgraden. Jederzeit kündbar.",
+    "ctaButton": "Kostenlos loslegen"
   }
 }

@@ -19,5 +19,35 @@
   "selector": {
     "language": "Language",
     "currency": "Currency"
+  },
+  "home": {
+    "heroPrefix": "Plan Every Paycheck. ",
+    "heroHighlight": "Eliminate Debt",
+    "heroSuffix": " Faster.",
+    "heroSubtitle": "Take control of your financial future with AI-powered debt elimination strategies, real-time paycheck planning, and personalized financial insights.",
+    "ctaStartFree": "Start Free",
+    "ctaViewPlans": "View Plans",
+    "statPayoffTitle": "Average Debt Payoff Time",
+    "statPayoffDesc": "Users see results in as little as 24-36 months",
+    "statAiTitle": "AI-Powered Strategy",
+    "statAiDesc": "Machine learning analyzes your finances for optimal payoff",
+    "statInsightsTitle": "Instant Insights",
+    "statInsightsDesc": "Real-time dashboards and predictive analytics",
+    "featuresHeading": "Powerful Features",
+    "feature1Title": "Debt Payoff Calculator",
+    "feature1Desc": "Multiple strategy comparison & timeline projection",
+    "feature2Title": "Bill Tracking",
+    "feature2Desc": "Never miss a payment with smart reminders",
+    "feature3Title": "Financial Milestones",
+    "feature3Desc": "Track your progress toward debt freedom",
+    "feature4Title": "AI Insights",
+    "feature4Desc": "Get personalized recommendations (Premium)",
+    "feature5Title": "Advanced Analytics",
+    "feature5Desc": "Deep financial forecasting & scenario planning",
+    "feature6Title": "Snowball & Avalanche",
+    "feature6Desc": "Compare multiple payoff strategies",
+    "ctaHeading": "Ready to Take Control?",
+    "ctaSubtitle": "Start free, upgrade anytime. Cancel whenever you want.",
+    "ctaButton": "Get Started Free"
   }
 }

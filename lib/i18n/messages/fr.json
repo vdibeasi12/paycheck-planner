@@ -19,5 +19,35 @@
   "selector": {
     "language": "Langue",
     "currency": "Devise"
+  },
+  "home": {
+    "heroPrefix": "Planifiez chaque paie. ",
+    "heroHighlight": "Éliminez vos dettes",
+    "heroSuffix": " plus vite.",
+    "heroSubtitle": "Prenez le contrôle de votre avenir financier grâce à des stratégies d'élimination des dettes basées sur l'IA, une planification de paie en temps réel et des analyses financières personnalisées.",
+    "ctaStartFree": "Commencer gratuitement",
+    "ctaViewPlans": "Voir les offres",
+    "statPayoffTitle": "Délai moyen de remboursement",
+    "statPayoffDesc": "Les utilisateurs voient des résultats en seulement 24 à 36 mois",
+    "statAiTitle": "Stratégie basée sur l'IA",
+    "statAiDesc": "L'apprentissage automatique analyse vos finances pour un remboursement optimal",
+    "statInsightsTitle": "Analyses instantanées",
+    "statInsightsDesc": "Tableaux de bord en temps réel et analyses prédictives",
+    "featuresHeading": "Fonctionnalités puissantes",
+    "feature1Title": "Calculateur de remboursement",
+    "feature1Desc": "Comparaison de plusieurs stratégies et projection du calendrier",
+    "feature2Title": "Suivi des factures",
+    "feature2Desc": "Ne manquez jamais un paiement grâce aux rappels intelligents",
+    "feature3Title": "Étapes financières",
+    "feature3Desc": "Suivez votre progression vers la liberté financière",
+    "feature4Title": "Analyses IA",
+    "feature4Desc": "Obtenez des recommandations personnalisées (Premium)",
+    "feature5Title": "Analyses avancées",
+    "feature5Desc": "Prévisions financières approfondies et planification de scénarios",
+    "feature6Title": "Boule de neige et avalanche",
+    "feature6Desc": "Comparez plusieurs stratégies de remboursement",
+    "ctaHeading": "Prêt à prendre le contrôle ?",
+    "ctaSubtitle": "Commencez gratuitement, mettez à niveau à tout moment. Annulez quand vous voulez.",
+    "ctaButton": "Commencer gratuitement"
   }
 }

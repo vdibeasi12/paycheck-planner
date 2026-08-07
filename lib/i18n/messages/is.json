@@ -19,5 +19,35 @@
   "selector": {
     "language": "Tungumál",
     "currency": "Gjaldmiðill"
+  },
+  "home": {
+    "heroPrefix": "Skipuleggðu hverja útborgun. ",
+    "heroHighlight": "Losaðu þig við skuldir",
+    "heroSuffix": " hraðar.",
+    "heroSubtitle": "Taktu stjórn á fjárhagslegri framtíð þinni með gervigreindarknúnum aðferðum til að losna við skuldir, útborgunaráætlun í rauntíma og persónulegri fjármálainnsýn.",
+    "ctaStartFree": "Byrja frítt",
+    "ctaViewPlans": "Skoða áskriftir",
+    "statPayoffTitle": "Meðaltími til að losna við skuldir",
+    "statPayoffDesc": "Notendur sjá árangur á allt niður í 24-36 mánuðum",
+    "statAiTitle": "Gervigreindarknúin stefna",
+    "statAiDesc": "Vélnám greinir fjármálin þín fyrir bestu niðurgreiðslu",
+    "statInsightsTitle": "Samstundis innsýn",
+    "statInsightsDesc": "Rauntímamælaborð og forspárgreining",
+    "featuresHeading": "Öflugir eiginleikar",
+    "feature1Title": "Skuldaútreikningsvél",
+    "feature1Desc": "Samanburður á mörgum aðferðum og tímalínuspá",
+    "feature2Title": "Reikningaeftirlit",
+    "feature2Desc": "Misstu aldrei af greiðslu með snjöllum áminningum",
+    "feature3Title": "Fjárhagsleg áfangamörk",
+    "feature3Desc": "Fylgstu með framförum þínum í átt að skuldleysi",
+    "feature4Title": "Gervigreindarinnsýn",
+    "feature4Desc": "Fáðu persónulegar ráðleggingar (Premium)",
+    "feature5Title": "Ítarleg greining",
+    "feature5Desc": "Ítarlegar fjárhagsspár og sviðsmyndaáætlanir",
+    "feature6Title": "Snjóbolti og snjóflóð",
+    "feature6Desc": "Berðu saman margar niðurgreiðsluaðferðir",
+    "ctaHeading": "Tilbúin(n) að taka stjórnina?",
+    "ctaSubtitle": "Byrjaðu frítt, uppfærðu hvenær sem er. Segðu upp hvenær sem er.",
+    "ctaButton": "Byrja frítt"
   }
 }

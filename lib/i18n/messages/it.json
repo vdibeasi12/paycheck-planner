@@ -19,5 +19,35 @@
   "selector": {
     "language": "Lingua",
     "currency": "Valuta"
+  },
+  "home": {
+    "heroPrefix": "Pianifica ogni stipendio. ",
+    "heroHighlight": "Elimina i debiti",
+    "heroSuffix": " più velocemente.",
+    "heroSubtitle": "Prendi il controllo del tuo futuro finanziario con strategie di eliminazione del debito basate sull'IA, pianificazione dello stipendio in tempo reale e approfondimenti finanziari personalizzati.",
+    "ctaStartFree": "Inizia gratis",
+    "ctaViewPlans": "Vedi i piani",
+    "statPayoffTitle": "Tempo medio di estinzione del debito",
+    "statPayoffDesc": "Gli utenti vedono risultati in appena 24-36 mesi",
+    "statAiTitle": "Strategia basata sull'IA",
+    "statAiDesc": "Il machine learning analizza le tue finanze per il rimborso ottimale",
+    "statInsightsTitle": "Approfondimenti istantanei",
+    "statInsightsDesc": "Dashboard in tempo reale e analisi predittiva",
+    "featuresHeading": "Funzionalità potenti",
+    "feature1Title": "Calcolatore di estinzione debiti",
+    "feature1Desc": "Confronto tra più strategie e proiezione dei tempi",
+    "feature2Title": "Monitoraggio bollette",
+    "feature2Desc": "Non perdere mai un pagamento grazie ai promemoria intelligenti",
+    "feature3Title": "Traguardi finanziari",
+    "feature3Desc": "Monitora i tuoi progressi verso la libertà finanziaria",
+    "feature4Title": "Approfondimenti IA",
+    "feature4Desc": "Ricevi consigli personalizzati (Premium)",
+    "feature5Title": "Analisi avanzate",
+    "feature5Desc": "Previsioni finanziarie approfondite e pianificazione di scenari",
+    "feature6Title": "Valanga e palla di neve",
+    "feature6Desc": "Confronta più strategie di rimborso",
+    "ctaHeading": "Pronto a prendere il controllo?",
+    "ctaSubtitle": "Inizia gratis, aggiorna quando vuoi. Annulla quando vuoi.",
+    "ctaButton": "Inizia gratis"
   }
 }
