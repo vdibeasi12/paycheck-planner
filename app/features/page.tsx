@@ -1,97 +1,103 @@
+"use client"
+
+import { useLocale } from "@/lib/i18n/LocaleProvider"
+
 export default function FeaturesPage() {
+  const { t } = useLocale()
+
   return (
     <div className="min-h-screen bg-[#020617] text-white py-12">
       <div className="max-w-6xl mx-auto px-6">
-        <h1 className="text-4xl font-bold mb-4">Powerful Features to Master Your Money</h1>
+        <h1 className="text-4xl font-bold mb-4">{t("features.title")}</h1>
         <p className="text-gray-300 text-lg mb-12">
-          Everything you need to eliminate debt, plan your finances, and achieve financial freedom.
+          {t("features.subtitle")}
         </p>
 
         <div className="grid md:grid-cols-2 gap-8 mb-12">
           {/* Feature 1 */}
           <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-8">
-            <div className="text-4xl mb-4">📊</div>
-            <h2 className="text-2xl font-bold mb-3">Debt Payoff Calculator</h2>
+            <div className="text-4xl mb-4">ðŸ“Š</div>
+            <h2 className="text-2xl font-bold mb-3">{t("features.f1Title")}</h2>
             <p className="text-gray-300 mb-4">
-              Compare Snowball and Avalanche debt payoff strategies side-by-side. See exactly how long it will take to become debt-free and how much interest you'll pay.
+              {t("features.f1Desc")}
             </p>
             <ul className="text-gray-400 text-sm space-y-2">
-              <li>✓ Add unlimited debts</li>
-              <li>✓ Track interest rates</li>
-              <li>✓ Set extra payment amounts</li>
-              <li>✓ Export comparison reports</li>
+              <li>âœ“ {t("features.f1B1")}</li>
+              <li>âœ“ {t("features.f1B2")}</li>
+              <li>âœ“ {t("features.f1B3")}</li>
+              <li>âœ“ {t("features.f1B4")}</li>
             </ul>
           </div>
 
           {/* Feature 2 */}
           <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-8">
-            <div className="text-4xl mb-4">📸</div>
-            <h2 className="text-2xl font-bold mb-3">Bill OCR & Upload</h2>
+            <div className="text-4xl mb-4">ðŸ“¸</div>
+            <h2 className="text-2xl font-bold mb-3">{t("features.f2Title")}</h2>
             <p className="text-gray-300 mb-4">
-              Take a photo of your bills and our AI automatically extracts vendor name, amount, and due date. Never manually enter bill information again.
+              {t("features.f2Desc")}
             </p>
             <ul className="text-gray-400 text-sm space-y-2">
-              <li>✓ Snap photos of bills</li>
-              <li>✓ Automatic data extraction</li>
-              <li>✓ Confidence scoring</li>
-              <li>✓ Manual corrections available</li>
+              <li>âœ“ {t("features.f2B1")}</li>
+              <li>âœ“ {t("features.f2B2")}</li>
+              <li>âœ“ {t("features.f2B3")}</li>
+              <li>âœ“ {t("features.f2B4")}</li>
             </ul>
           </div>
 
           {/* Feature 3 */}
           <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-8">
-            <div className="text-4xl mb-4">📈</div>
-            <h2 className="text-2xl font-bold mb-3">Financial Dashboard</h2>
+            <div className="text-4xl mb-4">ðŸ“ˆ</div>
+            <h2 className="text-2xl font-bold mb-3">{t("features.f3Title")}</h2>
             <p className="text-gray-300 mb-4">
-              See all your finances at a glance. Track debts, bills, assets, and net worth with beautiful charts and real-time calculations.
+              {t("features.f3Desc")}
             </p>
             <ul className="text-gray-400 text-sm space-y-2">
-              <li>✓ Real-time metrics</li>
-              <li>✓ Multiple visualizations</li>
-              <li>✓ Debt-to-income ratio</li>
-              <li>✓ Net worth tracking</li>
+              <li>âœ“ {t("features.f3B1")}</li>
+              <li>âœ“ {t("features.f3B2")}</li>
+              <li>âœ“ {t("features.f3B3")}</li>
+              <li>âœ“ {t("features.f3B4")}</li>
             </ul>
           </div>
 
           {/* Feature 4 */}
           <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-8">
-            <div className="text-4xl mb-4">🤖</div>
-            <h2 className="text-2xl font-bold mb-3">AI Recommendations (Premium)</h2>
+            <div className="text-4xl mb-4">ðŸ¤–</div>
+            <h2 className="text-2xl font-bold mb-3">{t("features.f4Title")}</h2>
             <p className="text-gray-300 mb-4">
-              Get personalized financial advice powered by AI. Discover strategies to save money, optimize your debt payoff, and reach your goals faster.
+              {t("features.f4Desc")}
             </p>
             <ul className="text-gray-400 text-sm space-y-2">
-              <li>✓ Smart suggestions</li>
-              <li>✓ Impact scoring</li>
-              <li>✓ Savings estimates</li>
-              <li>✓ Personalized strategies</li>
+              <li>âœ“ {t("features.f4B1")}</li>
+              <li>âœ“ {t("features.f4B2")}</li>
+              <li>âœ“ {t("features.f4B3")}</li>
+              <li>âœ“ {t("features.f4B4")}</li>
             </ul>
           </div>
         </div>
 
         {/* Benefits Section */}
         <div className="bg-gradient-to-r from-green-500/10 to-blue-500/10 border border-green-500/30 rounded-lg p-8 mb-12">
-          <h2 className="text-3xl font-bold mb-8">Why Choose Paycheck Planner?</h2>
-          
+          <h2 className="text-3xl font-bold mb-8">{t("features.whyChoose")}</h2>
+
           <div className="grid md:grid-cols-3 gap-8">
             <div>
-              <h3 className="text-xl font-bold text-green-400 mb-3">⚡ Fast Setup</h3>
+              <h3 className="text-xl font-bold text-green-400 mb-3">{t("features.fastSetupTitle")}</h3>
               <p className="text-gray-300">
-                Get started in minutes. No complicated forms or lengthy onboarding. Just enter your debts and get instant insights.
+                {t("features.fastSetupDesc")}
               </p>
             </div>
 
             <div>
-              <h3 className="text-xl font-bold text-blue-400 mb-3">🔒 Secure & Private</h3>
+              <h3 className="text-xl font-bold text-blue-400 mb-3">{t("features.secureTitle")}</h3>
               <p className="text-gray-300">
-                Your financial data is encrypted and protected. We never share your information with third parties.
+                {t("features.secureDesc")}
               </p>
             </div>
 
             <div>
-              <h3 className="text-xl font-bold text-purple-400 mb-3">📱 Always Available</h3>
+              <h3 className="text-xl font-bold text-purple-400 mb-3">{t("features.availableTitle")}</h3>
               <p className="text-gray-300">
-                Access your finances anytime, anywhere. Fully responsive design works on mobile, tablet, and desktop.
+                {t("features.availableDesc")}
               </p>
             </div>
           </div>
@@ -99,15 +105,15 @@ export default function FeaturesPage() {
 
         {/* CTA */}
         <div className="text-center bg-[#0f172a] border border-gray-700 rounded-lg p-8">
-          <h2 className="text-2xl font-bold mb-4">Ready to Take Control?</h2>
+          <h2 className="text-2xl font-bold mb-4">{t("features.ctaTitle")}</h2>
           <p className="text-gray-300 mb-6">
-            Start with our Free plan and upgrade anytime to unlock premium features.
+            {t("features.ctaSubtitle")}
           </p>
-          <a 
+          
             href="/pricing"
             className="inline-block bg-green-500 hover:bg-green-600 text-black font-bold px-8 py-3 rounded-lg transition"
           >
-            View Plans & Pricing
+            {t("features.ctaButton")}
           </a>
         </div>
       </div>

@@ -6,11 +6,13 @@ import { siteUrl } from "@/lib/siteUrl"
 import { useRouter, useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { isNativeApp } from "@/lib/platform"
+import { useLocale } from "@/lib/i18n/LocaleProvider"
 
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const message = searchParams.get("message")
+  const { t } = useLocale()
 
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -48,7 +50,7 @@ function LoginForm() {
 
       window.location.href = "/dashboard"
     } catch {
-      setError("An error occurred. Please try again.")
+      setError(t("login.genericError"))
     } finally {
       setLoading(false)
     }
@@ -118,7 +120,7 @@ function LoginForm() {
       })
       if (oauthError) setError(oauthError.message)
     } catch {
-      setError("An error occurred with Google sign-in. Please try again.")
+      setError(t("login.googleError"))
     } finally {
       setLoading(false)
     }
@@ -136,9 +138,9 @@ function LoginForm() {
         {mfaRequired ? (
           /* ---- MFA challenge ---- */
           <>
-            <h2 className="text-2xl font-bold mb-2">Two-factor verification</h2>
+            <h2 className="text-2xl font-bold mb-2">{t("login.twoFactorTitle")}</h2>
             <p className="text-gray-400 text-sm mb-6">
-              Enter the 6-digit code from your authenticator app.
+              {t("login.twoFactorSubtitle")}
             </p>
             <form onSubmit={verifyMfa} className="space-y-4">
               <input
@@ -155,16 +157,16 @@ function LoginForm() {
                 disabled={loading || mfaCode.length < 6}
                 className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-600 text-black font-semibold py-3 rounded-lg transition"
               >
-                {loading ? "Verifying..." : "Verify"}
+                {loading ? t("login.verifying") : t("login.verify")}
               </button>
             </form>
           </>
         ) : (
           /* ---- Email + Google sign-in ---- */
           <>
-            <h2 className="text-2xl font-bold mb-2">Welcome Back</h2>
+            <h2 className="text-2xl font-bold mb-2">{t("login.welcomeBack")}</h2>
             <p className="text-gray-400 text-sm mb-6">
-              Take control of every paycheck, debt, and financial goal.
+              {t("login.welcomeBackSubtitle")}
             </p>
 
             <button
@@ -178,19 +180,19 @@ function LoginForm() {
                 alt="Google"
                 className="w-5 h-5"
               />
-              <span className="text-white font-medium">Continue with Google</span>
+              <span className="text-white font-medium">{t("login.continueWithGoogle")}</span>
             </button>
 
             <div className="flex items-center gap-4 my-6">
               <div className="flex-1 h-px bg-gray-700"></div>
-              <span className="text-gray-500 text-sm">or</span>
+              <span className="text-gray-500 text-sm">{t("login.or")}</span>
               <div className="flex-1 h-px bg-gray-700"></div>
             </div>
 
             <form onSubmit={handleLogin} className="space-y-4">
               <input
                 type="email"
-                placeholder="Email address"
+                placeholder={t("login.emailPlaceholder")}
                 className="w-full bg-[#1a233a] border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -198,7 +200,7 @@ function LoginForm() {
               />
               <input
                 type="password"
-                placeholder="Password"
+                placeholder={t("login.passwordPlaceholder")}
                 className="w-full bg-[#1a233a] border border-gray-700 rounded-lg px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -206,7 +208,7 @@ function LoginForm() {
               />
               <div className="flex justify-end">
                 <Link href="/forgot-password" className="text-sm text-green-500 hover:text-green-400 transition">
-                  Forgot Password?
+                  {t("login.forgotPassword")}
                 </Link>
               </div>
               <button
@@ -214,15 +216,15 @@ function LoginForm() {
                 disabled={loading || !email || !password}
                 className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-600 text-black font-semibold py-3 rounded-lg transition"
               >
-                {loading ? "Logging in..." : "Log In"}
+                {loading ? t("login.loggingIn") : t("login.logIn")}
               </button>
             </form>
 
             <div className="border-t border-gray-700 mt-6 pt-6 text-center text-sm">
               <p className="text-gray-400">
-                Don&apos;t have an account?{" "}
+                {t("login.noAccount")}{" "}
                 <Link href="/signup" className="text-green-500 hover:text-green-400 font-semibold">
-                  Sign Up Free
+                  {t("login.signUpFree")}
                 </Link>
               </p>
             </div>
