@@ -7,7 +7,7 @@ import { Plus, Trash2, CreditCard, Pencil, Check, X, Lock, Camera } from 'lucide
 import { getMaxDebts } from '@/lib/permissions'
 import SmartCapture from '../components/SmartCapture'
 import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
-import { simulate, strategiesTie, type Strategy } from '@/lib/payoffSimulate'
+import { simulate, strategiesTie, strategyOrder, type Strategy } from '@/lib/payoffSimulate'
 
 interface Debt {
   id: string
@@ -195,15 +195,7 @@ export default function DebtsPage() {
   // first" order the strategy implies, separate from the aggregate totals
   // shown in the widget above (which can tie even when this list doesn't,
   // or vice versa, depending on the debt set).
-  const sortedItems = useMemo(() => {
-    const copy = [...items]
-    if (strategy === 'snowball') {
-      copy.sort((a, b) => (Number(a.balance) || 0) - (Number(b.balance) || 0))
-    } else {
-      copy.sort((a, b) => (Number(b.interest_rate) || 0) - (Number(a.interest_rate) || 0))
-    }
-    return copy
-  }, [items, strategy])
+  const sortedItems = useMemo(() => strategyOrder(items, strategy), [items, strategy])
 
   const inputClass =
     'w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white placeholder-gray-500'

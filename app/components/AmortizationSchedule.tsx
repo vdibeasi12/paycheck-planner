@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { Download, CalendarClock, TrendingDown, AlertTriangle } from "lucide-react"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import type { Debt, Strategy, DebtRow, Sim } from "@/lib/payoffSimulate"
-import { simulate, monthLabel, strategiesTie } from "@/lib/payoffSimulate"
+import { simulate, monthLabel, strategiesTie, strategyOrder } from "@/lib/payoffSimulate"
 
 type Props = {
   debts: Debt[]
@@ -56,6 +56,7 @@ export default function AmortizationSchedule({ debts }: Props) {
   const start = useMemo(() => new Date(), [])
   const sim = useMemo(() => simulate(debts, strategy, extra, start), [debts, strategy, extra, start])
   const tied = useMemo(() => strategiesTie(debts), [debts])
+  const orderedDebts = useMemo(() => strategyOrder(debts, strategy), [debts, strategy])
 
   const download = () => {
     const csv = toCsv(sim.debtRows)
@@ -217,19 +218,26 @@ export default function AmortizationSchedule({ debts }: Props) {
               Payoff order
             </h3>
             <div className="space-y-2">
-              {[...sim.perDebt]
-                .sort((a, b) => a.payoffMonth - b.payoffMonth)
-                .map((d) => (
+              {orderedDebts.map((d, idx) => {
+                const info = sim.perDebt.find((p) => p.id === d.id)
+                if (!info) return null
+                return (
                   <div
                     key={d.id}
                     className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-800 pb-2 last:border-0 last:pb-0"
                   >
-                    <span className="text-white">{d.name}</span>
+                    <span className="flex items-center gap-2 text-white">
+                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-bold text-emerald-400">
+                        {idx + 1}
+                      </span>
+                      {d.name}
+                    </span>
                     <span className="text-sm text-gray-400">
-                      paid off {d.payoffLabel} - {fmt(d.totalInterest)} interest
+                      paid off {info.payoffLabel} - {fmt(info.totalInterest)} interest
                     </span>
                   </div>
-                ))}
+                )
+              })}
             </div>
           </div>
 

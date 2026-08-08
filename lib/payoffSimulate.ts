@@ -79,6 +79,25 @@ export function strategiesTie(debts: Debt[]): boolean {
   return byBalance.every((d, i) => d.id === byRate[i].id)
 }
 
+// The single source of truth for "what order does this strategy tackle debts
+// in" -- Snowball is smallest balance first, Avalanche is highest rate
+// first. Used to visually order both the Debts page list and the Payoff
+// Plan page's "Payoff order" section, so they always agree with each other.
+// Deliberately NOT the same as "the order debts actually reach zero in the
+// simulation" -- that can differ when a high-rate debt's minimum payment
+// barely covers its own interest, causing it to amortize slower in wall-
+// clock time than its strategy priority would suggest. This function always
+// reflects the strategy's stated priority, not simulation timing.
+export function strategyOrder<T extends Debt>(debts: T[], strategy: Strategy): T[] {
+  const copy = [...debts]
+  if (strategy === "snowball") {
+    copy.sort((a, b) => (Number(a.balance) || 0) - (Number(b.balance) || 0))
+  } else {
+    copy.sort((a, b) => (Number(b.interest_rate) || 0) - (Number(a.interest_rate) || 0))
+  }
+  return copy
+}
+
 export function monthLabel(start: Date, offset: number): string {
   const d = new Date(start.getFullYear(), start.getMonth() + offset, 1)
   return d.toLocaleDateString("en-US", { month: "short", year: "numeric" })
