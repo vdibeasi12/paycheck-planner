@@ -237,7 +237,7 @@ export default function AmortizationSchedule({ debts }: Props) {
           <div className="rounded-2xl border border-gray-700 bg-[#0f172a]">
             <div className="border-b border-gray-800 px-5 py-3">
               <h3 className="text-sm font-medium uppercase tracking-wide text-gray-400">
-                Monthly schedule (combined)
+                Monthly schedule (combined -- {strategy === "snowball" ? "Snowball" : "Avalanche"})
               </h3>
             </div>
             <div className="max-h-[28rem] overflow-auto">
