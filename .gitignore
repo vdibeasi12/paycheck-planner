@@ -10,3 +10,4 @@ apply-*.ps1
 *.jks
 *.keystore
 android/keystore.properties
+*.ps1
