@@ -13,6 +13,8 @@ export type Debt = {
 
 export type Strategy = "snowball" | "avalanche"
 
+export type AvalancheCriterion = "rate" | "balance"
+
 export type DebtRow = {
   month: number
   label: string
@@ -65,18 +67,24 @@ export const round2 = (n: number) => Math.round(n * 100) / 100
 // forced to produce identical results, at any extra-payment amount. This
 // lets the UI say so explicitly instead of silently showing the same
 // numbers twice, which looks like a bug even though it's correct.
-export function strategiesTie(debts: Debt[]): boolean {
+export function strategiesTie(
+  debts: Debt[],
+  avalancheCriterion: AvalancheCriterion = "balance"
+): boolean {
   const active = debts.filter((d) => (Number(d.balance) || 0) > 0)
   if (active.length < 2) return true
 
-  const byBalance = [...active].sort(
+  const bySnowball = [...active].sort(
     (a, b) => (Number(a.balance) || 0) - (Number(b.balance) || 0)
   )
-  const byRate = [...active].sort(
-    (a, b) => (Number(b.interest_rate) || 0) - (Number(a.interest_rate) || 0)
-  )
+  const byAvalanche =
+    avalancheCriterion === "balance"
+      ? [...active].sort((a, b) => (Number(b.balance) || 0) - (Number(a.balance) || 0))
+      : [...active].sort(
+          (a, b) => (Number(b.interest_rate) || 0) - (Number(a.interest_rate) || 0)
+        )
 
-  return byBalance.every((d, i) => d.id === byRate[i].id)
+  return bySnowball.every((d, i) => d.id === byAvalanche[i].id)
 }
 
 // The single source of truth for "what order does this strategy tackle debts
@@ -88,10 +96,16 @@ export function strategiesTie(debts: Debt[]): boolean {
 // barely covers its own interest, causing it to amortize slower in wall-
 // clock time than its strategy priority would suggest. This function always
 // reflects the strategy's stated priority, not simulation timing.
-export function strategyOrder<T extends Debt>(debts: T[], strategy: Strategy): T[] {
+export function strategyOrder<T extends Debt>(
+  debts: T[],
+  strategy: Strategy,
+  avalancheCriterion: AvalancheCriterion = "balance"
+): T[] {
   const copy = [...debts]
   if (strategy === "snowball") {
     copy.sort((a, b) => (Number(a.balance) || 0) - (Number(b.balance) || 0))
+  } else if (avalancheCriterion === "balance") {
+    copy.sort((a, b) => (Number(b.balance) || 0) - (Number(a.balance) || 0))
   } else {
     copy.sort((a, b) => (Number(b.interest_rate) || 0) - (Number(a.interest_rate) || 0))
   }
@@ -103,7 +117,13 @@ export function monthLabel(start: Date, offset: number): string {
   return d.toLocaleDateString("en-US", { month: "short", year: "numeric" })
 }
 
-export function simulate(debts: Debt[], strategy: Strategy, extra: number, start: Date): Sim {
+export function simulate(
+  debts: Debt[],
+  strategy: Strategy,
+  extra: number,
+  start: Date,
+  avalancheCriterion: AvalancheCriterion = "balance"
+): Sim {
   // Working copy of each debt, cents-safe.
   // interest_rate is treated as an annual percentage (e.g. 19.99 = 19.99% APR).
   const working = debts
@@ -145,6 +165,8 @@ export function simulate(debts: Debt[], strategy: Strategy, extra: number, start
     const order =
       strategy === "snowball"
         ? [...active()].sort((a, b) => a.balance - b.balance)
+        : avalancheCriterion === "balance"
+        ? [...active()].sort((a, b) => b.balance - a.balance)
         : [...active()].sort((a, b) => b.monthlyRate - a.monthlyRate)
 
     // 1) Accrue interest on every active debt.

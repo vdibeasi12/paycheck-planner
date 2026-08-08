@@ -1,19 +1,22 @@
+# Adds the same live Payoff Plan schedule (Snowball/Avalanche, extra payment,
+# CSV export) directly onto the Debts page, using the same real saved debts.
+# No separate disconnected calculator needed here anymore.
+[Environment]::CurrentDirectory = (Get-Location).Path
+$ErrorActionPreference = "Stop"
+$global:anyFail = $false
+
+$f_app_debts_page_tsx = @'
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
-import { Plus, Trash2, CreditCard, Pencil, Check, X, Lock, Camera } from 'lucide-react'
+import { Plus, Trash2, CreditCard, Pencil, Check, X, Lock, Camera, CalendarClock } from 'lucide-react'
 import { getMaxDebts } from '@/lib/permissions'
 import SmartCapture from '../components/SmartCapture'
 import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
-import {
-  simulate,
-  strategiesTie,
-  strategyOrder,
-  type Strategy,
-  type AvalancheCriterion,
-} from '@/lib/payoffSimulate'
+import AmortizationSchedule from '../components/AmortizationSchedule'
+import PaywallOverlay from '../components/PaywallOverlay'
 
 interface Debt {
   id: string
@@ -46,10 +49,6 @@ export default function DebtsPage() {
   const [plan, setPlan] = useState<string>('free')
   const [isAdmin, setIsAdmin] = useState<boolean>(false)
   const [showCapture, setShowCapture] = useState(false)
-  const [strategy, setStrategy] = useState<Strategy>('snowball')
-  const [avalancheCriterion, setAvalancheCriterion] = useState<AvalancheCriterion>('balance')
-  const [extraText, setExtraText] = useState('0')
-  const extra = Math.max(0, Number(extraText) || 0)
 
   async function loadPlan() {
     try {
@@ -196,17 +195,6 @@ export default function DebtsPage() {
         totalBalance
       : 0
 
-  // The list below is ordered by the selected payoff strategy, not just
-  // insertion order -- Snowball shows smallest balance first, Avalanche
-  // shows highest interest rate first. This is the actual "tackle this one
-  // first" order the strategy implies, separate from the aggregate totals
-  // shown in the widget above (which can tie even when this list doesn't,
-  // or vice versa, depending on the debt set).
-  const sortedItems = useMemo(
-    () => strategyOrder(items, strategy, avalancheCriterion),
-    [items, strategy, avalancheCriterion]
-  )
-
   const inputClass =
     'w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white placeholder-gray-500'
 
@@ -333,143 +321,11 @@ export default function DebtsPage() {
               </div>
             </div>
 
-            {items.length > 0 && (() => {
-              const start = new Date()
-              const sim = simulate(
-                items.map((d) => ({
-                  id: d.id,
-                  name: d.name,
-                  balance: Number(d.balance) || 0,
-                  interest_rate: Number(d.interest_rate) || 0,
-                  minimum_payment: Number(d.minimum_payment) || 0,
-                })),
-                strategy,
-                extra,
-                start,
-                avalancheCriterion
-              )
-              const debtFreeLabel =
-                sim.months > 0 && !sim.nonAmortizing
-                  ? new Date(start.getFullYear(), start.getMonth() + sim.months - 1, 1).toLocaleDateString('en-US', {
-                      month: 'short',
-                      year: 'numeric',
-                    })
-                  : '-'
-              const tied = strategiesTie(items, avalancheCriterion)
-              return (
-                <div className="mb-6 flex flex-wrap items-end gap-4 rounded-lg border border-gray-700 bg-[#0f172a] p-4">
-                  <div>
-                    <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-400">
-                      Strategy
-                    </label>
-                    <div className="inline-flex rounded-lg border border-gray-700 bg-[#1a233a] p-1">
-                      <button
-                        type="button"
-                        onClick={() => setStrategy('snowball')}
-                        className={
-                          'rounded-md px-3 py-1.5 text-sm transition ' +
-                          (strategy === 'snowball'
-                            ? 'bg-green-500 font-medium text-black'
-                            : 'text-gray-300 hover:text-white')
-                        }
-                      >
-                        Snowball
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setStrategy('avalanche')}
-                        className={
-                          'rounded-md px-3 py-1.5 text-sm transition ' +
-                          (strategy === 'avalanche'
-                            ? 'bg-green-500 font-medium text-black'
-                            : 'text-gray-300 hover:text-white')
-                        }
-                      >
-                        Avalanche
-                      </button>
-                    </div>
-                    {strategy === 'avalanche' && (
-                      <div className="mt-2 inline-flex rounded-md border border-blue-900/60 bg-[#1a233a] p-0.5">
-                        <button
-                          type="button"
-                          onClick={() => setAvalancheCriterion('balance')}
-                          className={
-                            'rounded px-2 py-1 text-xs transition ' +
-                            (avalancheCriterion === 'balance'
-                              ? 'bg-blue-500 font-medium text-black'
-                              : 'text-gray-400 hover:text-white')
-                          }
-                        >
-                          Biggest balance
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setAvalancheCriterion('rate')}
-                          className={
-                            'rounded px-2 py-1 text-xs transition ' +
-                            (avalancheCriterion === 'rate'
-                              ? 'bg-blue-500 font-medium text-black'
-                              : 'text-gray-400 hover:text-white')
-                          }
-                        >
-                          Highest rate
-                        </button>
-                      </div>
-                    )}
-                    {tied && (
-                      <p className="mt-1.5 max-w-[220px] text-xs text-gray-500">
-                        {avalancheCriterion === 'balance'
-                          ? 'Same result either way -- with only one active debt (or matching balances), the orders coincide.'
-                          : 'Same result either way -- your highest-rate debt is also your smallest balance.'}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-400">
-                      Extra monthly payment
-                    </label>
-                    <div className="flex items-center rounded-lg border border-gray-700 bg-[#1a233a] px-3">
-                      <span className="text-gray-400">$</span>
-                      <input
-                        type="number"
-                        min={0}
-                        step={25}
-                        value={extraText}
-                        onFocus={() => {
-                          if (extraText === '0') setExtraText('')
-                        }}
-                        onBlur={() => {
-                          if (extraText.trim() === '') setExtraText('0')
-                        }}
-                        onChange={(e) => setExtraText(e.target.value)}
-                        className="w-24 bg-transparent px-2 py-1.5 text-white outline-none placeholder:text-gray-500"
-                        placeholder="0"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="ml-auto flex gap-6">
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-gray-400">Debt-free</p>
-                      <p className="text-lg font-bold text-emerald-400">{debtFreeLabel}</p>
-                    </div>
-                    <div>
-                      <p className="text-xs uppercase tracking-wide text-gray-400">Total interest</p>
-                      <p className="text-lg font-bold text-white">
-                        {sim.nonAmortizing ? '-' : formatMoney(Math.round(sim.totalInterest))}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )
-            })()}
-
             {loading ? (
               <div className="text-center py-12 text-gray-400">Loading debts...</div>
             ) : items.length > 0 ? (
               <div className="space-y-3">
-                {sortedItems.map((d, idx) => (
+                {items.map((d) => (
                   <div key={d.id} className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
                     {editingId === d.id ? (
                       <div className="space-y-3">
@@ -530,9 +386,6 @@ export default function DebtsPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <h3 className="font-semibold text-lg flex items-center gap-2">
-                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-bold text-emerald-400">
-                              {idx + 1}
-                            </span>
                             <CreditCard size={16} className="text-rose-400" /> {d.name}
                           </h3>
                           <p className="text-gray-400 text-sm">
@@ -574,7 +427,66 @@ export default function DebtsPage() {
             )}
           </div>
         </div>
+
+        {/* Payoff Plan — same live schedule as the dedicated Payoff Plan page,
+            using these same saved debts, so this doesn't require a separate
+            disconnected tool with re-entered numbers. */}
+        {items.length > 0 && (
+          <div className="mt-8">
+            <div className="mb-1 flex items-center gap-2">
+              <CalendarClock size={22} className="text-emerald-400" />
+              <h2 className="text-xl font-bold text-white">Payoff Plan</h2>
+            </div>
+            <p className="mb-4 text-sm text-gray-400">
+              See exactly when each debt is paid off, and export the schedule.
+            </p>
+            {!(plan === 'premium' || plan === 'connected' || isAdmin) ? (
+              <div className="relative min-h-[200px] overflow-hidden rounded-xl border border-gray-700 bg-[#0f172a] p-6">
+                <div className="pointer-events-none opacity-40">
+                  <p className="text-gray-300">
+                    Your full month-by-month payoff schedule, Snowball vs Avalanche, with CSV export.
+                  </p>
+                </div>
+                <PaywallOverlay
+                  priceId="price_1TO2SSFv1EcTs6LYVswF0AwU"
+                  title="Unlock your Payoff Plan"
+                  description="Upgrade to Accelerate to view and export your full amortization schedule."
+                />
+              </div>
+            ) : (
+              <AmortizationSchedule
+                debts={items.map((d) => ({
+                  id: d.id,
+                  name: d.name,
+                  balance: Number(d.balance) || 0,
+                  interest_rate: Number(d.interest_rate) || 0,
+                  minimum_payment: Number(d.minimum_payment) || 0,
+                }))}
+              />
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
 }
+'@
+[System.IO.File]::WriteAllText((Join-Path (Get-Location) "app/debts/page.tsx"), $f_app_debts_page_tsx, (New-Object System.Text.UTF8Encoding($false)))
+$c_f_app_debts_page_tsx = Select-String -Path "app/debts/page.tsx" -Pattern "AmortizationSchedule" -SimpleMatch
+if ($c_f_app_debts_page_tsx) { Write-Host "OK   app/debts/page.tsx" -ForegroundColor Green } else { Write-Host "FAIL app/debts/page.tsx" -ForegroundColor Red; $global:anyFail = $true }
+
+if ($global:anyFail) {
+    Write-Host ""
+    Write-Host "One or more files failed verification. Stopping before commit." -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
+Write-Host "File verified. Committing..." -ForegroundColor Cyan
+
+git add "app/debts/page.tsx"
+git commit -m "Show the live Payoff Plan schedule directly on the Debts page too"
+git push origin main
+
+Write-Host ""
+Write-Host "Done. Vercel will auto-deploy in a minute or two." -ForegroundColor Green

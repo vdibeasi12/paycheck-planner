@@ -1,10 +1,17 @@
+# Adds the selected strategy name to the Monthly Schedule heading so it's
+# unambiguous which strategy the schedule reflects (e.g. "Combined -- Snowball").
+[Environment]::CurrentDirectory = (Get-Location).Path
+$ErrorActionPreference = "Stop"
+$global:anyFail = $false
+
+$f_app_components_AmortizationSchedule_tsx = @'
 "use client"
 
 import { useMemo, useState } from "react"
 import { Download, CalendarClock, TrendingDown, AlertTriangle } from "lucide-react"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
-import type { Debt, Strategy, DebtRow, Sim, AvalancheCriterion } from "@/lib/payoffSimulate"
-import { simulate, monthLabel, strategiesTie, strategyOrder } from "@/lib/payoffSimulate"
+import type { Debt, Strategy, DebtRow, Sim } from "@/lib/payoffSimulate"
+import { simulate, monthLabel, strategiesTie } from "@/lib/payoffSimulate"
 
 type Props = {
   debts: Debt[]
@@ -50,20 +57,12 @@ export default function AmortizationSchedule({ debts }: Props) {
   const fmt = formatMoney
   const fmt0 = (n: number) => formatMoney(Math.round(n))
   const [strategy, setStrategy] = useState<Strategy>("snowball")
-  const [avalancheCriterion, setAvalancheCriterion] = useState<AvalancheCriterion>("balance")
   const [extra, setExtra] = useState<number>(0)
   const [extraText, setExtraText] = useState<string>("0")
 
   const start = useMemo(() => new Date(), [])
-  const sim = useMemo(
-    () => simulate(debts, strategy, extra, start, avalancheCriterion),
-    [debts, strategy, extra, start, avalancheCriterion]
-  )
-  const tied = useMemo(() => strategiesTie(debts, avalancheCriterion), [debts, avalancheCriterion])
-  const orderedDebts = useMemo(
-    () => strategyOrder(debts, strategy, avalancheCriterion),
-    [debts, strategy, avalancheCriterion]
-  )
+  const sim = useMemo(() => simulate(debts, strategy, extra, start), [debts, strategy, extra, start])
+  const tied = useMemo(() => strategiesTie(debts), [debts])
 
   const download = () => {
     const csv = toCsv(sim.debtRows)
@@ -122,37 +121,11 @@ export default function AmortizationSchedule({ debts }: Props) {
               Avalanche
             </button>
           </div>
-          {strategy === "avalanche" && (
-            <div className="mt-2 inline-flex rounded-md border border-blue-900/60 bg-[#0f172a] p-0.5">
-              <button
-                onClick={() => setAvalancheCriterion("balance")}
-                className={
-                  "rounded px-2 py-1 text-xs transition " +
-                  (avalancheCriterion === "balance"
-                    ? "bg-blue-500 font-medium text-black"
-                    : "text-gray-400 hover:text-white")
-                }
-              >
-                Biggest balance
-              </button>
-              <button
-                onClick={() => setAvalancheCriterion("rate")}
-                className={
-                  "rounded px-2 py-1 text-xs transition " +
-                  (avalancheCriterion === "rate"
-                    ? "bg-blue-500 font-medium text-black"
-                    : "text-gray-400 hover:text-white")
-                }
-              >
-                Highest rate
-              </button>
-            </div>
-          )}
           {tied && (
             <p className="mt-1.5 max-w-xs text-xs text-gray-500">
-              {avalancheCriterion === "balance"
-                ? "Both strategies give the same result for your current debts -- with only one active debt (or balances that all match), smallest-balance-first and biggest-balance-first land on the same order."
-                : "Both strategies give the same result for your current debts -- your highest-rate debt is also your smallest balance, so Snowball and Avalanche pick the same payoff order."}
+              Both strategies give the same result for your current debts -- your
+              highest-rate debt is also your smallest balance, so Snowball and
+              Avalanche pick the same payoff order.
             </p>
           )}
         </div>
@@ -251,26 +224,19 @@ export default function AmortizationSchedule({ debts }: Props) {
               Payoff order
             </h3>
             <div className="space-y-2">
-              {orderedDebts.map((d, idx) => {
-                const info = sim.perDebt.find((p) => p.id === d.id)
-                if (!info) return null
-                return (
+              {[...sim.perDebt]
+                .sort((a, b) => a.payoffMonth - b.payoffMonth)
+                .map((d) => (
                   <div
                     key={d.id}
                     className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-800 pb-2 last:border-0 last:pb-0"
                   >
-                    <span className="flex items-center gap-2 text-white">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-bold text-emerald-400">
-                        {idx + 1}
-                      </span>
-                      {d.name}
-                    </span>
+                    <span className="text-white">{d.name}</span>
                     <span className="text-sm text-gray-400">
-                      paid off {info.payoffLabel} - {fmt(info.totalInterest)} interest
+                      paid off {d.payoffLabel} - {fmt(d.totalInterest)} interest
                     </span>
                   </div>
-                )
-              })}
+                ))}
             </div>
           </div>
 
@@ -315,3 +281,26 @@ export default function AmortizationSchedule({ debts }: Props) {
     </div>
   )
 }
+
+'@
+$dir_f_app_components_AmortizationSchedule_tsx = Split-Path "app/components/AmortizationSchedule.tsx" -Parent
+if ($dir_f_app_components_AmortizationSchedule_tsx -and -not (Test-Path $dir_f_app_components_AmortizationSchedule_tsx)) { New-Item -ItemType Directory -Path $dir_f_app_components_AmortizationSchedule_tsx -Force | Out-Null }
+[System.IO.File]::WriteAllText((Join-Path (Get-Location) "app/components/AmortizationSchedule.tsx"), $f_app_components_AmortizationSchedule_tsx, (New-Object System.Text.UTF8Encoding($false)))
+$c_f_app_components_AmortizationSchedule_tsx = Select-String -Path "app/components/AmortizationSchedule.tsx" -Pattern "Monthly schedule (combined --" -SimpleMatch
+if ($c_f_app_components_AmortizationSchedule_tsx) { Write-Host "OK   app/components/AmortizationSchedule.tsx" -ForegroundColor Green } else { Write-Host "FAIL app/components/AmortizationSchedule.tsx" -ForegroundColor Red; $global:anyFail = $true }
+
+if ($global:anyFail) {
+    Write-Host ""
+    Write-Host "File failed verification. Stopping before commit." -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
+Write-Host "File verified. Committing..." -ForegroundColor Cyan
+
+git add "app/components/AmortizationSchedule.tsx"
+git commit -m "Show the selected strategy in the Monthly Schedule heading"
+git push origin main
+
+Write-Host ""
+Write-Host "Done. Vercel will auto-deploy in a minute or two." -ForegroundColor Green

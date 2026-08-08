@@ -1,3 +1,8 @@
+[Environment]::CurrentDirectory=(Get-Location).Path
+$global:anyFail = $false
+
+# ---- app/debts/page.tsx ----
+$page = @'
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -578,3 +583,20 @@ export default function DebtsPage() {
     </div>
   )
 }
+'@
+$targetPath_page = "app/debts/page.tsx"
+$dir_page = Split-Path $targetPath_page -Parent
+if ($dir_page -and -not (Test-Path $dir_page)) { New-Item -ItemType Directory -Path $dir_page -Force | Out-Null }
+[System.IO.File]::WriteAllText($targetPath_page, $page, (New-Object System.Text.UTF8Encoding($false)))
+$check_page = Select-String -Path $targetPath_page -Pattern 'Biggest balance' -SimpleMatch
+if (-not $check_page) { Write-Host "FAIL: app/debts/page.tsx did not contain expected content" -ForegroundColor Red; $global:anyFail = $true } else { Write-Host "OK: app/debts/page.tsx verified" -ForegroundColor Green }
+
+if ($global:anyFail) {
+    Write-Host "One or more files failed verification in Part 2. Stopping before git." -ForegroundColor Red
+    exit 1
+}
+
+git add -A
+git commit -m "Avalanche: add balance/rate sub-criterion selector to Payoff Plan and Debts pages"
+git push
+Write-Host "Done - pushed to main." -ForegroundColor Cyan

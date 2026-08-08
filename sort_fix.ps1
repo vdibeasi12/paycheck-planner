@@ -1,3 +1,11 @@
+# Makes the debt list on the Debts page actually reorder based on the
+# selected Strategy (Snowball = smallest balance first, Avalanche = highest
+# rate first), and adds a numbered priority badge to each debt card.
+[Environment]::CurrentDirectory = (Get-Location).Path
+$ErrorActionPreference = "Stop"
+$global:anyFail = $false
+
+$f_app_debts_page_tsx = @'
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
@@ -7,13 +15,7 @@ import { Plus, Trash2, CreditCard, Pencil, Check, X, Lock, Camera } from 'lucide
 import { getMaxDebts } from '@/lib/permissions'
 import SmartCapture from '../components/SmartCapture'
 import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
-import {
-  simulate,
-  strategiesTie,
-  strategyOrder,
-  type Strategy,
-  type AvalancheCriterion,
-} from '@/lib/payoffSimulate'
+import { simulate, strategiesTie, type Strategy } from '@/lib/payoffSimulate'
 
 interface Debt {
   id: string
@@ -47,7 +49,6 @@ export default function DebtsPage() {
   const [isAdmin, setIsAdmin] = useState<boolean>(false)
   const [showCapture, setShowCapture] = useState(false)
   const [strategy, setStrategy] = useState<Strategy>('snowball')
-  const [avalancheCriterion, setAvalancheCriterion] = useState<AvalancheCriterion>('balance')
   const [extraText, setExtraText] = useState('0')
   const extra = Math.max(0, Number(extraText) || 0)
 
@@ -202,10 +203,15 @@ export default function DebtsPage() {
   // first" order the strategy implies, separate from the aggregate totals
   // shown in the widget above (which can tie even when this list doesn't,
   // or vice versa, depending on the debt set).
-  const sortedItems = useMemo(
-    () => strategyOrder(items, strategy, avalancheCriterion),
-    [items, strategy, avalancheCriterion]
-  )
+  const sortedItems = useMemo(() => {
+    const copy = [...items]
+    if (strategy === 'snowball') {
+      copy.sort((a, b) => (Number(a.balance) || 0) - (Number(b.balance) || 0))
+    } else {
+      copy.sort((a, b) => (Number(b.interest_rate) || 0) - (Number(a.interest_rate) || 0))
+    }
+    return copy
+  }, [items, strategy])
 
   const inputClass =
     'w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white placeholder-gray-500'
@@ -345,8 +351,7 @@ export default function DebtsPage() {
                 })),
                 strategy,
                 extra,
-                start,
-                avalancheCriterion
+                start
               )
               const debtFreeLabel =
                 sim.months > 0 && !sim.nonAmortizing
@@ -355,7 +360,7 @@ export default function DebtsPage() {
                       year: 'numeric',
                     })
                   : '-'
-              const tied = strategiesTie(items, avalancheCriterion)
+              const tied = strategiesTie(items)
               return (
                 <div className="mb-6 flex flex-wrap items-end gap-4 rounded-lg border border-gray-700 bg-[#0f172a] p-4">
                   <div>
@@ -388,39 +393,10 @@ export default function DebtsPage() {
                         Avalanche
                       </button>
                     </div>
-                    {strategy === 'avalanche' && (
-                      <div className="mt-2 inline-flex rounded-md border border-blue-900/60 bg-[#1a233a] p-0.5">
-                        <button
-                          type="button"
-                          onClick={() => setAvalancheCriterion('balance')}
-                          className={
-                            'rounded px-2 py-1 text-xs transition ' +
-                            (avalancheCriterion === 'balance'
-                              ? 'bg-blue-500 font-medium text-black'
-                              : 'text-gray-400 hover:text-white')
-                          }
-                        >
-                          Biggest balance
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setAvalancheCriterion('rate')}
-                          className={
-                            'rounded px-2 py-1 text-xs transition ' +
-                            (avalancheCriterion === 'rate'
-                              ? 'bg-blue-500 font-medium text-black'
-                              : 'text-gray-400 hover:text-white')
-                          }
-                        >
-                          Highest rate
-                        </button>
-                      </div>
-                    )}
                     {tied && (
                       <p className="mt-1.5 max-w-[220px] text-xs text-gray-500">
-                        {avalancheCriterion === 'balance'
-                          ? 'Same result either way -- with only one active debt (or matching balances), the orders coincide.'
-                          : 'Same result either way -- your highest-rate debt is also your smallest balance.'}
+                        Same result either way -- your highest-rate debt is also your
+                        smallest balance.
                       </p>
                     )}
                   </div>
@@ -578,3 +554,25 @@ export default function DebtsPage() {
     </div>
   )
 }
+'@
+$dir_f_app_debts_page_tsx = Split-Path "app/debts/page.tsx" -Parent
+if ($dir_f_app_debts_page_tsx -and -not (Test-Path $dir_f_app_debts_page_tsx)) { New-Item -ItemType Directory -Path $dir_f_app_debts_page_tsx -Force | Out-Null }
+[System.IO.File]::WriteAllText((Join-Path (Get-Location) "app/debts/page.tsx"), $f_app_debts_page_tsx, (New-Object System.Text.UTF8Encoding($false)))
+$c_f_app_debts_page_tsx = Select-String -Path "app/debts/page.tsx" -Pattern "sortedItems" -SimpleMatch
+if ($c_f_app_debts_page_tsx) { Write-Host "OK   app/debts/page.tsx" -ForegroundColor Green } else { Write-Host "FAIL app/debts/page.tsx" -ForegroundColor Red; $global:anyFail = $true }
+
+if ($global:anyFail) {
+    Write-Host ""
+    Write-Host "File failed verification. Stopping before commit." -ForegroundColor Red
+    exit 1
+}
+
+Write-Host ""
+Write-Host "File verified. Committing..." -ForegroundColor Cyan
+
+git add "app/debts/page.tsx"
+git commit -m "Sort the Debts page list by the selected payoff strategy, with a priority badge"
+git push origin main
+
+Write-Host ""
+Write-Host "Done. Vercel will auto-deploy in a minute or two." -ForegroundColor Green
