@@ -42,14 +42,19 @@ async function verifyPlaidWebhook(req: Request, rawBody: string): Promise<boolea
 }
 
 export async function POST(req: Request) {
+  // When Plaid isn't live, this route has nothing valid to do -- reject
+  // outright rather than silently skipping signature verification below.
+  // (Previously: verification was only enforced when PLAID_ENABLED, which
+  // left the endpoint open to unverified POSTs whenever it was off.)
+  if (!PLAID_ENABLED) {
+    return NextResponse.json({ error: "not found" }, { status: 404 })
+  }
+
   const rawBody = await req.text()
 
-  // Only enforce verification when Plaid is live (creds present).
-  if (PLAID_ENABLED) {
-    const ok = await verifyPlaidWebhook(req, rawBody)
-    if (!ok) {
-      return NextResponse.json({ error: "invalid signature" }, { status: 401 })
-    }
+  const ok = await verifyPlaidWebhook(req, rawBody)
+  if (!ok) {
+    return NextResponse.json({ error: "invalid signature" }, { status: 401 })
   }
 
   let body: any = {}
