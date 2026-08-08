@@ -7,7 +7,7 @@ import { Plus, Trash2, CreditCard, Pencil, Check, X, Lock, Camera } from 'lucide
 import { getMaxDebts } from '@/lib/permissions'
 import SmartCapture from '../components/SmartCapture'
 import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
-import { simulate, type Strategy } from '@/lib/payoffSimulate'
+import { simulate, strategiesTie, type Strategy } from '@/lib/payoffSimulate'
 
 interface Debt {
   id: string
@@ -336,6 +336,7 @@ export default function DebtsPage() {
                       year: 'numeric',
                     })
                   : '-'
+              const tied = strategiesTie(items)
               return (
                 <div className="mb-6 flex flex-wrap items-end gap-4 rounded-lg border border-gray-700 bg-[#0f172a] p-4">
                   <div>
@@ -368,6 +369,12 @@ export default function DebtsPage() {
                         Avalanche
                       </button>
                     </div>
+                    {tied && (
+                      <p className="mt-1.5 max-w-[220px] text-xs text-gray-500">
+                        Same result either way -- your highest-rate debt is also your
+                        smallest balance.
+                      </p>
+                    )}
                   </div>
 
                   <div>

@@ -4,7 +4,7 @@ import { useMemo, useState } from "react"
 import { Download, CalendarClock, TrendingDown, AlertTriangle } from "lucide-react"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import type { Debt, Strategy, DebtRow, Sim } from "@/lib/payoffSimulate"
-import { simulate, monthLabel } from "@/lib/payoffSimulate"
+import { simulate, monthLabel, strategiesTie } from "@/lib/payoffSimulate"
 
 type Props = {
   debts: Debt[]
@@ -55,6 +55,7 @@ export default function AmortizationSchedule({ debts }: Props) {
 
   const start = useMemo(() => new Date(), [])
   const sim = useMemo(() => simulate(debts, strategy, extra, start), [debts, strategy, extra, start])
+  const tied = useMemo(() => strategiesTie(debts), [debts])
 
   const download = () => {
     const csv = toCsv(sim.debtRows)
@@ -113,6 +114,13 @@ export default function AmortizationSchedule({ debts }: Props) {
               Avalanche
             </button>
           </div>
+          {tied && (
+            <p className="mt-1.5 max-w-xs text-xs text-gray-500">
+              Both strategies give the same result for your current debts -- your
+              highest-rate debt is also your smallest balance, so Snowball and
+              Avalanche pick the same payoff order.
+            </p>
+          )}
         </div>
 
         <div>

@@ -58,6 +58,27 @@ const MAX_MONTHS = 600
 
 export const round2 = (n: number) => Math.round(n * 100) / 100
 
+// Snowball (smallest balance first) and Avalanche (highest rate first) only
+// ever produce different numbers when they disagree on the payoff order.
+// With a small number of debts it's common for balance rank and rate rank
+// to happen to line up -- in that case both strategies are mathematically
+// forced to produce identical results, at any extra-payment amount. This
+// lets the UI say so explicitly instead of silently showing the same
+// numbers twice, which looks like a bug even though it's correct.
+export function strategiesTie(debts: Debt[]): boolean {
+  const active = debts.filter((d) => (Number(d.balance) || 0) > 0)
+  if (active.length < 2) return true
+
+  const byBalance = [...active].sort(
+    (a, b) => (Number(a.balance) || 0) - (Number(b.balance) || 0)
+  )
+  const byRate = [...active].sort(
+    (a, b) => (Number(b.interest_rate) || 0) - (Number(a.interest_rate) || 0)
+  )
+
+  return byBalance.every((d, i) => d.id === byRate[i].id)
+}
+
 export function monthLabel(start: Date, offset: number): string {
   const d = new Date(start.getFullYear(), start.getMonth() + offset, 1)
   return d.toLocaleDateString("en-US", { month: "short", year: "numeric" })
