@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
 import { Plus, Trash2, CreditCard, Pencil, Check, X, Lock, Camera } from 'lucide-react'
@@ -188,6 +188,22 @@ export default function DebtsPage() {
       ? items.reduce((sum, d) => sum + (Number(d.balance) || 0) * (Number(d.interest_rate) || 0), 0) /
         totalBalance
       : 0
+
+  // The list below is ordered by the selected payoff strategy, not just
+  // insertion order -- Snowball shows smallest balance first, Avalanche
+  // shows highest interest rate first. This is the actual "tackle this one
+  // first" order the strategy implies, separate from the aggregate totals
+  // shown in the widget above (which can tie even when this list doesn't,
+  // or vice versa, depending on the debt set).
+  const sortedItems = useMemo(() => {
+    const copy = [...items]
+    if (strategy === 'snowball') {
+      copy.sort((a, b) => (Number(a.balance) || 0) - (Number(b.balance) || 0))
+    } else {
+      copy.sort((a, b) => (Number(b.interest_rate) || 0) - (Number(a.interest_rate) || 0))
+    }
+    return copy
+  }, [items, strategy])
 
   const inputClass =
     'w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white placeholder-gray-500'
@@ -421,7 +437,7 @@ export default function DebtsPage() {
               <div className="text-center py-12 text-gray-400">Loading debts...</div>
             ) : items.length > 0 ? (
               <div className="space-y-3">
-                {items.map((d) => (
+                {sortedItems.map((d, idx) => (
                   <div key={d.id} className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
                     {editingId === d.id ? (
                       <div className="space-y-3">
@@ -482,6 +498,9 @@ export default function DebtsPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <h3 className="font-semibold text-lg flex items-center gap-2">
+                            <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-bold text-emerald-400">
+                              {idx + 1}
+                            </span>
                             <CreditCard size={16} className="text-rose-400" /> {d.name}
                           </h3>
                           <p className="text-gray-400 text-sm">
