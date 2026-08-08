@@ -23,6 +23,9 @@ type UserRow = {
   plan: string;
   is_admin: boolean;
   signup_source: string | null;
+  utm_source: string | null;
+  utm_medium: string | null;
+  utm_campaign: string | null;
   sub_tier: string | null;
   sub_status: string | null;
   sub_plan_type: string | null;
@@ -34,6 +37,7 @@ type Metrics = {
   activeSubs: number;
   mrr: number;
   signupSources: Record<string, number>;
+  utmSources: Record<string, number>;
   planCounts: Record<string, number>;
   paidUsers: number;
   conversion: number;
@@ -238,6 +242,13 @@ export default function AdminPage() {
     return { entries, total };
   }, [metrics]);
 
+  const utmSources = useMemo(() => {
+    const entries = Object.entries(metrics?.utmSources ?? {});
+    entries.sort((a, b) => b[1] - a[1]);
+    const total = entries.reduce((s, [, n]) => s + n, 0) || 1;
+    return { entries, total };
+  }, [metrics]);
+
   if (status === "loading")
     return (
       <div className="flex min-h-screen items-center justify-center text-gray-400">
@@ -343,6 +354,30 @@ export default function AdminPage() {
               </ul>
             )}
           </div>
+
+          <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-5 shadow-sm">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">Traffic source (auto-detected)</h2>
+            <p className="mt-1 text-xs text-gray-500">
+              Captured automatically from UTM links or referrer on each visitor&apos;s first visit -- no self-report needed.
+            </p>
+            {utmSources.entries.length === 0 ? (
+              <p className="mt-3 text-sm text-gray-400">No data yet.</p>
+            ) : (
+              <ul className="mt-3 space-y-2">
+                {utmSources.entries.map(([src, n]) => (
+                  <li key={src} className="text-sm">
+                    <div className="flex justify-between text-gray-300">
+                      <span className="capitalize">{src}</span>
+                      <span className="text-gray-400">{n} ({Math.round((n / utmSources.total) * 100)}%)</span>
+                    </div>
+                    <div className="mt-1 h-1.5 rounded-full bg-gray-800">
+                      <div className="h-full rounded-full bg-blue-500" style={{ width: `${(n / utmSources.total) * 100}%` }} />
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
         </div>
 
         {actionMsg && (
@@ -408,6 +443,12 @@ export default function AdminPage() {
                     )}
                     {u.signup_source && (
                       <span className="mt-0.5 block text-xs capitalize text-gray-500">via {u.signup_source}</span>
+                    )}
+                    {u.utm_source && (
+                      <span className="mt-0.5 block text-xs capitalize text-blue-400">
+                        {u.utm_source}
+                        {u.utm_campaign ? ` • ${u.utm_campaign}` : ""}
+                      </span>
                     )}
                   </td>
                   <td className="px-4 py-3">

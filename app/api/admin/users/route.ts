@@ -25,7 +25,7 @@ export async function GET(req: Request) {
   const authUsers = list?.users || [];
 
   const [{ data: profiles }, { data: subs }] = await Promise.all([
-    sb.from("profiles").select("id, plan, is_admin, signup_source"),
+    sb.from("profiles").select("id, plan, is_admin, signup_source, utm_source, utm_medium, utm_campaign"),
     sb.from("subscriptions").select("user_id, tier, status, plan_type, current_period_end"),
   ]);
 
@@ -45,6 +45,9 @@ export async function GET(req: Request) {
       plan: p?.plan ?? "free",
       is_admin: !!p?.is_admin,
       signup_source: p?.signup_source ?? null,
+      utm_source: p?.utm_source ?? null,
+      utm_medium: p?.utm_medium ?? null,
+      utm_campaign: p?.utm_campaign ?? null,
       sub_tier: s?.tier ?? null,
       sub_status: s?.status ?? null,
       sub_plan_type: s?.plan_type ?? null,
@@ -69,6 +72,15 @@ export async function GET(req: Request) {
     signupSources[src] = (signupSources[src] || 0) + 1;
   });
 
+  // Auto-captured traffic attribution (UTM param or classified referrer),
+  // separate from the self-reported "How did you hear about us?" dropdown
+  // above -- this one is populated automatically for every new signup.
+  const utmSources: Record<string, number> = {};
+  (profiles || []).forEach((p) => {
+    const src = ((p.utm_source as string | null) || "").trim() || "unknown";
+    utmSources[src] = (utmSources[src] || 0) + 1;
+  });
+
   // Plan mix across every user (no profile row -> counts as free).
   const planCounts: Record<string, number> = { free: 0, starter: 0, premium: 0, connected: 0 };
   authUsers.forEach((u) => {
@@ -89,6 +101,7 @@ export async function GET(req: Request) {
       activeSubs: activeSubs.length,
       mrr: Math.round(mrr * 100) / 100,
       signupSources,
+      utmSources,
       planCounts,
       paidUsers,
       conversion: Math.round(conversion * 10) / 10,
