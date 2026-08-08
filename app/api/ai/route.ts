@@ -5,10 +5,16 @@ import { canUseAI } from "@/lib/permissions"
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6"
 
+// This route takes "debts" straight from the client body (not a DB read),
+// so it's an unbounded-input vector like the chat routes -- cap the array
+// size and each name's length before they go into the prompt.
+const MAX_DEBTS = 100
+const MAX_NAME_LENGTH = 200
+
 export async function POST(req: Request) {
   try {
     const body = await req.json()
-    const debts = Array.isArray(body?.debts) ? body.debts : []
+    const debts = Array.isArray(body?.debts) ? body.debts.slice(0, MAX_DEBTS) : []
 
     if (debts.length === 0) {
       return NextResponse.json({ advice: "Add debts to receive personalized AI insights." })
@@ -54,7 +60,8 @@ export async function POST(req: Request) {
     // Compact the debts into a short, model-friendly summary.
     const lines = debts
       .map((d: any) => {
-        const name = d.name ?? d.creditor ?? "Debt"
+        const rawName = String(d.name ?? d.creditor ?? "Debt")
+        const name = rawName.length > MAX_NAME_LENGTH ? rawName.slice(0, MAX_NAME_LENGTH) : rawName
         const bal = Number(d.balance ?? 0)
         const rate = Number(d.interest_rate ?? d.apr ?? 0)
         const min = Number(d.minimum_payment ?? d.min_payment ?? 0)

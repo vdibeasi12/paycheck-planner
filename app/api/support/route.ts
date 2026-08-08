@@ -9,6 +9,11 @@ const MODEL =
   process.env.ANTHROPIC_MODEL ||
   "claude-sonnet-4-6"
 
+// Caps a single message's length before it goes to Anthropic. This isn't a
+// UX limit (nobody types a legit support question this long) -- it's a cost
+// ceiling so one request can't balloon input tokens.
+const MAX_MESSAGE_LENGTH = 4000
+
 const SYSTEM_PROMPT = `You are the in-app help assistant for Paycheck Planner, a debt-payoff and budgeting web + mobile app.
 Your job is to help people USE the app, get set up, and answer general personal-finance questions.
 
@@ -38,6 +43,12 @@ export async function POST(request: Request) {
     if (!message || typeof message !== "string") {
       return NextResponse.json({ response: "What can I help you with?" }, { status: 400 })
     }
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return NextResponse.json(
+        { response: "That message is too long. Please shorten it and try again." },
+        { status: 413 }
+      )
+    }
 
     // Any logged-in user can use support (it drives activation + conversion),
     // but require auth so the endpoint isn't open to anonymous abuse.
@@ -49,6 +60,25 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { response: "Please log in and I can help you get set up." },
         { status: 401 }
+      )
+    }
+
+    // Per-user rate limit, DB-backed so it holds across serverless instances.
+    // This route isn't plan-gated (any logged-in user can use it), which
+    // makes the rate limit the only thing standing between it and unlimited
+    // Anthropic API calls on your key -- so it's not optional here. Falls
+    // back to the function's default bucket limit (20/hour) since "support"
+    // has no dedicated tier configured in the migration.
+    const { data: underLimit } = await supabase.rpc("check_and_increment_rate_limit", {
+      p_bucket: "support",
+    })
+    if (underLimit === false) {
+      return NextResponse.json(
+        {
+          response:
+            "You've reached the help assistant's usage limit for now. Please try again a bit later, or email support@paycheckplanner.ai.",
+        },
+        { status: 429 }
       )
     }
 
@@ -68,7 +98,8 @@ export async function POST(request: Request) {
               m &&
               (m.role === "user" || m.role === "assistant") &&
               typeof m.content === "string" &&
-              m.content.trim().length > 0
+              m.content.trim().length > 0 &&
+              m.content.length <= MAX_MESSAGE_LENGTH
           )
           .slice(-8)
       : []

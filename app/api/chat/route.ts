@@ -5,6 +5,10 @@ import { canUseAI } from "@/lib/permissions"
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages"
 const MODEL = process.env.ANTHROPIC_MODEL || "claude-sonnet-4-6"
 
+// Caps a single message's length before it goes to Anthropic. This isn't a
+// UX limit -- it's a cost ceiling so one request can't balloon input tokens.
+const MAX_MESSAGE_LENGTH = 4000
+
 const SYSTEM_PROMPT = `You are the AI financial assistant inside Paycheck Planner, a debt-payoff and budgeting app.
 Help users with personal finance: debt payoff (snowball vs. avalanche), budgeting, saving, emergency funds, and managing bills and paychecks.
 Be friendly, encouraging, specific, and concise. Use plain language, give concrete actionable steps, and keep answers focused on the user's question.
@@ -19,6 +23,12 @@ export async function POST(request: Request) {
 
     if (!message || typeof message !== "string") {
       return NextResponse.json({ response: "Please enter a question." }, { status: 400 })
+    }
+    if (message.length > MAX_MESSAGE_LENGTH) {
+      return NextResponse.json(
+        { response: "That message is too long. Please shorten it and try again." },
+        { status: 413 }
+      )
     }
 
     // Auth + plan gate: the AI assistant is a Premium feature, and this also
@@ -79,7 +89,8 @@ export async function POST(request: Request) {
               m &&
               (m.role === "user" || m.role === "assistant") &&
               typeof m.content === "string" &&
-              m.content.trim().length > 0
+              m.content.trim().length > 0 &&
+              m.content.length <= MAX_MESSAGE_LENGTH
           )
           .slice(-10)
       : []
