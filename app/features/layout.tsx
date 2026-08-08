@@ -2,11 +2,11 @@ import type { Metadata } from "next"
 
 export const metadata: Metadata = {
   alternates: {
-    canonical: "/login",
+    canonical: "/features",
   },
 }
 
-export default function LoginLayout({
+export default function FeaturesLayout({
   children,
 }: {
   children: React.ReactNode

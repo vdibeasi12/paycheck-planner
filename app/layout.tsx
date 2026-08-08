@@ -15,11 +15,22 @@ import type { Metadata, Viewport } from "next"
 import { Analytics } from "@vercel/analytics/next"
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://paycheckplanner.ai"),
   title: "Paycheck Planner - Debt Payoff & Financial Planning Tools",
   description: "Free AI-powered financial planning tools to eliminate debt, track bills, and achieve financial freedom. Compare debt payoff strategies and get personalized recommendations.",
   keywords: ["debt payoff", "financial planning", "debt calculator", "bill tracker", "AI financial advisor"],
   authors: [{ name: "DiBeasi Global Investment LLC" }],
   creator: "DiBeasi Global Investment LLC",
+  // Self-referencing canonical for the homepage. Marketing/campaign links land
+  // here with UTM query params (?utm_source=...) which render identical
+  // content -- without this, Search Console flags those tagged variants as
+  // "Duplicate without user-selected canonical" instead of folding them into
+  // this one indexed URL. Nested routes (pricing, features, login, signup)
+  // set their own canonical in a route-level layout.tsx since their pages are
+  // client components and can't export metadata directly.
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     title: "Paycheck Planner - Take Control of Your Finances",
     description: "Free AI-powered financial planning tools to eliminate debt and achieve financial freedom.",
