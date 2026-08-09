@@ -217,8 +217,7 @@ export default function MfaSetup({ onVerified }: { onVerified?: () => void } = {
               </p>
 
               {otpauthUri && (
-                
-                  href={otpauthUri}
+                <a href={otpauthUri}
                   className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
                 >
                   <ShieldPlus size={16} />
