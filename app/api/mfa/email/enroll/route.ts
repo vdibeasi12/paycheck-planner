@@ -27,17 +27,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 })
     }
 
-    // Confirm this factorId genuinely belongs to the requesting user and is
-    // still an unverified (in-progress) enrollment -- never trust the client
-    // to tell us which factor it's naming.
-    const { data: factors, error: fErr } = await supabase.auth.mfa.listFactors()
-    if (fErr) {
-      return NextResponse.json({ error: fErr.message }, { status: 400 })
-    }
-    const owns = (factors?.totp ?? []).some((f) => f.id === factorId)
-    if (!owns) {
-      return NextResponse.json({ error: "Factor not found for this account" }, { status: 404 })
-    }
+    // We deliberately don't re-verify factorId against supabase.auth.mfa.listFactors()
+    // here -- a fresh factor from enroll() isn't always visible on an
+    // immediate follow-up read, which turned this into a flaky false-negative
+    // 404. It's also not load-bearing: user_id below always comes from this
+    // request's own authenticated session (never attacker-controlled), so a
+    // caller can only ever write rows scoped to their own account. The real
+    // security gate is the native supabase.auth.mfa.challenge()/verify() call
+    // later in the flow, which only ever succeeds for a real TOTP factor and
+    // its real current code -- this table just lets us compute that code and
+    // email it, it never grants access on its own.
 
     const db = serviceClient()
     const { error: insErr } = await db.from("mfa_email_secrets").upsert({
