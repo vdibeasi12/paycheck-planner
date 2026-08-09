@@ -22,6 +22,22 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
 
+            <!-- Deep link for the Google OAuth callback (see
+                 app/components/NativeInit.tsx and app/login/page.tsx's
+                 signInWithOAuth redirectTo). Google is opened in the system
+                 browser (Chrome Custom Tabs), not the app's own webview,
+                 because Google blocks OAuth inside embedded webviews. Once
+                 sign-in completes there, Google redirects to this custom
+                 scheme, and this intent-filter is what tells Android to hand
+                 that URL back to MainActivity instead of leaving it stranded
+                 in the browser. -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="com.dibeasi.paycheckplanner" android:host="auth-callback" />
+            </intent-filter>
+
         </activity>
 
         <provider
