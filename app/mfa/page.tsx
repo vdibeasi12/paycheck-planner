@@ -21,6 +21,8 @@ function MfaChallenge() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [ready, setReady] = useState(false)
+  const [emailMode, setEmailMode] = useState(false)
+  const [resendMsg, setResendMsg] = useState("")
 
   useEffect(() => {
     let active = true
@@ -50,6 +52,25 @@ function MfaChallenge() {
         if (active) {
           setFactorId(totp.id)
           setReady(true)
+        }
+
+        // If this factor was set up for email delivery, this quietly sends
+        // the code and flips the page into email mode. For a normal
+        // authenticator-app factor, the route is a no-op (sent: false) and
+        // the page keeps its original copy.
+        try {
+          const res = await fetch("/api/mfa/email/send", {
+            method: "POST",
+            headers: { "content-type": "application/json" },
+            body: JSON.stringify({ factorId: totp.id }),
+          })
+          const body = await res.json().catch(() => ({}))
+          if (active && res.ok && body?.sent) {
+            setEmailMode(true)
+          }
+        } catch {
+          // Network hiccup on the send-attempt -- fall back to the default
+          // authenticator-app copy rather than blocking the page.
         }
       } catch {
         if (active) setError("Could not start verification. Please try again.")
@@ -94,6 +115,26 @@ function MfaChallenge() {
     window.location.assign("/login")
   }
 
+  const resend = async () => {
+    if (!factorId) return
+    setResendMsg("")
+    try {
+      const res = await fetch("/api/mfa/email/send", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ factorId }),
+      })
+      const body = await res.json().catch(() => ({}))
+      if (!res.ok) {
+        setResendMsg(body?.error || "Could not resend the code. Please try again.")
+        return
+      }
+      setResendMsg("A new code is on its way to your inbox.")
+    } catch {
+      setResendMsg("Could not resend the code. Please try again.")
+    }
+  }
+
   return (
     <div className="min-h-screen bg-[#020617] text-white flex items-center justify-center px-6">
       <div className="bg-[#0f172a] border border-gray-800 p-8 rounded-lg w-full max-w-md">
@@ -103,7 +144,9 @@ function MfaChallenge() {
 
         <h2 className="text-2xl font-bold mb-2">Two-factor verification</h2>
         <p className="text-gray-400 text-sm mb-6">
-          Enter the 6-digit code from your authenticator app to finish signing in.
+          {emailMode
+            ? "Enter the 6-digit code we emailed you to finish signing in."
+            : "Enter the 6-digit code from your authenticator app to finish signing in."}
         </p>
 
         {error && (
@@ -131,6 +174,15 @@ function MfaChallenge() {
             {loading ? "Verifying..." : "Verify"}
           </button>
         </form>
+
+        {emailMode && (
+          <div className="text-center mt-4">
+            <button onClick={resend} className="text-sm text-gray-400 hover:text-white transition">
+              Resend code
+            </button>
+            {resendMsg && <p className="text-xs text-gray-500 mt-1">{resendMsg}</p>}
+          </div>
+        )}
 
         <div className="border-t border-gray-700 mt-6 pt-6 text-center text-sm">
           <button onClick={signOut} className="text-gray-400 hover:text-white transition">
