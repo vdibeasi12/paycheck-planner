@@ -23,12 +23,28 @@ function codeHtml(code: string): string {
       </table>
 
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;">
-        <tr><td style="background:#0b1220;padding:36px 28px;text-align:center;border-radius:0 0 16px 16px;border:1px solid #e2e8f0;border-top:none;">
+        <tr><td style="background:#0b1220;padding:36px 28px;text-align:center;border:1px solid #e2e8f0;border-top:none;">
           <div style="display:inline-block;background:#0e3b2e;color:#34d399;font-size:12px;font-weight:bold;letter-spacing:1px;padding:6px 14px;border-radius:999px;margin-bottom:18px;">SIGN-IN CODE</div>
           <h1 style="margin:0 0 12px;font-size:22px;line-height:1.3;color:#ffffff;font-weight:800;">Your verification code</h1>
           <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#94a3b8;">Enter this code to finish signing in to Paycheck Planner. It refreshes every 30 seconds, so enter it as soon as you can.</p>
           <div style="display:inline-block;background:#0f172a;border:1px solid #1e293b;border-radius:12px;padding:18px 28px;font-size:32px;font-weight:800;letter-spacing:6px;color:#34d399;font-family:'Courier New',monospace;">${spaced}</div>
           <p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#64748b;">If you didn't try to sign in, you can safely ignore this email -- no one can access your account without this code.</p>
+          <p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#fca5a5;"><strong>Never share this code with anyone</strong> -- not even someone claiming to be Paycheck Planner support. We will never ask for it.</p>
+          <p style="margin:14px 0 0;font-size:12px;line-height:1.6;color:#64748b;">Questions or something look off? Email <a href="mailto:support@paycheckplanner.ai" style="color:#34d399;text-decoration:none;">support@paycheckplanner.ai</a>.</p>
+        </td></tr>
+      </table>
+
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;">
+        <tr><td style="background:#ffffff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 16px 16px;padding:20px 28px;text-align:center;">
+          <p style="margin:0 0 8px;font-size:11px;color:#475569;">
+            <a href="${appUrl}/privacy" style="color:#94a3b8;text-decoration:none;">Privacy Policy</a>
+            &nbsp;|&nbsp;
+            <a href="${appUrl}/terms" style="color:#94a3b8;text-decoration:none;">Terms of Service</a>
+          </p>
+          <p style="margin:0;font-size:11px;line-height:1.5;color:#a0aec0;">
+            (c) 2026 Paycheck Planner - DiBeasi Global Investments LLC (DBA Paycheck Planner).<br/>
+            You're receiving this because a sign-in to your account at paycheckplanner.ai required verification.
+          </p>
         </td></tr>
       </table>
 
