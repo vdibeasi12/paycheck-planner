@@ -16,9 +16,11 @@ export default function MfaSetup({ onVerified }: { onVerified?: () => void } = {
   const [enrolling, setEnrolling] = useState(false);
   const [qr, setQr] = useState<string | null>(null);
   const [secret, setSecret] = useState<string | null>(null);
+  const [otpauthUri, setOtpauthUri] = useState<string | null>(null);
   const [factorId, setFactorId] = useState<string | null>(null);
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     loadFactors();
@@ -47,6 +49,7 @@ export default function MfaSetup({ onVerified }: { onVerified?: () => void } = {
       setFactorId(data.id);
       setQr(data.totp.qr_code);
       setSecret(data.totp.secret);
+      setOtpauthUri(data.totp.uri);
       setEnrolling(true);
     } finally {
       setBusy(false);
@@ -90,8 +93,10 @@ export default function MfaSetup({ onVerified }: { onVerified?: () => void } = {
     setEnrolling(false);
     setQr(null);
     setSecret(null);
+    setOtpauthUri(null);
     setFactorId(null);
     setCode("");
+    setCopied(false);
   }
 
   async function removeFactor(id: string) {
@@ -147,22 +152,48 @@ export default function MfaSetup({ onVerified }: { onVerified?: () => void } = {
       {enrolling ? (
         <div className="mt-5 rounded-xl border border-gray-700 bg-[#0f172a] p-5">
           <p className="text-sm font-medium text-gray-200">
-            1. Scan this QR code in your authenticator app (Google Authenticator, Authy, 1Password).
+            1. Add this to your authenticator app (Google Authenticator, Authy, 1Password).
           </p>
+
+          {otpauthUri && (
+            
+              href={otpauthUri}
+              className="mt-3 inline-flex items-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+            >
+              <ShieldPlus size={16} />
+              Open in authenticator app
+            </a>
+          )}
+          <p className="mt-1.5 text-xs text-gray-500">
+            On a phone, this opens your authenticator app directly -- no scanning or typing needed. On a
+            computer, scan the QR code below with your phone&apos;s authenticator app instead.
+          </p>
+
           {qr && (
             <div
-              className="mt-3 inline-block rounded-lg bg-[#0f172a] p-3"
+              className="mt-4 inline-block rounded-lg bg-[#0f172a] p-3"
               // Supabase returns the QR as an SVG string
               dangerouslySetInnerHTML={{ __html: qr }}
             />
           )}
           {secret && (
-            <p className="mt-2 text-xs text-gray-400">
-              Can&apos;t scan? Enter this key manually:{" "}
+            <div className="mt-2 flex items-center gap-2 text-xs text-gray-400">
+              <span>Can&apos;t scan or open the app? Enter this key manually:</span>
               <code className="rounded bg-[#1a233a] px-1.5 py-0.5 font-mono text-gray-200">
                 {secret}
               </code>
-            </p>
+              <button
+                type="button"
+                onClick={() => {
+                  navigator.clipboard.writeText(secret);
+                  setCopied(true);
+                  setTimeout(() => setCopied(false), 2000);
+                }}
+                className="rounded bg-[#1a233a] px-2 py-1 font-medium text-emerald-400 hover:bg-[#242f4a]"
+              >
+                {copied ? "Copied!" : "Copy"}
+              </button>
+            </div>
           )}
 
           <p className="mt-4 text-sm font-medium text-gray-200">
