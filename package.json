@@ -2,7 +2,7 @@
   "name": "paycheck-planner",
   "version": "0.1.0",
   "private": true,
-  "description": "Paycheck Planner — personal-finance debt payoff, paycheck budgeting, and goals app.",
+  "description": "Paycheck Planner â€” personal-finance debt payoff, paycheck budgeting, and goals app.",
   "author": "DiBeasi Global Investment LLC",
   "license": "UNLICENSED",
   "scripts": {
@@ -34,6 +34,7 @@
     "jspdf": "^4.2.0",
     "jspdf-autotable": "^5.0.7",
     "lucide-react": "^0.544.0",
+    "marked": "^18.0.9",
     "next": "^16.1.7",
     "plaid": "^42.2.0",
     "react": "19.2.3",
@@ -46,6 +47,7 @@
   },
   "devDependencies": {
     "@capacitor/cli": "^7.4.0",
+    "@tailwindcss/typography": "^0.5.20",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^20",
     "@types/react": "^19",
