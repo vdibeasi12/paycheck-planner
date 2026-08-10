@@ -9,6 +9,7 @@ import Sidebar from "./components/Sidebar"
 import FloatingChat from "./components/FloatingChat"
 import FeedbackWidget from "./components/FeedbackWidget"
 import LocaleCurrencySelector from "./components/LocaleCurrencySelector"
+import StructuredData from "./components/StructuredData"
 import { LocaleProvider } from "@/lib/i18n/LocaleProvider"
 import type { LocaleCode, CurrencyCode } from "@/lib/i18n/config"
 import type { Metadata, Viewport } from "next"
@@ -102,6 +103,7 @@ export default async function RootLayout({
         <meta charSet="utf-8" />
         <link rel="icon" href="/favicon.ico" />
         <meta name="theme-color" content="#020617" />
+        <StructuredData />
       </head>
       <body className="bg-[#020617] text-white">
         <LocaleProvider initialLocale={locale} initialCurrency={currency}>

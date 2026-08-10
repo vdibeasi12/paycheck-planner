@@ -72,7 +72,7 @@ export default function PricingPage() {
         return;
       }
 
-      // Not signed in yet — expected from the public pricing page. Send them
+      // Not signed in yet â€” expected from the public pricing page. Send them
       // to sign up; they can come back and subscribe afterward.
       if (res.status === 401) {
         window.location.href = "/signup";
@@ -83,7 +83,7 @@ export default function PricingPage() {
       // Stripe-account mismatch, an outage, etc. Show it instead of hiding it.
       console.error("Checkout failed:", res.status, data);
       setError(
-        `We couldn't start checkout. Please try again — if it keeps happening, email ${BRAND.supportEmail}.`
+        `We couldn't start checkout. Please try again â€” if it keeps happening, email ${BRAND.supportEmail}.`
       );
     } catch (err) {
       console.error("Checkout request error:", err);
@@ -91,37 +91,6 @@ export default function PricingPage() {
     } finally {
       setLoadingId(null);
     }
-  }
-
-  // Native app users see a simplified screen instead of the full pricing
-  // table/checkout flow (App Store Guideline 3.1.1 -- no in-app purchase
-  // mechanism is wired up here yet, so we don't show purchase UI natively).
-  if (isNativeApp()) {
-    return (
-      <main
-        className="flex min-h-screen flex-col items-center justify-center px-6 text-center text-slate-100"
-        style={{
-          background:
-            "radial-gradient(1200px 600px at 50% -10%, #16243f 0%, #0a1228 55%, #070d1c 100%)",
-        }}
-      >
-        <PaycheckPlannerLogo size={40} />
-        <h1 className="mt-6 text-2xl font-bold tracking-tight">
-          Manage your plan on the web
-        </h1>
-        <p className="mt-3 max-w-sm text-sm text-slate-400">
-          To view plans or upgrade your subscription, visit{" "}
-          <span className="text-emerald-400">paycheckplanner.ai</span> in a
-          web browser.
-        </p>
-        <Link
-          href="/dashboard"
-          className="mt-8 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 px-6 py-2.5 text-sm font-semibold text-slate-950 transition hover:brightness-110"
-        >
-          Back to Dashboard
-        </Link>
-      </main>
-    );
   }
 
   // Native app users see a simplified screen instead of the full pricing
@@ -306,14 +275,61 @@ export default function PricingPage() {
 
         {/* FAQ */}
         <section className="mx-auto mt-20 max-w-2xl">
+          {/* Structured data mirrors the visible FAQ content exactly below --
+              Google requires that match for FAQPage rich results to be
+              eligible, so if you edit the questions/answers below, update
+              this block too. */}
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "FAQPage",
+                mainEntity: [
+                  {
+                    "@type": "Question",
+                    name: "Can I switch plans later?",
+                    acceptedAnswer: {
+                      "@type": "Answer",
+                      text: "Yes â€” upgrade or downgrade anytime. Changes take effect immediately and we prorate the difference.",
+                    },
+                  },
+                  {
+                    "@type": "Question",
+                    name: "What does the annual plan save me?",
+                    acceptedAnswer: {
+                      "@type": "Answer",
+                      text: "Annual billing is ten months for the price of twelve â€” two months free on Momentum and Accelerate.",
+                    },
+                  },
+                  {
+                    "@type": "Question",
+                    name: "Do I need a card for the Free plan?",
+                    acceptedAnswer: {
+                      "@type": "Answer",
+                      text: "No. The Free plan stays free, no card required.",
+                    },
+                  },
+                  {
+                    "@type": "Question",
+                    name: "How do I get help?",
+                    acceptedAnswer: {
+                      "@type": "Answer",
+                      text: `Email us anytime at ${BRAND.supportEmail}. Accelerate members get priority replies.`,
+                    },
+                  },
+                ],
+              }),
+            }}
+          />
           <h2 className="text-center text-2xl font-bold tracking-tight">Common questions</h2>
           <div className="mt-8 space-y-5">
             <Faq q="Can I switch plans later?">
-              Yes — upgrade or downgrade anytime. Changes take effect immediately and
+              Yes â€” upgrade or downgrade anytime. Changes take effect immediately and
               we prorate the difference.
             </Faq>
             <Faq q="What does the annual plan save me?">
-              Annual billing is ten months for the price of twelve — two months free
+              Annual billing is ten months for the price of twelve â€” two months free
               on Momentum and Accelerate.
             </Faq>
             <Faq q="Do I need a card for the Free plan?">
@@ -332,16 +348,15 @@ export default function PricingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-6 py-10 text-center sm:flex-row sm:justify-between sm:text-left">
           <PaycheckPlannerLogo size={26} />
           <p className="text-sm text-slate-500">
-            A product of {BRAND.company} ·{" "}
-            <a
-              href={`mailto:${BRAND.supportEmail}`}
+            A product of {BRAND.company} Â·{" "}
+            <a href={`mailto:${BRAND.supportEmail}`}
               className="text-slate-400 underline-offset-4 hover:text-emerald-400 hover:underline"
             >
               {BRAND.supportEmail}
             </a>
           </p>
           <p className="text-xs text-slate-600">
-            © {new Date().getFullYear()} {BRAND.company}
+            Â© {new Date().getFullYear()} {BRAND.company}
           </p>
         </div>
       </footer>
@@ -430,7 +445,7 @@ function TierCard({
           {isFree
             ? "Free forever"
             : annual
-            ? `$${tier.priceAnnual} billed yearly · 2 months free`
+            ? `$${tier.priceAnnual} billed yearly Â· 2 months free`
             : "Billed monthly"}
         </p>
       </div>
@@ -441,7 +456,7 @@ function TierCard({
         disabled={loading}
         className="mt-6 w-full rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:brightness-110 disabled:opacity-60"
       >
-        {loading ? "Redirecting…" : tier.cta}
+        {loading ? "Redirectingâ€¦" : tier.cta}
       </button>
     </div>
   );
