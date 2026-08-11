@@ -15,7 +15,7 @@ type StepDef = {
   label: string
   href: string
   rank: number
-  kind: "data" | "action" | "locked"
+  kind: "data" | "action" | "locked" | "mfa"
   table?: string
   progressKey?: string
 }
@@ -25,6 +25,7 @@ const STEP_DEFS: StepDef[] = [
   { key: "income", label: "Add your income", href: "/income", rank: 0, kind: "data", table: "income" },
   { key: "debts", label: "Add a debt", href: "/debts", rank: 0, kind: "data", table: "debts" },
   { key: "bills", label: "Add a bill", href: "/bills", rank: 0, kind: "data", table: "bills" },
+  { key: "mfa", label: "Secure your account (2FA)", href: "/mfa/setup", rank: 0, kind: "mfa" },
   { key: "payoff", label: "Review your payoff plan", href: "/amortization", rank: 1, kind: "action", progressKey: "payoff_reviewed" },
   { key: "ai", label: "Try AI Insights", href: "/ai-chat", rank: 2, kind: "action", progressKey: "ai_tried" },
   { key: "connect_bank", label: "Connect your bank", href: "/account", rank: 3, kind: "data", table: "plaid_items" },
@@ -68,6 +69,14 @@ export default function OnboardingChecklist() {
       const out = await Promise.all(
         defs.map(async (d): Promise<Step> => {
           if (d.kind === "locked") return { ...d, done: false, locked: true }
+          if (d.kind === "mfa") {
+            const { data: factors } = await supabase.auth.mfa.listFactors()
+            const hasVerified =
+              !!factors &&
+              Array.isArray(factors.all) &&
+              factors.all.some((f) => f.status === "verified")
+            return { ...d, done: hasVerified, locked: false }
+          }
           if (d.kind === "action") return { ...d, done: doneKeys.has(d.progressKey || ""), locked: false }
           const { count } = await supabase
             .from(d.table as string)

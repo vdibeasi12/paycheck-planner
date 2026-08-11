@@ -24,6 +24,16 @@ const PROTECTED = [
   "/mfa",
 ]
 
+// Subset of PROTECTED that additionally requires a verified MFA session
+// (AAL2), not just being logged in. Kept deliberately small: MFA is still
+// mandatory (it's step 1 in the onboarding checklist and it gates every
+// financially-sensitive action here), but a brand-new visitor can now reach
+// the dashboard and try the product -- add a debt, see a payoff plan --
+// before being forced through 2FA setup. It only becomes a hard wall at the
+// admin panel, account/security settings (including bank-linking), and
+// uploaded financial documents.
+const AAL2_REQUIRED = ["/admin", "/account", "/documents"]
+
 // Reads the `aal` claim from a Supabase access token (JWT) with no network
 // call. base64url-decoded in the Edge runtime via atob. Returns null on any
 // problem so the caller falls back to the authoritative network check.
@@ -91,6 +101,9 @@ export async function middleware(request: NextRequest) {
   const isProtected = PROTECTED.some(
     (p) => path === p || path.startsWith(p + "/")
   )
+  const requiresAal2 = AAL2_REQUIRED.some(
+    (p) => path === p || path.startsWith(p + "/")
+  )
 
   // Logged-in users shouldn't land on the marketing home page (it reads as
   // "login didn't work"). Send them straight into the app.
@@ -107,12 +120,13 @@ export async function middleware(request: NextRequest) {
     return redirect(url)
   }
 
-  // MFA enforcement: every logged-in user must be at AAL2 before reaching any
-  // protected route. Users without a verified factor yet are sent to the
-  // mandatory enrollment page; users with a verified factor whose session is
-  // still AAL1 are sent to the step-up challenge. Both MFA routes are exempt
-  // from this check themselves to avoid a redirect loop.
-  if (user && isProtected && path !== "/mfa" && path !== "/mfa/setup") {
+  // MFA enforcement: only the routes in AAL2_REQUIRED force a verified
+  // (AAL2) session -- see the comment on that list above. Users without a
+  // verified factor yet are sent to the mandatory enrollment page; users
+  // with a verified factor whose session is still AAL1 are sent to the
+  // step-up challenge. Both MFA routes are exempt from this check
+  // themselves to avoid a redirect loop.
+  if (user && isProtected && requiresAal2 && path !== "/mfa" && path !== "/mfa/setup") {
     const {
       data: { session },
     } = await supabase.auth.getSession()
