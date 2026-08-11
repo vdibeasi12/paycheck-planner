@@ -13,6 +13,7 @@ import {
   MessageSquare,
   Landmark,
   RefreshCw,
+  Shield,
   X,
   LayoutDashboard,
 } from "lucide-react"
@@ -24,7 +25,7 @@ const TIER_LABEL: Record<number, string> = { 1: "Momentum", 2: "Accelerate", 3: 
 type StepDef = {
   key: string
   rank: number
-  kind: "data" | "action" | "locked"
+  kind: "data" | "action" | "locked" | "mfa"
   href: string
   Icon: any
   title: string
@@ -49,6 +50,11 @@ const STEP_DEFS: StepDef[] = [
     key: "bills", rank: 0, kind: "data", href: "/bills", Icon: Receipt, table: "bills",
     title: "Add a bill",
     desc: "Track what's coming in and going out each month.",
+  },
+  {
+    key: "mfa", rank: 0, kind: "mfa", href: "/mfa/setup", Icon: Shield,
+    title: "Secure your account (2FA)",
+    desc: "Add a one-time code at sign-in -- authenticator app or email, your choice.",
   },
   {
     key: "payoff", rank: 1, kind: "action", href: "/amortization", Icon: CalendarClock, progressKey: "payoff_reviewed",
@@ -145,6 +151,14 @@ export default function GettingStartedModal({ open, onClose }: Props) {
           // user's tier show an upgrade preview. Both are non-actionable.
           if (d.kind === "locked") return { ...d, done: false, locked: true, upgrade: false }
           if (aboveTier) return { ...d, done: false, locked: true, upgrade: true }
+          if (d.kind === "mfa") {
+            const { data: factors } = await supabase.auth.mfa.listFactors()
+            const hasVerified =
+              !!factors &&
+              Array.isArray(factors.all) &&
+              factors.all.some((f) => f.status === "verified")
+            return { ...d, done: hasVerified, locked: false, upgrade: false }
+          }
           if (d.kind === "action") return { ...d, done: doneKeys.has(d.progressKey || ""), locked: false, upgrade: false }
           const { count } = await supabase
             .from(d.table as string)
