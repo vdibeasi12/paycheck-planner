@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient as createUserClient } from "@/lib/supabase/server"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
-import { plaid, PLAID_ENABLED, planCanUsePlaid } from "@/lib/plaid"
+import { plaid, PLAID_ENABLED, planCanUsePlaid, syncBalancesForItem } from "@/lib/plaid"
 import { CountryCode } from "plaid"
 
 export const dynamic = "force-dynamic"
@@ -43,6 +43,7 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null)
   const publicToken = body?.public_token
+  const purpose = body?.purpose === "bank" ? "bank" : "debt"
   if (typeof publicToken !== "string") {
     return NextResponse.json({ error: "Missing public_token" }, { status: 400 })
   }
@@ -83,12 +84,23 @@ export async function POST(req: Request) {
         access_token: accessToken,
         institution_id: institutionId,
         institution_name: institutionName,
+        product: purpose === "bank" ? "auth" : "liabilities",
         status: "active",
         updated_at: new Date().toISOString(),
       },
       { onConflict: "item_id" }
     )
     if (itemErr) throw new Error("store item: " + itemErr.message)
+
+    if (purpose === "bank") {
+      const r = await syncBalancesForItem(sb, user.id, accessToken, itemId)
+      return NextResponse.json({
+        ok: true,
+        institution: institutionName,
+        accounts: r.accounts,
+        assets: r.assets,
+      })
+    }
 
     // 4) Pull liabilities (the response also carries the accounts).
     const liab = await plaid.liabilitiesGet({ access_token: accessToken })

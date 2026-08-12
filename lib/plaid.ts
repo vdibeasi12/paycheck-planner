@@ -210,3 +210,72 @@ export async function syncLiabilitiesForItem(
 
   return { accounts: accounts.length, liabilities: rows.length, debts: debtCount }
 }
+
+export async function syncBalancesForItem(
+  sb: any,
+  userId: string,
+  accessToken: string,
+  itemId: string
+): Promise<{ accounts: number; assets: number }> {
+  const bal = await plaid.accountsBalanceGet({ access_token: accessToken })
+  const accounts = bal.data.accounts.filter((a: any) => a.type === "depository")
+  const now = new Date().toISOString()
+
+  let assetCount = 0
+  for (const a of accounts) {
+    await sb.from("plaid_accounts").upsert(
+      {
+        user_id: userId,
+        item_id: itemId,
+        account_id: a.account_id,
+        name: a.name,
+        official_name: a.official_name ?? null,
+        mask: a.mask ?? null,
+        type: a.type ?? null,
+        subtype: a.subtype ?? null,
+        updated_at: now,
+      },
+      { onConflict: "account_id" }
+    )
+
+    const balance = a.balances?.available ?? a.balances?.current ?? 0
+    const name = a.official_name || a.name || "Bank account"
+
+    const { data: existing } = await sb
+      .from("assets")
+      .select("id")
+      .eq("user_id", userId)
+      .eq("plaid_account_id", a.account_id)
+      .maybeSingle()
+
+    if (existing?.id) {
+      await sb
+        .from("assets")
+        .update({
+          name,
+          asset_type: a.subtype || "cash",
+          value: balance,
+          source: "plaid",
+          updated_at: now,
+        })
+        .eq("id", existing.id)
+    } else {
+      await sb.from("assets").insert({
+        user_id: userId,
+        name,
+        asset_type: a.subtype || "cash",
+        value: balance,
+        source: "plaid",
+        plaid_account_id: a.account_id,
+      })
+    }
+    assetCount++
+  }
+
+  await sb
+    .from("plaid_items")
+    .update({ status: "active", updated_at: now })
+    .eq("item_id", itemId)
+
+  return { accounts: accounts.length, assets: assetCount }
+}

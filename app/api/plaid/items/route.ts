@@ -16,7 +16,7 @@ function serviceClient() {
 // GET: the signed-in user's linked banks, for display only. Never returns the
 // access token. Also reports eligibility so the UI can hide itself for tiers
 // that can't use bank sync.
-export async function GET() {
+export async function GET(req: Request) {
   const userClient = await createUserClient()
   const {
     data: { user },
@@ -37,12 +37,19 @@ export async function GET() {
     return NextResponse.json({ eligible: false, enabled: PLAID_ENABLED, items: [] })
   }
 
+  const url = new URL(req.url)
+  const productFilter = url.searchParams.get("product")
+
   const sb = serviceClient()
-  const { data: items } = await sb
+  let query = sb
     .from("plaid_items")
-    .select("item_id, institution_name, status, updated_at")
+    .select("item_id, institution_name, status, updated_at, product")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false })
+  if (productFilter) {
+    query = query.eq("product", productFilter)
+  }
+  const { data: items } = await query
 
   const result: {
     item_id: string
@@ -50,6 +57,7 @@ export async function GET() {
     status: string | null
     updated_at: string | null
     accounts: number
+    product: string
   }[] = []
   for (const it of items ?? []) {
     const { count } = await sb
@@ -62,6 +70,7 @@ export async function GET() {
       status: it.status,
       updated_at: it.updated_at,
       accounts: count ?? 0,
+      product: it.product,
     })
   }
 

@@ -48,6 +48,7 @@ export async function POST(req: Request) {
 
   const body = await req.json().catch(() => null)
   const itemId = typeof body?.item_id === "string" ? body.item_id : ""
+  const purpose = body?.purpose === "bank" ? "bank" : "debt"
 
   let accessToken = ""
   if (itemId) {
@@ -75,7 +76,7 @@ export async function POST(req: Request) {
     if (accessToken) {
       params.access_token = accessToken
     } else {
-      params.products = [Products.Liabilities]
+      params.products = purpose === "bank" ? [Products.Auth] : [Products.Liabilities]
     }
 
     const res = await plaid.linkTokenCreate(params as any)

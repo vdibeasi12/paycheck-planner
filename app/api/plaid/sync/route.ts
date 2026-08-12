@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient as createUserClient } from "@/lib/supabase/server"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
-import { PLAID_ENABLED, planCanUsePlaid, syncLiabilitiesForItem } from "@/lib/plaid"
+import { PLAID_ENABLED, planCanUsePlaid, syncLiabilitiesForItem, syncBalancesForItem } from "@/lib/plaid"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -42,17 +42,24 @@ export async function POST() {
   const sb = serviceClient()
   const { data: items } = await sb
     .from("plaid_items")
-    .select("item_id, access_token")
+    .select("item_id, access_token, product")
     .eq("user_id", user.id)
 
-  const totals = { items: 0, accounts: 0, liabilities: 0, debts: 0 }
+  const totals = { items: 0, accounts: 0, liabilities: 0, debts: 0, assets: 0 }
   for (const it of items ?? []) {
     try {
-      const r = await syncLiabilitiesForItem(sb, user.id, it.access_token, it.item_id)
-      totals.items += 1
-      totals.accounts += r.accounts
-      totals.liabilities += r.liabilities
-      totals.debts += r.debts
+      if (it.product === "auth") {
+        const r = await syncBalancesForItem(sb, user.id, it.access_token, it.item_id)
+        totals.items += 1
+        totals.accounts += r.accounts
+        totals.assets += r.assets
+      } else {
+        const r = await syncLiabilitiesForItem(sb, user.id, it.access_token, it.item_id)
+        totals.items += 1
+        totals.accounts += r.accounts
+        totals.liabilities += r.liabilities
+        totals.debts += r.debts
+      }
     } catch (e) {
       console.error("Plaid sync failed for item", it.item_id, e)
       await sb

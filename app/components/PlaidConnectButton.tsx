@@ -8,12 +8,13 @@ type Props = {
   onLinked?: () => void;
   itemId?: string; // when set, launches UPDATE MODE for this existing item
   label?: string;  // optional override for the button text
+  purpose?: "debt" | "bank"; // product to request for a brand-new link
 };
 
 // Renders nothing unless a link_token was obtained: the link-token endpoint
 // returns 403/503 for ineligible tiers or a disabled feature, so no token ->
 // no button.
-export default function PlaidConnectButton({ onLinked, itemId, label }: Props) {
+export default function PlaidConnectButton({ onLinked, itemId, label, purpose = "debt" }: Props) {
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -25,7 +26,7 @@ export default function PlaidConnectButton({ onLinked, itemId, label }: Props) {
         const res = await fetch("/api/plaid/link-token", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(itemId ? { item_id: itemId } : {}),
+          body: JSON.stringify(itemId ? { item_id: itemId } : { purpose }),
         });
         if (!res.ok) return;
         const data = await res.json().catch(() => null);
@@ -37,7 +38,7 @@ export default function PlaidConnectButton({ onLinked, itemId, label }: Props) {
     return () => {
       active = false;
     };
-  }, [itemId]);
+  }, [itemId, purpose]);
 
   const exchange = useCallback(
     async (publicToken: string) => {
@@ -61,7 +62,7 @@ export default function PlaidConnectButton({ onLinked, itemId, label }: Props) {
           const res = await fetch("/api/plaid/exchange", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ public_token: publicToken }),
+            body: JSON.stringify({ public_token: publicToken, purpose }),
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
@@ -76,7 +77,7 @@ export default function PlaidConnectButton({ onLinked, itemId, label }: Props) {
         setBusy(false);
       }
     },
-    [onLinked, itemId]
+    [onLinked, itemId, purpose]
   );
 
   const { open, ready } = usePlaidLink({
