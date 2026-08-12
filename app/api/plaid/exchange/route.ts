@@ -193,7 +193,7 @@ export async function POST(req: Request) {
       liabilities: rows.length,
     })
   } catch (err) {
-    console.error("Plaid exchange error:", err)
+    console.error("Plaid exchange error:", (err as any)?.response?.data || (err as any)?.message || err)
     return NextResponse.json({ error: "Could not link your bank." }, { status: 500 })
   }
 }

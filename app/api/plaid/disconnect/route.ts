@@ -44,7 +44,7 @@ export async function POST(req: Request) {
       try {
         await plaid.itemRemove({ access_token: it.access_token })
       } catch (e) {
-        console.error("Plaid itemRemove failed for", it.item_id, e)
+        console.error("Plaid itemRemove failed for", it.item_id, (e as any)?.response?.data || (e as any)?.message || e)
       }
     }
   }

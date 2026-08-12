@@ -61,7 +61,7 @@ export async function POST() {
         totals.debts += r.debts
       }
     } catch (e) {
-      console.error("Plaid sync failed for item", it.item_id, e)
+      console.error("Plaid sync failed for item", it.item_id, (e as any)?.response?.data || (e as any)?.message || e)
       await sb
         .from("plaid_items")
         .update({ status: "error", updated_at: new Date().toISOString() })

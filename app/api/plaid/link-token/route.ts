@@ -82,7 +82,7 @@ export async function POST(req: Request) {
     const res = await plaid.linkTokenCreate(params as any)
     return NextResponse.json({ link_token: res.data.link_token })
   } catch (err) {
-    console.error("Plaid link-token error:", err)
+    console.error("Plaid link-token error:", (err as any)?.response?.data || (err as any)?.message || err)
     return NextResponse.json(
       { error: "Could not start bank linking." },
       { status: 500 }
