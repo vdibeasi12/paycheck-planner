@@ -36,16 +36,22 @@ function LoginForm() {
         return
       }
 
-      // If the account has 2FA, Supabase reports a required step up to aal2.
-      const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
-      if (aal?.nextLevel === "aal2" && aal.nextLevel !== aal.currentLevel) {
-        const { data: factors } = await supabase.auth.mfa.listFactors()
-        const totp = factors?.totp?.[0]
-        if (totp) {
-          setFactorId(totp.id)
-          setMfaRequired(true)
-          return
-        }
+      // Check directly for a verified factor rather than trusting
+      // getAuthenticatorAssuranceLevel()
+'
+s nextLevel here -- in a freshly
+      // established session it can unreliably report aal1/aal1 even when a
+      // verified factor exists (same caveat the middleware
+'
+s AAL2 check
+      // already works around), which was silently skipping the MFA prompt
+      // and sending 2FA-enrolled users straight to the dashboard.
+      const { data: factors } = await supabase.auth.mfa.listFactors()
+      const totp = factors?.totp?.find((f) => f.status === "verified")
+      if (totp) {
+        setFactorId(totp.id)
+        setMfaRequired(true)
+        return
       }
 
       window.location.href = "/dashboard"
