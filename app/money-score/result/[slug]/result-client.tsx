@@ -107,7 +107,7 @@ export default function MoneyScoreResultClient({
             >
               {copied ? "Link copied!" : "Copy share link"}
             </button>
-            
+            <a
               href={`https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(shareUrl)}`}
               target="_blank"
               rel="noopener noreferrer"
@@ -115,7 +115,7 @@ export default function MoneyScoreResultClient({
             >
               Share on X
             </a>
-            
+            <a
               href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
               target="_blank"
               rel="noopener noreferrer"
