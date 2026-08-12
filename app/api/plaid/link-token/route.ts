@@ -76,8 +76,7 @@ export async function POST(req: Request) {
     if (accessToken) {
       params.access_token = accessToken
     } else {
-      params.products = [Products.Auth]
-      params.additional_consented_products = [Products.Liabilities]
+      params.products = [Products.Liabilities]
     }
 
     const res = await plaid.linkTokenCreate(params as any)
