@@ -84,23 +84,13 @@ export async function POST(req: Request) {
         access_token: accessToken,
         institution_id: institutionId,
         institution_name: institutionName,
-        product: purpose === "bank" ? "auth" : "liabilities",
+        product: "combined",
         status: "active",
         updated_at: new Date().toISOString(),
       },
       { onConflict: "item_id" }
     )
     if (itemErr) throw new Error("store item: " + itemErr.message)
-
-    if (purpose === "bank") {
-      const r = await syncBalancesForItem(sb, user.id, accessToken, itemId)
-      return NextResponse.json({
-        ok: true,
-        institution: institutionName,
-        accounts: r.accounts,
-        assets: r.assets,
-      })
-    }
 
     // 4) Pull liabilities (the response also carries the accounts).
     const liab = await plaid.liabilitiesGet({ access_token: accessToken })
@@ -186,11 +176,23 @@ export async function POST(req: Request) {
       if (liErr) throw new Error("store liabilities: " + liErr.message)
     }
 
+    let assetCount = 0
+    try {
+      const balResult = await syncBalancesForItem(sb, user.id, accessToken, itemId)
+      assetCount = balResult.assets
+    } catch (balErr) {
+      console.error(
+        "Plaid balance sync error:",
+        (balErr as any)?.response?.data || (balErr as any)?.message || balErr
+      )
+    }
+
     return NextResponse.json({
       ok: true,
       institution: institutionName,
       accounts: accounts.length,
       liabilities: rows.length,
+      assets: assetCount,
     })
   } catch (err) {
     console.error("Plaid exchange error:", (err as any)?.response?.data || (err as any)?.message || err)
