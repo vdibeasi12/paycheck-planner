@@ -64,7 +64,7 @@ export default function AccountPage() {
         </div>
 
         {/* Two-factor */}
-        <MfaSetup />
+        <MfaSetup onVerified={signOut} />
 
         {/* Change password */}
         <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-6 shadow-sm">
