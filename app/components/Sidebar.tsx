@@ -15,6 +15,7 @@ import {
   Target,
   Trophy,
   BarChart3,
+  BookOpen,
   MessageSquare,
   MessageSquarePlus,
   Sparkles,
@@ -40,6 +41,7 @@ const LINKS = [
   { href: "/goals", labelKey: "nav.goals", Icon: Target },
   { href: "/achievements", labelKey: "nav.achievements", Icon: Trophy },
   { href: "/insights", labelKey: "nav.insights", Icon: BarChart3 },
+  { href: "/blog", labelKey: "nav.financialHub", Icon: BookOpen },
   { href: "/ai-chat", labelKey: "nav.aiChat", Icon: MessageSquare },
   { href: "/account", labelKey: "nav.account", Icon: Settings },
 ]

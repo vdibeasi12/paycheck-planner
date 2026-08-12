@@ -3,9 +3,18 @@
 // appending to POSTS below; the listing page, individual post pages, and the
 // sitemap all pick it up automatically.
 
+export type BlogCategory =
+  | "Paychecks"
+  | "Budgeting"
+  | "Debt"
+  | "Saving"
+  | "Credit"
+  | "Financial Freedom"
+
 export type BlogPost = {
   slug: string
   title: string
+  category: BlogCategory
   excerpt: string
   // ISO date string (YYYY-MM-DD). Used for display and for sitemap lastmod.
   // Posts with a future date are queued -- they stay out of the listing,
@@ -20,6 +29,7 @@ export const POSTS: BlogPost[] = [
   {
     slug: "debt-snowball-vs-debt-avalanche",
     title: "Debt Snowball vs. Debt Avalanche: Which Pays Off Debt Faster?",
+    category: "Debt",
     excerpt:
       "Two proven strategies, two very different psychological approaches. Here's exactly how each one works, with real numbers.",
     publishedAt: "2026-08-10",
@@ -54,6 +64,7 @@ Paycheck Planner runs both strategies side by side against your actual debts, so
   {
     slug: "how-long-to-pay-off-credit-card-debt",
     title: "How Long Will It Take to Pay Off My Credit Card Debt?",
+    category: "Credit",
     excerpt:
       "The honest answer depends on three numbers -- your balance, your rate, and your monthly payment. Here's exactly how they interact.",
     publishedAt: "2026-08-24",
@@ -94,6 +105,7 @@ Paycheck Planner's payoff calculator does this math for you against your real ba
   {
     slug: "50-30-20-budget-rule-explained",
     title: "The 50/30/20 Budget Rule, Explained (With a Real Paycheck Example)",
+    category: "Budgeting",
     excerpt:
       "One of the simplest budgeting frameworks that exists -- here's how the split actually works against a real paycheck.",
     publishedAt: "2026-09-07",
