@@ -63,6 +63,30 @@ export default function SmartCapture<T extends DocType>({
     })
   }
 
+  // Renders page 1 of a PDF to a canvas client-side and hands back a JPEG,
+  // so PDF paystubs flow through the exact same extraction pipeline as photos.
+  async function pdfFirstPageToJpeg(file: File): Promise<{ data: string; mediaType: string }> {
+    const pdfjsLib = await import("pdfjs-dist")
+    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
+
+    const arrayBuffer = await file.arrayBuffer()
+    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
+    const page = await pdf.getPage(1)
+
+    const viewport = page.getViewport({ scale: 2 })
+    const canvas = document.createElement("canvas")
+    canvas.width = viewport.width
+    canvas.height = viewport.height
+    const ctx = canvas.getContext("2d")
+    if (!ctx) throw new Error("PDF render: could not create canvas context")
+
+    await page.render({ canvasContext: ctx, viewport }).promise
+
+    const dataUrl = canvas.toDataURL("image/jpeg", 0.92)
+    const commaIdx = dataUrl.indexOf(",")
+    return { data: dataUrl.slice(commaIdx + 1), mediaType: "image/jpeg" }
+  }
+
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = "" // allow re-selecting the same file later
@@ -71,7 +95,8 @@ export default function SmartCapture<T extends DocType>({
     setError(null)
     setBusy(true)
     try {
-      const { data, mediaType } = await fileToBase64(file)
+      const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
+      const { data, mediaType } = isPdf ? await pdfFirstPageToJpeg(file) : await fileToBase64(file)
 
       const res = await fetch("/api/extract-document", {
         method: "POST",
@@ -82,14 +107,19 @@ export default function SmartCapture<T extends DocType>({
       const json = await res.json().catch(() => null)
 
       if (!res.ok || !json?.success) {
-        setError(json?.error || "Couldn't read that photo. Please try again or enter details manually.")
+        setError(json?.error || "Couldn't read that file. Please try again or enter details manually.")
         return
       }
 
       onExtracted(json.fields as ExtractedFields<T>)
     } catch (err) {
       console.error("SmartCapture error:", err)
-      setError("Couldn't reach the photo scanner. Check your connection and try again.")
+      const isPdfError = err instanceof Error && err.message.startsWith("PDF render:")
+      setError(
+        isPdfError
+          ? "Couldn't read that PDF. Try a clearer scan or a photo instead."
+          : "Couldn't reach the document scanner. Check your connection and try again."
+      )
     } finally {
       setBusy(false)
     }
@@ -105,7 +135,7 @@ export default function SmartCapture<T extends DocType>({
           className="flex items-center justify-center gap-2 rounded-xl bg-green-500 px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-green-600 disabled:opacity-60"
         >
           {busy ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
-          {busy ? "Scanning…" : "Take photo"}
+          {busy ? "Scanningâ€¦" : "Take photo"}
         </button>
         <button
           type="button"
@@ -113,10 +143,10 @@ export default function SmartCapture<T extends DocType>({
           disabled={busy}
           className="flex items-center justify-center gap-2 rounded-xl border border-gray-700 px-4 py-2.5 text-sm font-semibold text-gray-200 transition hover:bg-[#1a233a] disabled:opacity-60"
         >
-          <Upload size={16} /> Upload photo
+          <Upload size={16} /> Upload photo or PDF
         </button>
 
-        {/* `capture` opens the camera directly on phones / Capacitor. */}
+        {/* `capture` opens the camera directly on phones / Capacitor -- a camera can't produce a PDF, so this stays image-only. */}
         <input
           ref={cameraRef}
           type="file"
@@ -125,15 +155,21 @@ export default function SmartCapture<T extends DocType>({
           onChange={handleFile}
           className="hidden"
         />
-        <input ref={uploadRef} type="file" accept="image/*" onChange={handleFile} className="hidden" />
+        <input
+          ref={uploadRef}
+          type="file"
+          accept="image/*,application/pdf"
+          onChange={handleFile}
+          className="hidden"
+        />
       </div>
 
       <p className="mt-2 text-xs text-gray-500">
         {docType === "bill"
-          ? "Snap a photo of the bill and we'll fill in the name, amount, and due date for you to review."
+          ? "Snap a photo or upload a PDF of the bill and we'll fill in the name, amount, and due date for you to review."
           : docType === "debt"
-          ? "Snap a photo of the statement and we'll fill in the name, balance, APR, and minimum payment for you to review."
-          : "Snap a photo of your paycheck stub and we'll fill in the employer, amount, and pay frequency for you to review."}
+          ? "Snap a photo or upload a PDF of the statement and we'll fill in the name, balance, APR, and minimum payment for you to review."
+          : "Snap a photo or upload a PDF of your paycheck stub and we'll fill in the employer, amount, and pay frequency for you to review."}
       </p>
 
       {error && (
