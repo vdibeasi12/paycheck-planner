@@ -20,7 +20,7 @@ async function attachAttributionIfFreshSignup(
       .eq("id", user.id)
       .maybeSingle()
 
-    if (!profile || profile.utm_source) return
+    if (!profile) return
 
     const isFreshSignup =
       profile.created_at &&
@@ -36,20 +36,58 @@ async function attachAttributionIfFreshSignup(
       medium?: string
       campaign?: string | null
       referrer?: string | null
+      ref?: string | null
     }
 
-    await supabase
-      .from("profiles")
-      .update({
-        utm_source: attr.source || null,
-        utm_medium: attr.medium || null,
-        utm_campaign: attr.campaign || null,
-        signup_referrer: attr.referrer || null,
-      })
-      .eq("id", user.id)
+    if (!profile.utm_source) {
+      await supabase
+        .from("profiles")
+        .update({
+          utm_source: attr.source || null,
+          utm_medium: attr.medium || null,
+          utm_campaign: attr.campaign || null,
+          signup_referrer: attr.referrer || null,
+        })
+        .eq("id", user.id)
+    }
+
+    await creditReferralIfPresent(supabase, user.id, attr.ref || null)
   } catch {
     // Attribution is a nice-to-have -- never block a real login over it.
   }
+}
+
+// Looks up the referrer by their referral code and records the credit.
+// Guards against self-referral and against a user already having a
+// referral row (the referrals_referred_id_key unique constraint would
+// reject a second one anyway, but checking first avoids a noisy insert
+// error on every subsequent login for the same fresh-signup window).
+async function creditReferralIfPresent(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  refCode: string | null
+) {
+  if (!refCode) return
+
+  const { data: existing } = await supabase
+    .from("referrals")
+    .select("id")
+    .eq("referred_id", userId)
+    .maybeSingle()
+  if (existing) return
+
+  const { data: referrer } = await supabase
+    .from("profiles")
+    .select("id")
+    .eq("referral_code", refCode)
+    .maybeSingle()
+  if (!referrer || referrer.id === userId) return
+
+  await supabase.from("referrals").insert({
+    referrer_id: referrer.id,
+    referred_id: userId,
+    status: "pending",
+  })
 }
 
 export async function GET(request: Request) {

@@ -39,12 +39,32 @@ function classifyReferrer(hostname: string): string {
 // cookie. Read later at signup time (app/auth/callback/route.ts) to attach
 // real marketing attribution to new accounts. Fires once per device: the
 // first visit wins and is never overwritten by later visits.
+//
+// The referral code (?ref=) is the one exception: it always updates, even
+// if an attribution cookie already exists from an earlier organic visit --
+// otherwise a returning visitor who later clicks a friend's referral link
+// would never get credited.
 export default function AttributionCapture() {
   useEffect(() => {
-    if (getCookie(COOKIE_NAME)) return
-
     try {
       const params = new URLSearchParams(window.location.search)
+      const ref = params.get("ref")
+
+      const existingRaw = getCookie(COOKIE_NAME)
+      if (existingRaw) {
+        if (ref) {
+          try {
+            const existing = JSON.parse(existingRaw)
+            if (existing.ref !== ref) {
+              setCookie(COOKIE_NAME, JSON.stringify({ ...existing, ref }), COOKIE_DAYS)
+            }
+          } catch {
+            // Malformed existing cookie -- fall through, first-touch stays locked.
+          }
+        }
+        return
+      }
+
       const utmSource = params.get("utm_source")
       const utmMedium = params.get("utm_medium")
       const utmCampaign = params.get("utm_campaign")
@@ -69,6 +89,7 @@ export default function AttributionCapture() {
         medium,
         campaign: utmCampaign || null,
         referrer: document.referrer || null,
+        ref: ref || null,
       }
 
       setCookie(COOKIE_NAME, JSON.stringify(attribution), COOKIE_DAYS)

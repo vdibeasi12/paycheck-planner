@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import MfaSetup from "@/components/MfaSetup";
 import NotificationPreferences from "@/components/NotificationPreferences";
+import ReferralCard from "@/components/ReferralCard";
 import DeleteAccount from "@/components/DeleteAccount";
 import SubscriptionCard from "@/components/SubscriptionCard";
 import BankConnections from "@/components/BankConnections";
@@ -128,6 +129,8 @@ export default function AccountPage() {
         <BankConnections />
 
         <NotificationPreferences />
+
+        <ReferralCard />
 
         <DeleteAccount />
       </div>
