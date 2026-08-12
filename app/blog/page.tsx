@@ -2,7 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { getAllPosts } from "@/lib/blog"
 import BlogSubscribeForm from "@/app/components/BlogSubscribeForm"
-import { FileText } from "lucide-react"
+import { FileText, Calculator } from "lucide-react"
 
 export const metadata: Metadata = {
   title: "Financial Hub - Paycheck Planner",
@@ -49,13 +49,26 @@ export default async function BlogIndexPage({
 
         <Link
           href="/worksheet"
-          className="mb-8 flex items-center gap-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5 transition hover:border-emerald-500/50"
+          className="mb-4 flex items-center gap-4 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-5 transition hover:border-emerald-500/50"
         >
           <FileText size={28} className="shrink-0 text-emerald-400" />
           <div>
             <p className="font-semibold text-white">Free Paycheck Budget Worksheet</p>
             <p className="text-sm text-gray-400">
               Match every bill to the paycheck that covers it. Get it by email &rarr;
+            </p>
+          </div>
+        </Link>
+
+        <Link
+          href="/calculators"
+          className="mb-8 flex items-center gap-4 rounded-2xl border border-sky-500/30 bg-sky-500/10 p-5 transition hover:border-sky-500/50"
+        >
+          <Calculator size={28} className="shrink-0 text-sky-400" />
+          <div>
+            <p className="font-semibold text-white">Free Financial Calculators</p>
+            <p className="text-sm text-gray-400">
+              Paycheck, debt payoff, savings goals, and more &rarr;
             </p>
           </div>
         </Link>
