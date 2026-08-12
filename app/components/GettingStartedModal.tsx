@@ -14,6 +14,7 @@ import {
   Landmark,
   RefreshCw,
   Shield,
+  Bell,
   X,
   LayoutDashboard,
 } from "lucide-react"
@@ -55,6 +56,11 @@ const STEP_DEFS: StepDef[] = [
     key: "mfa", rank: 0, kind: "mfa", href: "/mfa/setup", Icon: Shield,
     title: "Secure your account (2FA)",
     desc: "Add a one-time code at sign-in -- authenticator app or email, your choice.",
+  },
+  {
+    key: "notifications", rank: 0, kind: "action", href: "/account", Icon: Bell, progressKey: "notifications_reviewed",
+    title: "Review your notification preferences",
+    desc: "Choose what you want to hear about -- bill reminders, new Financial Hub posts, and more.",
   },
   {
     key: "payoff", rank: 1, kind: "action", href: "/amortization", Icon: CalendarClock, progressKey: "payoff_reviewed",
