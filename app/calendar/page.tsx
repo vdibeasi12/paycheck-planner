@@ -16,7 +16,7 @@ interface BillRow {
 
 interface IncomeRow {
   id: string
-  source: string
+  name: string
   amount: number
   frequency: string
   next_pay_date: string | null
@@ -51,7 +51,7 @@ export default function CalendarPage() {
       try {
         const [billsRes, incomeRes] = await Promise.all([
           supabase.from('bills').select('id, name, amount, due_date'),
-          supabase.from('income').select('id, source, amount, frequency, next_pay_date'),
+          supabase.from('income').select('id, name, amount, frequency, next_pay_date'),
         ])
         if (billsRes.data) setBills(billsRes.data as BillRow[])
         if (incomeRes.data) setIncome(incomeRes.data as IncomeRow[])
@@ -83,7 +83,7 @@ export default function CalendarPage() {
         cursor.month
       )
       for (const date of dates) {
-        list.push({ date, type: 'income', name: inc.source, amount: Number(inc.amount) || 0 })
+        list.push({ date, type: 'income', name: inc.name, amount: Number(inc.amount) || 0 })
       }
     }
 

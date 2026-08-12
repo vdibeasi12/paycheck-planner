@@ -16,7 +16,7 @@ interface DebtRow {
 
 interface IncomeRow {
   id: string
-  source: string
+  name: string
   amount: number
   frequency: string
   next_pay_date: string | null
@@ -68,7 +68,7 @@ function upcomingOccurrences(
       const dates = occurrencesInMonth(inc.next_pay_date, inc.frequency as Frequency, w.year, w.month)
       for (const date of dates) {
         if (date >= today && date <= cutoffISO) {
-          list.push({ date, type: 'income', name: inc.source, amount: Number(inc.amount) || 0 })
+          list.push({ date, type: 'income', name: inc.name, amount: Number(inc.amount) || 0 })
         }
       }
     }
@@ -102,7 +102,7 @@ export default function CalendarPeek({ onNavigate }: { onNavigate?: () => void }
       try {
         const [debtsRes, incomeRes] = await Promise.all([
           supabase.from('debts').select('id, name, minimum_payment, due_date'),
-          supabase.from('income').select('id, source, amount, frequency, next_pay_date'),
+          supabase.from('income').select('id, name, amount, frequency, next_pay_date'),
         ])
         if (!active) return
         if (debtsRes.data) setDebts(debtsRes.data as DebtRow[])

@@ -20,7 +20,7 @@ interface IncomeDetails {
 
 interface Income {
   id: string
-  source: string
+  name: string
   amount: number
   frequency: string
   created_at: string
@@ -135,7 +135,7 @@ export default function IncomePage() {
       }
       const { error } = await supabase.from('income').insert({
         user_id: userAuth.user.id,
-        source,
+        name: source,
         amount: Number(amount),
         frequency,
         next_pay_date: nextPayDate || null,
@@ -194,7 +194,7 @@ export default function IncomePage() {
 
   function startEdit(i: Income) {
     setEditingId(i.id)
-    setEditSource(i.source ?? '')
+    setEditSource(i.name ?? '')
     setEditAmount(String(i.amount ?? ''))
     setEditFrequency(i.frequency ?? 'monthly')
     setEditNextPayDate(i.next_pay_date ?? '')
@@ -209,7 +209,7 @@ export default function IncomePage() {
       const { error } = await supabase
         .from('income')
         .update({
-          source: editSource,
+          name: editSource,
           amount: Number(editAmount),
           frequency: editFrequency,
           next_pay_date: editNextPayDate || null,
@@ -564,7 +564,7 @@ export default function IncomePage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-semibold text-lg flex items-center gap-2">
-                          <Wallet size={16} className="text-green-400" /> {i.source}
+                          <Wallet size={16} className="text-green-400" /> {i.name}
                         </h3>
                         <p className="text-gray-400 text-sm capitalize">{i.frequency}</p>
                       </div>
