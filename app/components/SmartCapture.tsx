@@ -80,7 +80,7 @@ export default function SmartCapture<T extends DocType>({
     const ctx = canvas.getContext("2d")
     if (!ctx) throw new Error("PDF render: could not create canvas context")
 
-    await page.render({ canvasContext: ctx, viewport }).promise
+    await page.render({ canvasContext: ctx, canvas: canvas, viewport }).promise
 
     const dataUrl = canvas.toDataURL("image/jpeg", 0.92)
     const commaIdx = dataUrl.indexOf(",")
