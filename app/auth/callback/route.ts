@@ -122,5 +122,13 @@ export async function GET(request: Request) {
     ? `https://${forwardedHost}`
     : origin
 
+  const { data: factors } = await supabase.auth.mfa.listFactors()
+  const hasVerifiedFactor = !!factors?.totp?.some((f) => f.status === "verified")
+  if (hasVerifiedFactor) {
+    return NextResponse.redirect(
+      `${base}/mfa?redirectTo=${encodeURIComponent(next)}`
+    )
+  }
+
   return NextResponse.redirect(`${base}${next}`)
 }
