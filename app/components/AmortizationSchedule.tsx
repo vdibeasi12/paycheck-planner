@@ -1,8 +1,10 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Download, CalendarClock, TrendingDown, AlertTriangle } from "lucide-react"
+import { Download, FileText, Loader2, CalendarClock, TrendingDown, AlertTriangle } from "lucide-react"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
+import { useLocale } from "@/lib/i18n/LocaleProvider"
+import { generatePayoffPlanPdf } from "@/lib/generatePayoffPlanPdf"
 import type { Debt, Strategy, DebtRow, Sim, AvalancheCriterion } from "@/lib/payoffSimulate"
 import { simulate, monthLabel, strategiesTie, strategyOrder } from "@/lib/payoffSimulate"
 
@@ -47,6 +49,8 @@ function toCsv(rows: DebtRow[]): string {
 
 export default function AmortizationSchedule({ debts }: Props) {
   const formatMoney = useFormatCurrency()
+  const { currency, locale } = useLocale()
+  const [pdfBusy, setPdfBusy] = useState(false)
   const fmt = formatMoney
   const fmt0 = (n: number) => formatMoney(Math.round(n))
   const [strategy, setStrategy] = useState<Strategy>("snowball")
@@ -76,6 +80,39 @@ export default function AmortizationSchedule({ debts }: Props) {
     a.click()
     document.body.removeChild(a)
     URL.revokeObjectURL(url)
+  }
+
+  const downloadPdf = async () => {
+    setPdfBusy(true)
+    try {
+      const payoffOrder = orderedDebts
+        .map((d, idx) => {
+          const info = sim.perDebt.find((p) => p.id === d.id)
+          if (!info) return null
+          return {
+            rank: idx + 1,
+            name: d.name,
+            payoffLabel: info.payoffLabel,
+            totalInterest: info.totalInterest,
+          }
+        })
+        .filter((row): row is NonNullable<typeof row> => row !== null)
+      await generatePayoffPlanPdf({
+        strategy,
+        avalancheCriterion,
+        extra,
+        currency,
+        locale,
+        debtFreeLabel,
+        durationText,
+        totalInterest: sim.totalInterest,
+        totalPaid: sim.totalPaid,
+        payoffOrder,
+        monthlyRows: sim.monthlyRows,
+      })
+    } finally {
+      setPdfBusy(false)
+    }
   }
 
   const years = Math.floor(sim.months / 12)
@@ -185,14 +222,24 @@ export default function AmortizationSchedule({ debts }: Props) {
           </div>
         </div>
 
-        <button
-          onClick={download}
-          disabled={sim.debtRows.length === 0}
-          className="ml-auto inline-flex items-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          <Download size={16} />
-          Download CSV
-        </button>
+        <div className="ml-auto flex items-center gap-2">
+          <button
+            onClick={download}
+            disabled={sim.debtRows.length === 0}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-transparent px-4 py-2 text-sm font-medium text-gray-200 transition hover:bg-[#1a233a] disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            <Download size={16} />
+            CSV
+          </button>
+          <button
+            onClick={downloadPdf}
+            disabled={sim.debtRows.length === 0 || pdfBusy}
+            className="inline-flex items-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-sm font-medium text-black transition hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {pdfBusy ? <Loader2 size={16} className="animate-spin" /> : <FileText size={16} />}
+            {pdfBusy ? "Generating..." : "PDF"}
+          </button>
+        </div>
       </div>
 
       {sim.nonAmortizing && (
