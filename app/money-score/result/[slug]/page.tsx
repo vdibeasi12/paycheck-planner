@@ -21,10 +21,8 @@ export default async function MoneyScoreResultPage({
   }
 
   const band = getScoreBand(data.score);
-  const categoryScores = data.category_scores as Record
-    MoneyScoreCategory,
-    { earned: number; max: number; percent: number }
-  >;
+  type CategoryScores = Record<MoneyScoreCategory, { earned: number; max: number; percent: number }>;
+  const categoryScores = data.category_scores as CategoryScores;
 
   return (
     <MoneyScoreResultClient

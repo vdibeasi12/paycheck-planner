@@ -8,10 +8,7 @@ interface Props {
   slug: string;
   score: number;
   band: { key: string; label: string; color: string };
-  categoryScores: Record
-    MoneyScoreCategory,
-    { earned: number; max: number; percent: number }
-  >;
+  categoryScores: Record<MoneyScoreCategory, { earned: number; max: number; percent: number }>;
   hasEmail: boolean;
 }
 
