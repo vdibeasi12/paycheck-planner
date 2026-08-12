@@ -8,6 +8,7 @@ type Prefs = {
   email_bill_reminders: boolean;
   email_weekly_summary: boolean;
   email_product_updates: boolean;
+  email_new_posts: boolean;
   push_bill_reminders: boolean;
   reminder_days_before: number;
 };
@@ -16,6 +17,7 @@ const DEFAULTS: Prefs = {
   email_bill_reminders: true,
   email_weekly_summary: false,
   email_product_updates: true,
+  email_new_posts: true,
   push_bill_reminders: false,
   reminder_days_before: 3,
 };
@@ -36,7 +38,7 @@ export default function NotificationPreferences() {
       const { data } = await supabase
         .from("notification_preferences")
         .select(
-          "email_bill_reminders, email_weekly_summary, email_product_updates, push_bill_reminders, reminder_days_before"
+          "email_bill_reminders, email_weekly_summary, email_product_updates, email_new_posts, push_bill_reminders, reminder_days_before"
         )
         .eq("user_id", user.id)
         .maybeSingle();
@@ -63,6 +65,30 @@ export default function NotificationPreferences() {
           { user_id: user.id, ...prefs, updated_at: new Date().toISOString() },
           { onConflict: "user_id" }
         );
+
+      // blog_subscribers is the list the blog-notify cron actually emails,
+      // so keep it in sync with this toggle rather than reading prefs
+      // directly -- lets the same table serve both public and account signups.
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
+      if (token) {
+        if (prefs.email_new_posts) {
+          await fetch("/api/blog/subscribe", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: "Bearer " + token,
+            },
+            body: JSON.stringify({ email: user.email, source: "account_settings" }),
+          });
+        } else {
+          await fetch("/api/blog/subscribe", {
+            method: "DELETE",
+            headers: { Authorization: "Bearer " + token },
+          });
+        }
+      }
+
       if (!error) setSaved(true);
     } finally {
       setSaving(false);
@@ -109,6 +135,12 @@ export default function NotificationPreferences() {
               desc="Occasional news and how-tos."
               checked={prefs.email_product_updates}
               onChange={(v) => update("email_product_updates", v)}
+            />
+            <Toggle
+              label="New Financial Hub posts (email)"
+              desc="Get notified when a new guide publishes."
+              checked={prefs.email_new_posts}
+              onChange={(v) => update("email_new_posts", v)}
             />
           </div>
 

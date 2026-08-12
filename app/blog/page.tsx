@@ -1,6 +1,7 @@
 import type { Metadata } from "next"
 import Link from "next/link"
 import { getAllPosts } from "@/lib/blog"
+import BlogSubscribeForm from "@/app/components/BlogSubscribeForm"
 
 export const metadata: Metadata = {
   title: "Financial Hub - Paycheck Planner",
@@ -28,8 +29,14 @@ function formatDate(iso: string): string {
   })
 }
 
-export default function BlogIndexPage() {
-  const posts = getAllPosts()
+export default async function BlogIndexPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ category?: string }>
+}) {
+  const { category } = await searchParams
+  const allPosts = getAllPosts()
+  const posts = category ? allPosts.filter((p) => p.category === category) : allPosts
 
   return (
     <div className="min-h-screen bg-[#020617] text-white py-12">
@@ -40,18 +47,35 @@ export default function BlogIndexPage() {
         </p>
 
         <div className="flex flex-wrap gap-2 mb-12">
+          <Link
+            href="/blog"
+            className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+              !category
+                ? "border-emerald-400 bg-emerald-500/15 text-emerald-400"
+                : "border-gray-800 bg-[#0f172a] text-gray-400 hover:border-gray-700"
+            }`}
+          >
+            All
+          </Link>
           {CATEGORIES.map((c) => (
-            <span
+            <Link
               key={c}
-              className="rounded-full border border-gray-800 bg-[#0f172a] px-3 py-1 text-xs font-medium text-gray-400"
+              href={`/blog?category=${encodeURIComponent(c)}`}
+              className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                category === c
+                  ? "border-emerald-400 bg-emerald-500/15 text-emerald-400"
+                  : "border-gray-800 bg-[#0f172a] text-gray-400 hover:border-gray-700"
+              }`}
             >
               {c}
-            </span>
+            </Link>
           ))}
         </div>
 
         {posts.length === 0 ? (
-          <p className="text-gray-400">No posts yet -- check back soon.</p>
+          <p className="text-gray-400">
+            {category ? `No posts in ${category} yet -- check back soon.` : "No posts yet -- check back soon."}
+          </p>
         ) : (
           <div className="space-y-8">
             {posts.map((post) => (
@@ -75,6 +99,10 @@ export default function BlogIndexPage() {
             ))}
           </div>
         )}
+
+        <div className="mt-12">
+          <BlogSubscribeForm />
+        </div>
       </div>
     </div>
   )

@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { marked } from "marked"
 import { getAllPosts, getPostBySlug } from "@/lib/blog"
+import BlogSubscribeForm from "@/app/components/BlogSubscribeForm"
 
 export function generateStaticParams() {
   return getAllPosts().map((post) => ({ slug: post.slug }))
@@ -89,6 +90,10 @@ export default async function BlogPostPage({
           className="prose prose-invert mt-8 max-w-none prose-headings:text-white prose-a:text-emerald-400 prose-strong:text-white"
           dangerouslySetInnerHTML={{ __html: html }}
         />
+
+        <div className="mt-12">
+          <BlogSubscribeForm />
+        </div>
       </div>
     </div>
   )
