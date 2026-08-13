@@ -1,7 +1,25 @@
 // lib/financeEngine.ts
-// Real debt-payoff math (no placeholder logic).
-// Month-by-month amortization that supports snowball + avalanche strategies
-// and rolls freed-up minimum payments into the target debt (the "snowball" effect).
+// Compatibility shim over the canonical simulation engine in
+// lib/payoffSimulate.ts (the engine behind the actual Payoff Plan page).
+//
+// This file used to have its own separate month-by-month simulation that
+// could produce different numbers than the Payoff Plan page for the exact
+// same debts -- different per-step rounding (this file only rounded
+// totals at the end, letting floating-point drift accumulate over a long
+// payoff), a priority order computed once at the start instead of
+// recomputed monthly, and no early exit when minimums never cover
+// interest (it would silently compound for up to 1200 months instead of
+// detecting the non-amortizing case immediately). Consolidated onto
+// payoffSimulate.ts Aug 13, 2026 so the numbers can never drift apart
+// between the Payoff Plan page and everything that uses this file (AI
+// Advisor, scenario simulator, charts, Report page via financeInsights.ts).
+//
+// Every existing export here (types and functions) keeps its exact same
+// name, parameters, and return shape -- callers do not need to change.
+// Only the numbers underneath get more accurate.
+
+import { simulate as runSimulation } from "./payoffSimulate"
+import type { Debt as EngineDebt } from "./payoffSimulate"
 
 export type Strategy = "snowball" | "avalanche"
 
@@ -24,121 +42,72 @@ export interface PayoffResult {
   totalInterest: number
   totalPaid: number
   timeline: TimelinePoint[]
-  paidOff: boolean // false when minimums never cover interest within the cap
+  paidOff: boolean // false when minimums never cover interest, or the simulation hit its cap
 }
-
-const MAX_MONTHS = 1200 // 100-year safety cap to avoid infinite loops
 
 function round2(n: number): number {
   return Math.round((n + Number.EPSILON) * 100) / 100
-}
-
-function sum(arr: number[]): number {
-  return arr.reduce((a, b) => a + b, 0)
-}
-
-interface WorkingDebt {
-  balance: number
-  monthlyRate: number
-  min: number
 }
 
 /**
  * Core simulation. Returns full month-by-month timeline plus totals.
  * `extra` is an additional amount applied each month, on top of the sum of
  * all minimum payments, to the highest-priority debt.
+ *
+ * Delegates to lib/payoffSimulate.ts's `simulate()`. Note: payoffSimulate
+ * supports two avalanche variants (highest-rate-first or highest-balance-
+ * first) and the Payoff Plan page's own UI defaults to highest-balance --
+ * this shim does not override that default, so "avalanche" here matches
+ * what the Payoff Plan page shows by default.
  */
 export function simulatePayoff(
   debts: Debt[] | null | undefined,
   strategy: Strategy = "avalanche",
   extra: number = 0
 ): PayoffResult {
-  const working: WorkingDebt[] = (Array.isArray(debts) ? debts : [])
-    .map((d) => ({
-      balance: Math.max(0, Number(d?.balance) || 0),
-      monthlyRate: (Math.max(0, Number(d?.interest_rate) || 0) / 100) / 12,
-      min: Math.max(0, Number(d?.minimum_payment) || 0),
-    }))
-    .filter((d) => d.balance > 0)
+  const list = Array.isArray(debts) ? debts : []
 
-  const startingBalance = round2(sum(working.map((d) => d.balance)))
+  // payoffSimulate.ts's Debt type requires id/name -- synthesize stable
+  // fallbacks for callers here that only ever supplied balance/
+  // interest_rate/minimum_payment (this file's Debt type made those optional).
+  const normalized: EngineDebt[] = list.map((d, i) => ({
+    id: d.id || `debt-${i}`,
+    name: d.name || "Debt",
+    balance: Math.max(0, Number(d?.balance) || 0),
+    interest_rate: Math.max(0, Number(d?.interest_rate) || 0),
+    minimum_payment: Math.max(0, Number(d?.minimum_payment) || 0),
+  }))
+
+  const active = normalized.filter((d) => d.balance > 0)
+  const startingBalance = round2(active.reduce((s, d) => s + d.balance, 0))
+
+  if (active.length === 0) {
+    return {
+      months: 0,
+      totalInterest: 0,
+      totalPaid: 0,
+      timeline: [{ month: 0, remainingBalance: 0, interestPaid: 0 }],
+      paidOff: true,
+    }
+  }
+
+  const sim = runSimulation(normalized, strategy, extra, new Date())
+
   const timeline: TimelinePoint[] = [
     { month: 0, remainingBalance: startingBalance, interestPaid: 0 },
+    ...sim.monthlyRows.map((r) => ({
+      month: r.month,
+      remainingBalance: r.endBalance,
+      interestPaid: r.interest,
+    })),
   ]
 
-  if (working.length === 0) {
-    return { months: 0, totalInterest: 0, totalPaid: 0, timeline, paidOff: true }
-  }
-
-  // Fixed monthly budget = sum of every minimum + extra. As debts are cleared,
-  // their minimums stay in the budget and roll onto the target debt.
-  const monthlyBudget = sum(working.map((d) => d.min)) + Math.max(0, Number(extra) || 0)
-
-  // Priority order of indices.
-  const priority = working
-    .map((_, i) => i)
-    .sort((a, b) =>
-      strategy === "snowball"
-        ? working[a].balance - working[b].balance
-        : working[b].monthlyRate - working[a].monthlyRate
-    )
-
-  let totalInterest = 0
-  let totalPaid = 0
-  let month = 0
-
-  while (working.some((d) => d.balance > 0.005) && month < MAX_MONTHS) {
-    month++
-
-    // 1) accrue interest
-    let monthInterest = 0
-    for (const d of working) {
-      if (d.balance > 0) {
-        const interest = d.balance * d.monthlyRate
-        d.balance += interest
-        monthInterest += interest
-      }
-    }
-    totalInterest += monthInterest
-
-    // 2) pay minimums (capped to balance)
-    let budget = monthlyBudget
-    for (const d of working) {
-      if (d.balance > 0 && d.min > 0) {
-        const pay = Math.min(d.min, d.balance)
-        d.balance -= pay
-        budget -= pay
-        totalPaid += pay
-      }
-    }
-
-    // 3) apply remaining budget to highest-priority debts
-    for (const idx of priority) {
-      if (budget <= 0.005) break
-      const d = working[idx]
-      if (d.balance > 0) {
-        const pay = Math.min(budget, d.balance)
-        d.balance -= pay
-        budget -= pay
-        totalPaid += pay
-      }
-    }
-
-    timeline.push({
-      month,
-      remainingBalance: round2(sum(working.map((d) => Math.max(0, d.balance)))),
-      interestPaid: round2(monthInterest),
-    })
-  }
-
-  const paidOff = working.every((d) => d.balance <= 0.005)
-
   return {
-    months: month,
-    totalInterest: round2(totalInterest),
-    totalPaid: round2(totalPaid),
+    months: sim.months,
+    totalInterest: sim.totalInterest,
+    totalPaid: sim.totalPaid,
     timeline,
-    paidOff,
+    paidOff: !sim.nonAmortizing && !sim.capped,
   }
 }
 

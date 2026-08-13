@@ -23,6 +23,12 @@ export function canUseAdvancedAnalytics(plan: string): boolean {
   return plan === 'premium' || plan === 'connected'
 }
 
+// "PDF reports & export" per the FEATURE_GROUPS matrix in lib/plans.ts --
+// same tier as Charts (Momentum and up).
+export function canUseReports(plan: string): boolean {
+  return plan === 'starter' || plan === 'premium' || plan === 'connected'
+}
+
 export function getMaxDebts(plan: string): number {
   switch (plan) {
     case 'free':
