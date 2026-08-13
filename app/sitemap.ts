@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next"
 import { getAllPosts } from "@/lib/blog"
+import { CALCULATORS } from "@/lib/calculators"
 
 // Only genuinely public, indexable marketing pages belong here. Anything
 // behind auth (see middleware.ts's PROTECTED list) or purely functional
@@ -14,6 +15,11 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/features`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/pricing`, lastModified: now, changeFrequency: "weekly", priority: 0.8 },
     { url: `${base}/blog`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
+    { url: `${base}/money-score`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${base}/calculators`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${base}/challenge`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${base}/worksheet`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${base}/university`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/about`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${base}/contact`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
     { url: `${base}/support`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
@@ -31,5 +37,14 @@ export default function sitemap(): MetadataRoute.Sitemap {
     priority: 0.6,
   }))
 
-  return [...staticPages, ...blogPages]
+  // Same pattern for the free calculators -- add one to lib/calculators.ts
+  // and it's indexable here automatically.
+  const calculatorPages: MetadataRoute.Sitemap = CALCULATORS.map((calc) => ({
+    url: `${base}/calculators/${calc.slug}`,
+    lastModified: now,
+    changeFrequency: "monthly",
+    priority: 0.6,
+  }))
+
+  return [...staticPages, ...blogPages, ...calculatorPages]
 }

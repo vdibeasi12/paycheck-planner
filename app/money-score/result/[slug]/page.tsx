@@ -12,7 +12,7 @@ export default async function MoneyScoreResultPage({
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("money_score_results")
-    .select("share_slug, score, category_scores, email")
+    .select("share_slug, score, category_scores, has_email")
     .eq("share_slug", slug)
     .single();
 
@@ -30,7 +30,7 @@ export default async function MoneyScoreResultPage({
       score={data.score}
       band={band}
       categoryScores={categoryScores}
-      hasEmail={Boolean(data.email)}
+      hasEmail={Boolean(data.has_email)}
     />
   );
 }
@@ -59,6 +59,19 @@ export async function generateMetadata({
   return {
     title,
     description,
-    openGraph: { title, description },
+    alternates: {
+      canonical: `/money-score/result/${slug}`,
+    },
+    openGraph: {
+      title,
+      description,
+      url: `https://paycheckplanner.ai/money-score/result/${slug}`,
+      type: "website",
+    },
+    twitter: {
+      card: "summary",
+      title,
+      description,
+    },
   };
 }
