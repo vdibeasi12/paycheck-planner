@@ -398,6 +398,266 @@ The biggest advantage of zero-based budgeting during an active debt payoff push:
 Paycheck Planner lets you build this category-by-category against your real paychecks, so every dollar -- including what goes toward debt -- has a job before the month gets away from you.`,
   },
   {
+    slug: "semi-monthly-vs-biweekly-pay",
+    title: "Semi-Monthly vs. Biweekly Pay: Why the Difference Actually Matters for Budgeting",
+    category: "Paychecks",
+    excerpt:
+      "They sound almost identical and get used interchangeably -- but they behave completely differently against a monthly budget.",
+    publishedAt: "2026-12-14",
+    content: `"Semi-monthly" and "biweekly" get used interchangeably in casual conversation, but they're genuinely different pay schedules -- and the difference changes how you should budget, not just when money lands in your account.
+
+## The actual difference
+
+**Biweekly:** paid every two weeks, on a specific day of the week (every other Friday, for example). This produces **26 pay periods a year**. Because 26 doesn't divide evenly into 12 months, two months a year get three paychecks instead of two.
+
+**Semi-monthly:** paid twice a month, on fixed dates (commonly the 1st and 15th, or the 15th and last day of the month). This produces **exactly 24 pay periods a year** -- always two per month, no exceptions, no three-paycheck months ever.
+
+They're close enough in frequency that people mix up the terms constantly, but "always two paychecks a month" versus "sometimes three" is a real structural difference for budgeting.
+
+## Why this trips people up
+
+If you're semi-monthly, your paycheck amount times 2 is your real, unchanging monthly income -- no surprises, no bonus month. Budgeting is comparatively simple: what you see is what you get, every month, all year.
+
+If you're biweekly, your paycheck amount times 2 is your monthly income in *most* months, but not all of them. Someone who budgets biweekly pay as if it were semi-monthly (just "twice a month" in their head) will misjudge two months a year -- either missing a whole extra paycheck's worth of planning, or treating a normal two-paycheck month as short if they got used to the three-paycheck rhythm.
+
+## A concrete comparison
+
+Same $2,400 gross paycheck amount, two different schedules:
+
+- **Semi-monthly:** $2,400 × 24 = $57,600/year, always $4,800/month, no exceptions.
+- **Biweekly:** $2,400 × 26 = $62,400/year -- $4,800/month most months, $7,200 twice a year.
+
+Notice the biweekly schedule actually pays **more per year** for the same per-check amount, because there are 26 checks instead of 24. This is a common source of confusion when people compare job offers quoting a "per paycheck" number without specifying which schedule it's on.
+
+## What to actually do with each
+
+**Semi-monthly:** budget is straightforward -- fixed monthly bills against a fixed monthly income, no special handling needed.
+
+**Biweekly:** budget your fixed bills against the **lower, two-paycheck month** as your baseline (see our biweekly budgeting guide for the full breakdown), and treat the extra paycheck in three-paycheck months as a bonus for debt payoff, savings, or a known upcoming expense -- not baseline spending money.
+
+## Check your own pay stub
+
+If you're not sure which schedule you're on, look at the actual dates: fixed calendar dates (1st/15th) means semi-monthly; a rolling day-of-week (every other Friday) means biweekly. It matters more than it sounds like it should.
+
+Paycheck Planner reads your actual pay schedule -- biweekly, semi-monthly, or otherwise -- and builds your budget around the real dates, so you're never guessing which month is the odd one out.`,
+  },
+  {
+    slug: "envelope-budgeting-digital-cash-stuffing",
+    title: "Envelope Budgeting in the Digital Age: The Cash-Stuffing Method Without the Cash",
+    category: "Budgeting",
+    excerpt:
+      "The envelope system works because it makes overspending physically impossible. Here's how to get the same effect without carrying cash.",
+    publishedAt: "2026-12-28",
+    content: `"Cash stuffing" -- physically dividing paycheck cash into labeled envelopes for each spending category -- has had a real resurgence, largely thanks to social media. The aesthetic is new; the underlying method is decades old, and the reason it works has nothing to do with the cash itself.
+
+## Why the envelope system actually works
+
+The mechanism isn't magic: it's friction. When your "dining out" envelope has $150 in it and it's empty, you're done eating out for the month -- there's no overdraft, no "I'll just put it on the card," no mental math to fudge. The physical limit *is* the budget enforcement.
+
+Compare that to a normal checking account, where every category shares the same pool of money and nothing stops you from spending your grocery budget on something else entirely. The envelope system's real innovation is making categories mutually exclusive and hard-capped.
+
+## The problems with literal cash stuffing
+
+- **No purchase protection or fraud liability** that a card offers.
+- **No rewards or cashback** on cash purchases.
+- **Physically risky** -- lost or stolen cash is just gone, with no recourse.
+- **Doesn't work for bills paid electronically** (rent, utilities, subscriptions) -- most people's biggest expenses.
+- **Inconvenient** for a lot of modern spending that's card-only or online.
+
+The trend's popularity is really evidence that people *want* stronger spending guardrails than a typical bank account gives them -- the specific method (literal cash in envelopes) is just one of several ways to get there.
+
+## The digital equivalent
+
+**1. Separate sub-accounts or "buckets" per category.** Many banks and budgeting apps support named sub-accounts within one checking account -- fund each one like an envelope, spend from a debit card linked to a specific bucket if your bank supports it, or manually track balance-per-category if it doesn't.
+
+**2. Category spending caps with real-time tracking.** The digital version of "the envelope is empty" is a category showing $0 remaining -- the friction comes from seeing that number before you spend, not from the cash being physically absent.
+
+**3. A separate account for true discretionary spending only.** Move your "wants" budget (dining out, entertainment, shopping) into a dedicated account at the start of the month, and spend only from that account for those categories. When it's empty, it's empty -- same enforcement as the envelope, without carrying cash.
+
+## A real example
+
+$3,000 monthly take-home, digital envelope setup:
+
+- Needs account (rent, utilities, insurance): $1,500 -- paid automatically, not really a "spending" envelope
+- Groceries envelope: $500
+- Dining/entertainment envelope: $250
+- Debt payoff envelope: $400
+- Savings envelope: $350
+
+Each discretionary envelope (groceries, dining, debt, savings) gets funded at the start of the month and tracked independently -- the same hard-cap enforcement as physical cash, without any of cash's downsides.
+
+## The one thing that has to be true either way
+
+Whether it's literal cash or digital categories, the system only works if the caps are checked *before* spending, not reconciled after the fact at month's end. That's the actual behavior change the envelope method is famous for -- the format (cash vs. digital) is just the delivery mechanism.
+
+Paycheck Planner's category budgets work exactly like digital envelopes -- funded from your real paycheck, capped per category, and visible in real time, so you know a category's empty before you're already over it.`,
+  },
+  {
+    slug: "extra-principal-payments-amortization-math",
+    title: "How Extra Principal Payments Actually Shorten a Loan (The Math Behind Amortization)",
+    category: "Debt",
+    excerpt:
+      "Extra payments made early in a loan save far more than the same extra payment made later. Here's the amortization math that explains why.",
+    publishedAt: "2027-01-11",
+    content: `An extra $100 payment in year one of a loan saves more total interest than the same $100 payment in year eight. Same dollar amount, different impact -- and the reason comes down to how amortization actually splits every payment between interest and principal.
+
+## How a normal payment is split
+
+Every fixed loan payment is divided into two parts: interest (what you owe the lender for the privilege of still carrying a balance) and principal (what actually reduces the amount you owe). Early in a loan, the balance is high, so the interest portion of each payment is large and the principal portion is small. As the balance shrinks over time, that split gradually flips -- more of each payment goes to principal, less to interest.
+
+**Example:** a $20,000 loan at 7% over 5 years. The very first payment is split roughly $117 interest / $260 principal. By the final year, a similar-sized payment is split closer to $10 interest / $367 principal. Same payment amount, almost entirely different composition.
+
+## Why extra payments made early matter so much more
+
+An extra payment applied to principal shrinks the balance that all *future* interest gets calculated on -- for the rest of the loan. Make that extra payment in year one, and every remaining payment for the next four years is calculated against a smaller balance. Make the same extra payment in year four, and there's only one year left for the reduced balance to matter.
+
+## A real comparison
+
+$20,000 loan, 7% APR, 5-year term, normal payment ~$396/month.
+
+- **No extra payments:** ~$3,750 total interest over the life of the loan.
+- **Extra $100/month starting in month 1:** loan paid off about 14 months early, total interest drops to roughly $2,850 -- **about $900 saved**.
+- **Same extra $100/month, but starting in month 37 (year 4) instead:** loan paid off only a couple months early, total interest drops by roughly $150.
+
+The exact same $100/month extra payment saves six times more interest when applied from the start than when applied in the final stretch -- purely because of how much loan term is left for the smaller balance to compound in your favor.
+
+## The one thing to check before making extra payments
+
+Confirm with your lender that extra payments are applied to **principal**, not simply counted as "paying ahead" on your next scheduled payment (which doesn't reduce the balance the same way and barely moves the interest math). Most lenders let you specify this, but it's not always the default, and getting it wrong quietly erases most of the benefit. A small number of loans also carry prepayment penalties -- worth a quick check, though this is uncommon for typical personal loans, credit cards, and most modern mortgages.
+
+## Where this fits into a payoff strategy
+
+This is a big part of why the debt avalanche method (highest interest rate first) tends to save the most money overall -- it's not just about the rate, it's about applying extra payments as early as possible against the balance that's costing you the most, while the maximum amount of term remains for that reduction to keep paying off.
+
+Paycheck Planner's payoff calculator applies extra payments to principal correctly and shows the real amortization impact -- so you can see exactly how much a given extra payment saves based on when you start it, not just a rough estimate.`,
+  },
+  {
+    slug: "high-yield-savings-accounts-worth-it",
+    title: "High-Yield Savings Accounts: Is the Extra Percent Actually Worth Switching Banks?",
+    category: "Saving",
+    excerpt:
+      "Big banks often pay a fraction of a percent on savings. Online banks routinely pay far more. Here's what that gap is actually worth in real dollars.",
+    publishedAt: "2027-01-25",
+    content: `Most large traditional banks pay somewhere around 0.01-0.05% APY on standard savings accounts. Many online-only banks pay significantly more on the exact same FDIC-insured deposit. The rate difference sounds small as a percentage; in real dollars on a real balance, it's usually not.
+
+## What APY actually means here
+
+APY (annual percentage yield) is what your money earns in a year, accounting for compounding. It costs you nothing to earn it -- it's not a reward for risk, it's just what the bank pays to hold your deposit. A higher APY on an FDIC-insured account isn't a riskier choice than a lower one; it's the same safety with a better rate.
+
+## The real dollar gap
+
+$10,000 sitting in savings for one year:
+
+- **At 0.05% APY** (typical big-bank savings rate): about **$5** in interest for the year.
+- **At 4.5% APY** (a representative online high-yield rate; actual rates move with broader interest rates): about **$450** in interest for the year.
+
+That's not a rounding difference -- it's roughly **$445 in a year, for doing nothing except keeping the money in a different account.** Scale that to a fully-funded 6-month emergency fund of $20,000, and the gap roughly doubles to around $890/year.
+
+## Why the gap exists
+
+Traditional banks with branch networks have higher overhead and often don't need to compete hard on savings rates because of built-in customer inertia. Online-only banks skip the branch overhead and use higher rates specifically to attract deposits. Both are real, regulated banks -- the difference is business model, not risk.
+
+## What you're actually giving up
+
+- **No physical branches** -- if you need in-person service or same-day cash deposits, this is a real limitation.
+- **Transfer delay** -- moving money between an online savings account and your everyday checking account typically takes 1-3 business days, not instant.
+- **A little more setup effort** -- opening a new account, linking it, and remembering it exists.
+
+For money that's specifically sitting as savings or an emergency fund -- not money you're actively spending day to day -- these tradeoffs are usually minor compared to the rate difference.
+
+## Confirm FDIC insurance either way
+
+Whichever bank you choose, confirm FDIC insurance (or NCUA for credit unions) and that your balance is within the insured limit (currently $250,000 per depositor, per bank, per ownership category). This protection doesn't change based on the interest rate -- a well-known online bank with FDIC insurance is exactly as safe as a big-name branch bank for this purpose.
+
+## Where this fits with debt payoff
+
+If you're carrying high-interest debt (above roughly 7-8%), paying that down almost always beats any savings rate -- the "return" on eliminating a 22% credit card is far higher than even the best savings APY. Once high-interest debt is handled, moving your emergency fund and other savings to a higher-yield account is close to free money for keeping cash exactly as safe as it already was.
+
+Paycheck Planner's goals feature tracks your savings balance and growth toward a target regardless of which bank it lives in, so you can see the real progress -- including the extra interest -- as it happens.`,
+  },
+  {
+    slug: "how-many-credit-cards-should-you-have",
+    title: "How Many Credit Cards Should You Actually Have?",
+    category: "Credit",
+    excerpt:
+      "There's no single right number -- but credit mix and account age genuinely factor into your score, which makes \"just get rid of them all\" the wrong instinct too.",
+    publishedAt: "2027-02-08",
+    content: `There's no universally correct number of credit cards to have. But two real credit-score factors -- credit mix and length of credit history -- mean the instinct to aggressively close cards "to keep things simple" can quietly work against you, just as much as opening too many can.
+
+## The two factors most people don't weigh correctly
+
+**Length of credit history** -- roughly 15% of a typical credit score -- looks at the age of your accounts, including the *average* age across all of them. Your oldest account matters a lot here: closing it doesn't erase that history immediately from your report, but it will eventually stop counting once it drops off, and closing newer cards lowers your average account age sooner.
+
+**Credit mix** -- roughly 10% of a typical score -- rewards having experience with different types of credit (revolving, like cards, versus installment, like a car loan or mortgage). This is a smaller factor, but it's part of why "just have one card and nothing else" isn't automatically optimal either.
+
+Compare that to utilization (see our credit utilization guide), which is roughly 30% of a typical score and the single largest factor most people can actively control month to month.
+
+## Why closing old cards can backfire
+
+Closing your oldest card does two things that can hurt your score: it removes that account's age from your average once it eventually drops off your report, and it reduces your total available credit limit -- which, if you carry any balance anywhere, immediately raises your overall utilization percentage even though your spending didn't change at all.
+
+**Example:** $2,000 in total balances across cards with a combined $10,000 limit (20% utilization). Close a card with a $4,000 limit you rarely use, and the same $2,000 balance is now against a $6,000 limit -- utilization jumps to about 33%, purely from the limit disappearing.
+
+## Why collecting cards isn't automatically good either
+
+Each new application typically triggers a hard inquiry (a small, temporary score dip) and lowers your average account age immediately, since the new card starts at zero. Opening cards you don't need, purely to "build credit mix," usually isn't worth the tradeoff unless there's a genuine reason (a specific rewards structure, a 0% intro APR for a real purpose).
+
+## A practical framework
+
+- **Keep old cards open**, even ones you rarely use -- as long as there's no annual fee working against you, the account age is doing quiet, ongoing work for your score.
+- **Don't open new cards just to "have more."** A new card makes sense when there's a specific reason -- meaningfully better rewards for your actual spending, an intro APR you'll genuinely use for a balance transfer or large purchase.
+- **If a card does have an annual fee you don't want to keep paying**, ask the issuer about downgrading to a no-fee version of the same card instead of closing it outright -- this often preserves the account age.
+
+## Where this connects to the bigger picture
+
+None of this outweighs the two largest factors in a typical credit score: payment history and utilization. A perfectly optimized number of cards with a single missed payment or maxed-out balance will still score worse than a simpler card setup with a clean payment record and low utilization. Get those two right first; card count and mix are a secondary optimization on top.
+
+Paycheck Planner's debt tools track balances and limits across every card you connect, so you can see your real utilization -- the factor that actually moves the needle most -- as it changes.`,
+  },
+  {
+    slug: "coast-fi-lean-fi-fat-fi-explained",
+    title: "Coast FI, Lean FI, and Fat FI: The FIRE Numbers, Explained Simply",
+    category: "Financial Freedom",
+    excerpt:
+      "The FIRE movement splits \"financial independence\" into several distinct targets. Here's what each one actually means in real numbers.",
+    publishedAt: "2027-02-22",
+    content: `"Financial independence" isn't one single number -- the FIRE (Financial Independence, Retire Early) community splits it into a few distinct targets, each answering a slightly different question. Understanding the differences makes the whole concept far more useful than treating it as one giant number to reach.
+
+## Starting point: the 25x rule
+
+As covered in our guide to what financial freedom actually costs, the baseline math is roughly **25 times your annual expenses**, invested, based on commonly cited historical safe withdrawal rate research. Every version below is a variation on that same formula, applied to a different expense number or a different milestone.
+
+## Lean FI
+
+Financial independence calculated against a **minimal, stripped-down expense number** -- covering essentials only, with little room for extras. If your bare-bones annual expenses are $30,000, Lean FI is **$750,000** invested. It's the fastest of the three targets to reach, but it assumes a genuinely lean lifestyle once there, not your current spending with cushion removed only on paper.
+
+## Fat FI
+
+The opposite end -- financial independence calculated against a **comfortable, non-restrictive expense number**, including travel, dining out, and the lifestyle upgrades most people actually want. If that number is $80,000/year, Fat FI is **$2,000,000** invested. It takes longer to reach, but it doesn't require a lifestyle downgrade to sustain.
+
+## Coast FI
+
+A genuinely different concept from the other two: Coast FI is the point where you have **enough already invested that compound growth alone -- with no further contributions -- will reach your full retirement number by a normal retirement age.** You don't stop working at Coast FI; you stop needing to *save* for retirement, because time and market growth will finish the job on their own.
+
+**Example:** at a 7% average annual real return, roughly $178,000 invested at age 35 would grow to about $1,000,000 by age 65 with zero additional contributions. Reaching that $178,000 by 35 is "Coast FI" for a $1,000,000 target -- after that point, income only needs to cover current expenses, not retirement savings on top of them.
+
+This is why Coast FI resonates with a lot of people: it's often reachable well before full financial independence, and reaching it can mean taking a lower-stress job, dropping to part-time, or simply not feeling retirement-savings pressure anymore -- while still working.
+
+## Why debt payoff accelerates all three
+
+Every dollar going toward high-interest debt instead of investing delays all three targets -- but the reverse compounds too: paying off debt faster means investable dollars start compounding sooner, which is exactly what Coast FI depends on most. Two people investing the same total amount over a career end up in very different places if one started 5 years earlier, purely from extra compounding time -- and getting out of debt sooner is often what makes that earlier start possible.
+
+## Picking a target
+
+None of these is "correct" -- they're different questions:
+
+- **Lean FI:** "What's the fastest path to not needing an income at all, if I'm willing to live modestly?"
+- **Fat FI:** "What does full independence look like without changing my lifestyle?"
+- **Coast FI:** "When can I stop feeling behind on retirement, even if I keep working?"
+
+Paycheck Planner's goals feature tracks your investable savings and debt payoff together, so you can see your real progress toward whichever of these numbers actually matches what you're aiming for.`,
+  },
+  {
     slug: "50-30-20-budget-rule-explained",
     title: "The 50/30/20 Budget Rule, Explained (With a Real Paycheck Example)",
     category: "Budgeting",
