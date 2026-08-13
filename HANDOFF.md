@@ -1,239 +1,110 @@
-# Paycheck Planner — Project Handoff (v2)
+# Paycheck Planner — Handoff (v3)
 
-_Last updated: 2026-06-14. This supersedes the previous HANDOFF.md. It captures everything done in this session so work can continue in a new chat without losing context._
-
----
-
-## 0. TL;DR — what changed this session
-
-1. **The app now builds.** It previously did not. `next build` completes cleanly: **47/47 routes, TypeScript passes, production build green.**
-2. **Built all missing modules** (the headline blocker) with real, validated finance math — not stubs.
-3. **Fixed several build-breakers the prior handoff didn't know about** (broken Stripe route, deprecated Supabase imports, missing `createClient` exports, a Suspense error, type errors).
-4. **Decision made on Apple + Stripe:** Stripe stays on the **web**; it is **platform-gated out of the native app** so the App Store has no in-app purchase to reject. Implemented this session.
-5. **Fixed the mobile viewport / iOS safe-area** handling.
-
-Outstanding before store submission: Google sign-in in the webview, native features for Apple Guideline 4.2, and the actual iOS/Android project generation. Details in §6–§8.
+_Last updated: 2026-08-14. This supersedes the old HANDOFF.md (dated June 14) and the various handoff notes referenced inside past sessions. Written so a brand-new chat can pick up this project with zero prior context and not repeat mistakes already made and fixed._
 
 ---
 
-## 1. What this is
+## 0. What this is
 
-**Paycheck Planner** — a personal-finance web app (debt payoff, paycheck budgeting, goals) being prepared for iOS/Android.
+**Paycheck Planner** — a personal-finance SaaS: paycheck-based budgeting, debt payoff planning, AI guidance, optional bank sync. Vince is the sole developer, infosec officer, and admin — solo-built.
 
-- **Stack:** Next.js 16 (App Router, Turbopack) · React 19 · TypeScript · Tailwind · Supabase (auth + Postgres + storage) · Stripe (web only) · recharts · jsPDF.
-- **Company:** DiBeasi Global Investment LLC · support email: support@paycheckplanner.ai
-- **GitHub:** https://github.com/vdibeasi12/paycheck-planner
-- **Vercel:** https://paycheckplanner-snowy.vercel.app
-- **Mobile plan:** Capacitor shell loading the live Vercel URL (remote-URL webview, not a static export — the app relies on API routes, middleware, and server-side auth). See `MOBILE_SETUP.md`.
-
----
-
-## 2. Built and validated THIS session
-
-### 2a. Missing modules — created with real math (not placeholders)
-
-The original codebase imported 9 modules/components that never existed; nothing built until these were created. All consumers were read first to derive exact exports/signatures.
-
-- **`lib/financeEngine.ts`** — the core. One month-by-month amortization simulator (`simulatePayoff`) with correct snowball/avalanche ordering and the freed-minimum rollover ("snowball") effect. Exports `Debt`, `Strategy`, `TimelinePoint`, `PayoffResult`, `simulatePayoff`, `calculatePayoffTimeline`, `calculateDebtFreeMonths`. Has a 1200-month safety cap and a `paidOff` flag for the negative-amortization case (minimums don't cover interest).
-- **`lib/payoffEngine.ts`** — thin wrapper over `financeEngine` so both share identical math + `Debt` shape. Exports `calculatePayoff`, `calculateDebtFreeTimeline`.
-- **`lib/previewEngine.ts`** — `getDebtSummary` (months, monthlyInterest, totalBalance) for the paywall card.
-- **`lib/financeInsights.ts`** — `calculateDebtFreeDate` (returns a readable date string, or "Not on track"), `calculateTotalInterestPaid`, `calculatePotentialSavings`.
-- **`lib/safeArray.ts`** — `safeArray()` (named + default export).
-- **`lib/useSafeArray.ts`** — `useSafeArray()` memoized hook.
-- **`lib/referral.ts`** — `generateReferralCode(userId)` (deterministic, stable per user).
-- **`lib/email.ts`** — lazy, fail-safe Resend client. (The naive version threw at build time when `RESEND_API_KEY` was missing — would also crash those routes in production. Now no-ops gracefully if unconfigured.)
-- **`app/components/AIPayoffStrategy.tsx`** — self-fetching component using the real engine; shows debt-free time, total interest, snowball<->avalanche comparison, and the ordered payoff plan.
-
-**Math validation run this session:**
-- $1,000 @ 0% APR, $100/mo min -> exactly **10 months, $0 interest**
-- Extra $200/mo correctly shortens the timeline
-- Avalanche total interest <= Snowball
-
-### 2b. Build-breakers fixed (not in the prior handoff)
-
-- **`@/lib/supabase` and `@/lib/supabase/client`** were imported with `{ createClient }` but never exported it -> added a `createClient()` export to both (returns the shared singleton, no duplicate GoTrue instances).
-- **`/report`** used the deprecated `createClientComponentClient` from `@supabase/auth-helpers-nextjs` -> switched to the browser client.
-- **Broken Stripe checkout route:** `app/stripe/checkout/route.ts` was an incomplete fragment (referenced undefined `stripe`, `priceId`, `user`; not even a valid module) and sat at the **wrong path**. The frontend posts to `/api/stripe/checkout`, which didn't exist. -> Removed the broken file; wrote a proper `app/api/stripe/checkout/route.ts` (auth check, default price, returns `{ url }`).
-- **`/login`** used `useSearchParams()` without a Suspense boundary -> hard Next 16 build failure. Wrapped in `<Suspense>`.
-- **Stripe `apiVersion`** mismatch (`"2024-06-20"` vs the installed SDK's expected version) in `billing` + `webhook` routes -> updated.
-- Type errors fixed: `analytics` setState string/number, `admin/users` map typing, `PieCard` recharts formatter, `layout.tsx` user typing, `PaywallCard` passing `user` to a propless `UpgradeButton`, `DebtStrategyRace`/`DebtProgress` required-prop usage (made optional), `ScenarioSimulator` (was misusing a component import; now uses `simulatePayoff`), and removed unused `@ts-expect-error` directives in `generateSummaryPdf`.
-- **Dashboard** now fetches real debts and passes `totalDebt` / `monthlyPayments` to `SummaryCards` + `DebtList` (was rendering them propless and failing typecheck).
-
-### 2c. Mobile viewport / iOS safe area
-
-- `app/layout.tsx`: moved `viewport` out of the deprecated `metadata` field into a proper `export const viewport` with `viewportFit: "cover"` + `themeColor`. (This also cleared ~20 build warnings.)
-- Added `env(safe-area-inset-top)` padding to the sticky header so it clears the iPhone notch/Dynamic Island, and bottom safe-area padding in `globals.css` for the home indicator.
+- **Stack:** Next.js 16 (App Router, Turbopack) · React · TypeScript · Tailwind CSS · Supabase (Postgres + Auth + RLS) · Stripe · Plaid · Resend (email) · Capacitor (iOS/Android wrapper)
+- **Company:** DiBeasi Global Investment LLC
+- **Domain:** paycheckplanner.ai
+- **GitHub:** `vdibeasi12/paycheck-planner` (public)
+- **Vercel project:** `prj_xDm0OJOckVVE24SRQ8HueehQvLBM`, team `team_dpgf1dxygj6zGmeT7rjCWpHD`
+- **Supabase project:** `smozaweywvhtkecqqyau` (Pro, daily backups)
+- **Android app ID:** `com.dibeasi.paycheckplanner`
+- **Admin account:** security@paycheckplanner.ai (`is_admin=true`)
+- **Pricing tiers:** Free / Momentum / Accelerate / Autopilot (internal codes `free`/`starter`/`premium`/`connected`). Annual pricing = "2 months free."
+- **Local repo:** `C:\Users\Test-Laptop\paycheck-planner-UPDATED\paycheck-planner` on Vince's machine (device name "personal-lap"). A stale, unused `paycheck-planner-flat` folder also exists — ignore it.
 
 ---
 
-## 3. Apple + Stripe decision (IMPORTANT — read before re-adding payments)
+## 1. How work actually gets done here — READ THIS FIRST
 
-**Goal:** ship on both Apple App Store and Google Play with the least approval risk.
+This is the single most important section. Getting this wrong wastes a full round-trip and frustrates Vince.
 
-**Decision: keep Stripe on the web, gate it OUT of the native app for v1.** Stripe was **not deleted** from the repo (that would also kill working web revenue). Instead the purchase UI is hidden whenever the app runs inside the Capacitor shell.
-
-### Why (2026 context — verify before relying on it; this area is in active litigation)
-- Since the **April 2025 Epic v. Apple** ruling, US apps **can** include external payment links commission-free — but the link **must open the system browser (Safari), not the in-app webview**, and requires Apple's External Purchase Link entitlement + a disclosure sheet.
-- **December 2025:** the Ninth Circuit said Apple may eventually charge a "reasonable" fee; the case continues (possible Supreme Court review). The commission-free window is real today but uncertain.
-- Apple **Guideline 3.1.1** still bans selling digital subscriptions via a non-Apple flow *inside* the app (e.g. Stripe checkout in a webview).
-- Apple **Guideline 4.2** (minimum functionality) is a *separate* risk for any thin web-wrapper, independent of payments.
-- Google Play has analogous rules (Play Billing; User Choice Billing at a reduced fee) but is generally more lenient toward webview wrappers.
-
-Net: the fastest path to approval on both stores is **no in-app purchase action in v1**. Monetize on the web now; choose a mobile monetization path later (§8).
-
-### What was implemented this session
-- **`lib/platform.ts`** — `isNativeApp()` (event-handler safe) + `useIsNativeApp()` (mount-safe hook; returns `null` until known, then `true`/`false`).
-- Gated all four purchase entry points so they never present a buy action in the native app:
-  - `app/components/UpgradeButton.tsx` — renders nothing on native.
-  - `app/components/UpgradeModel.tsx` — renders nothing on native.
-  - `app/components/PaywallOverlay.tsx` — keeps the "locked feature" UI but replaces the buy button with a neutral "Manage your plan at paycheckplanner.ai" note.
-  - `app/pricing/page.tsx` — paid-tier CTAs route to `/signup` instead of initiating checkout on native. **Also fixed a real bug here:** it was POSTing to `/api/checkout` (nonexistent) instead of `/api/stripe/checkout`.
-- Detection works in a remote-URL webview because Capacitor injects `window.Capacitor` into the page.
-
-**To verify the gate after wrapping:** load the app on a device/simulator and confirm no upgrade buttons appear and the pricing page CTAs go to signup. On the web, everything is unchanged.
+1. **Delivery mechanism (current, as of this session):** Claude runs in a Cowork/cloud session with **device-bridge access** to Vince's local repo folder (`mcp__remote-devices__*` tools). Claude reads real files from his machine (`device_stage_files`), edits them locally, verifies them, and **writes finished files directly back onto his machine** (`device_commit_files`) — not just as chat attachments.
+2. **git commands cannot be run remotely** — there's no git credential access from this sandbox. So every round of file changes must **also** end with a `commit-and-push.ps1` script (git add / commit / push / status) that Vince runs himself in PowerShell on his machine. This is a **standing requirement** — always deliver it automatically, never wait to be asked.
+3. **`*.ps1` is gitignored in this repo.** The many `apply-*.ps1` / `*-fix.ps1` files visible in a directory listing are local-only delivery scratch files from past sessions, not tracked in git. Don't assume they reflect current app state.
+4. **Vince wants the script pasted as literal text in the chat reply**, in addition to being sent as a file and written directly to his machine. He got frustrated (Aug 14) when this only arrived as a downloadable attachment — treat "paste the script inline" as a hard requirement, not optional politeness.
+5. **When a round touches multiple files, send them all together, git commands only at the very end, no narrative breaks mid-sequence.** (Feedback given after an earlier session interleaved scripts and commentary.)
+6. **CRLF vs LF:** not every file in the repo shares one line-ending convention. Some files are LF (most recently-touched app/lib files), some are CRLF (older files, most config files like `tailwind.config.js`). **Always check a file's actual line endings before editing it** (`grep -c $'\r' file`), strip CRLF before using string-based edits if present, and reapply CRLF on delivery only if the file was originally CRLF. Verify with `od -c` that no double-CRLF corruption was introduced.
+7. **Verify before delivering, for real, not just "looks right":** for any nontrivial TypeScript/React change, set up an isolated `/tmp` project with the actual dependency versions installed (`next`, `react`, `@supabase/ssr`, etc.) and run a real `tsc -p tsconfig.json`. For Tailwind config changes, run a real isolated Tailwind build and inspect the compiled CSS output — don't just trust the config syntax. This standard was raised explicitly after an assumption-based fix (see §3, the University 404) turned out to be wrong.
+8. **After Vince says something is live, re-check it yourself** — use the Vercel MCP tools (`list_deployments` then `get_deployment_build_logs` with `errorsOnly: true` — a top-level READY state does not guarantee a clean build) and `WebFetch` the actual production URLs. **`WebFetch` has its own ~15-minute cache** — if you fetched a URL earlier in the same conversation and need a fresh read after a new deploy, append a cache-busting query string (`?v=2`) or you'll get stale results and draw the wrong conclusion.
+9. Two duplicate config files exist: root `tailwind.config.js` (active — has the `@tailwindcss/typography` plugin) and `app/tailwind.config.js` (probably dead, but kept in sync defensively "just in case"). Same pattern for `postcss.config.js` (not yet fully investigated).
 
 ---
 
-## 4. Supabase project (unchanged from prior handoff)
+## 2. Current platform status
 
-- **Project ref:** `smozaweywvhtkecqqyau` (name: `Paycheck_Planner_ai`)
-- **URL:** `https://smozaweywvhtkecqqyau.supabase.co`
-- **Postgres 17**, 18+ tables (profiles, debts, bills, assets, income, subscriptions, financial_goals, documents, etc.)
-
-Changes already applied to the DB in earlier sessions (still in place): `on_auth_user_created` trigger auto-creates a `profiles` row per signup; `is_admin boolean` on `profiles`; repaired the `premium-demo@paycheckplanner.ai` account (premium + admin); `documents` table + private `documents` storage bucket with per-user RLS; per-user RLS on `financial_goals`.
-
-**Still to verify:** that the `debts` table columns match what the engine expects — the code reads `balance`, `interest_rate`, `minimum_payment`, `name`, `user_id`. Confirm these exist and are populated.
+- **Web:** live at paycheckplanner.ai, actively developed, this is the primary product surface.
+- **Android:** submitted to Google Play Production track, AAB version code 7 / v1.0.5 as of the last version bump noted. IARC rating live. Play Store Organization account conversion done.
+- **iOS:** native Capacitor platform added and builds/runs in Simulator (Google sign-in + MFA confirmed working there), but **blocked on Apple Developer Program enrollment**, which has been stuck "under review" for roughly a month (support case ID 20000119965504). A refurbished M1 MacBook Air was ordered for Xcode Cloud setup — check whether it arrived and whether Apple approval has come through before resuming iOS work.
+- **Compliance:** Plaid security questionnaire approved (3/3). Access Controls / Information Security / Data Retention policy docs generated.
 
 ---
 
-## 5. Environment / config
+## 3. This session's work in detail (Aug 13–14, 2026)
 
-`.env.local` (project root) must contain — **do not commit this file**:
-```
-NEXT_PUBLIC_SUPABASE_URL=https://smozaweywvhtkecqqyau.supabase.co
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<legacy anon key, eyJ...>      # Settings > API Keys > Legacy tab
-SUPABASE_SERVICE_ROLE_KEY=<legacy service_role key, eyJ...>  # server only, secret
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=pk_test_...
-STRIPE_SECRET_KEY=sk_test_...
-NEXT_PUBLIC_STRIPE_STARTER_MONTHLY=price_...
-NEXT_PUBLIC_STRIPE_STARTER_YEARLY=price_...
-NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY=price_...
-NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY=price_...
-NEXT_PUBLIC_APP_URL=https://paycheckplanner-snowy.vercel.app   # used for Stripe redirect URLs
-RESEND_API_KEY=re_...     # optional; product emails no-op gracefully if absent
-OPENAI_API_KEY=...        # optional; only for a future true-AI checklist
-```
-Set the same vars in **Vercel -> Project -> Settings -> Environment Variables** so the deployed app (and therefore the wrapped mobile app) works.
+This was one continuous Cowork session. In order:
 
-### Security to-dos (carried over — still worth doing)
-- Rotate any OpenAI key that was ever committed to `app/.env`; `git rm --cached app/.env`; keep secrets in `.env.local` / Vercel only.
-- If `Move90daysnorec@*` was a reused personal password, change it (it was exposed in earlier screen-sharing).
+**Report page collapsed into Payoff Plan.** Vince: "collapse Report into just being a download PDF action on the Payoff Plan page." `/report` now just `redirect("/amortization")`. The Report nav link was removed from Sidebar. The previously-orphaned `DownloadSummaryButton` (+ `lib/generateSummaryPdf.ts`) is now wired into `/amortization`'s header, gated behind that page's existing Accelerate-tier check (`canUseAmortization`). This silently raised the effective tier for that PDF export from Momentum to Accelerate — `lib/plans.ts`'s public `FEATURE_GROUPS` "PDF reports & export" row was updated to `starter:false` to keep the pricing page honest. `canUseReports()` was removed from `lib/permissions.ts` (dead code after the collapse).
 
-### Google OAuth (still outstanding from before)
-Provider was misconfigured (domain pasted as Client ID, a password as the secret). Create an OAuth client in Google Cloud (project `paycheckplanner-3fea9`), **Web application** type:
-- Authorized redirect URI: `https://smozaweywvhtkecqqyau.supabase.co/auth/v1/callback`
-- JS origins: `http://localhost:3000` + the Vercel URL
-Paste the real Client ID + `GOCSPX-` secret into Supabase -> Auth -> Providers -> Google. **See §6 for the webview caveat.**
+**Calendar + "Upcoming (30 days)" merged into one page.** There used to be two separate things: a sidebar drawer (`CalendarPeek.tsx`, only pulled debts+income, missing bills) and the full `/calendar` page (only pulled bills+income, missing debts) — meaning **neither view was ever complete and they could disagree with each other.** Fixed by rebuilding `/calendar` as a 2-column layout (month grid + agenda on the left, an always-visible "Upcoming (30 days)" panel on the right) that pulls bills+debts+income consistently for both halves. `CalendarPeek.tsx` is now orphaned/unused (no delete capability via the device bridge, so it's still sitting in the repo — safe to manually delete).
+
+**Sidebar decluttered.** Vince: "the financial hub already has these tools so the sidebar can be cleaned up ... don't want the sidebar too cluttered." Removed `/calculators` and `/challenge` from the sidebar (both already surfaced as cards on Financial Hub / `/blog`). Kept `/university` in the sidebar since it isn't a Financial Hub card and has its own per-user progress tracking.
+
+**Payoff Plan Download button was covered by the fixed language/currency widget.** Sidebar.tsx renders a `fixed top-4 right-4` widget (desktop only) that floats over whatever's at the top-right of the viewport. Nothing reserved space for it, so the new `DownloadSummaryButton` sat underneath it. Fixed **once, in the shared root layout** (`app/layout.tsx`, `md:pt-20` on `<main>` for logged-in users) instead of patching it page-by-page, so the same bug can't recur on some other page later.
+
+**University 404 — the real bug, found the hard way.** Vince reported `/university/budgeting` still 404ing across *multiple* rounds. The first (wrong) theory was that PowerShell's glob handling of `git add app/university/[course]` was silently dropping those files from commits. That was disproven this session by pulling the actual Vercel build logs (the routes were present and built) and fetching the files straight from GitHub (they were genuinely committed). **The real bug:** both `app/university/[course]/page.tsx` and `.../[lesson]/page.tsx` destructured `params` synchronously (`{ params }: { params: { course: string } }`). This repo runs **Next.js 16.3.0**, where `params` became a `Promise` in Server Components starting with Next 15 — so `params.course` was always `undefined`, `getCourse(undefined)` returned nothing, and `notFound()` fired on every request. Fixed both files to `async function` + `await params`, matching the already-correct pattern in `app/calculators/[slug]/page.tsx` in the same repo. **Lesson: when something "should be committed" keeps 404ing, check the actual runtime behavior/build output before assuming it's a delivery problem.**
+
+**University content + sequential unlock (new feature, not just a bugfix).** Vince: "content should be add to all" + "complete budgeting then paychecks unlocks... complete paychecks then debt payoff unlocks, etc." `lib/university.ts` was rewritten: all 6 courses (Budgeting, Paychecks, Debt Payoff, Saving, Credit, Financial Freedom) now have **real** lesson content — 30 lessons total, no more "this is a placeholder" text, `comingSoon` is `false` everywhere. New helpers `isCourseFullyComplete` / `getUnlockedMap` / `isCourseUnlocked` compare a signed-in user's `university_progress` rows against each course's lesson keys. Budgeting is always open; every later course unlocks only once **every lesson** in the course immediately before it is marked complete. This is enforced in two places: the catalog (`app/university/page.tsx`, shows "Complete X first" / "Sign in to unlock" instead of a generic badge) and the course detail page (`app/university/[course]/page.tsx`, shows a real locked state server-side too, so typing a locked course's URL directly doesn't skip the gate). **Explicitly not built:** lesson-by-lesson ordering *within* a course — only course-level gating was requested. Vince mentioned that once all 6 courses have been reviewed by users, a future batch of additional courses may be added.
+
+**Font/typography, three rounds of feedback:**
+1. "font should be a little lighter throughout the app so it doesn't look too dark" → added `theme.extend.fontWeight` to both `tailwind.config.js` files (`semibold: 500, bold: 600, extrabold: 700`), remapping every existing `font-semibold`/`font-bold`/`font-extrabold` usage app-wide with zero per-component changes.
+2. "font still hasn't changed much, should be a little whiter" (a color complaint, not weight) → added `theme.extend.colors.gray` override: `400` remapped to the old `300` hex, `500` to the old `400` hex.
+3. "can you make the font a little more white" → pushed one more step: `300`/`400` now render as the old `200` hex (`#e5e7eb`), `500` as the old `300` hex (`#d1d5db`).
+Borders (`gray-700`/`800`) were deliberately left untouched through all three rounds so panels don't wash out. Each pass was verified against a real compiled Tailwind CSS build before delivery — **Vince said "it's better now we'll leave as it is" after round 3, so don't push this further unless he asks again.**
+
+All of the above landed in production. Confirmed via Vercel deployment `dpl_2a6niU6se7f3qUnomJyzkTbjJi65` (commit `2cb4eab`), clean build, and live spot-checks: `/university/budgeting` loads with all 5 real lessons, the catalog correctly shows "Sign in to unlock" on locked courses, and hitting a locked course URL directly shows the real locked-state page.
 
 ---
 
-## 6. Mobile: what still needs doing before submission
+## 4. Broader feature inventory (everything shipped before this session, for context)
 
-### 6a. Google sign-in will likely FAIL in the webview
-Google blocks OAuth inside embedded webviews (`disallowed_useragent`). The current login does `supabase.auth.signInWithOAuth({ provider: "google", ... })`, which navigates inside the webview. In the native app this will probably error.
-**Fix:** use `@capacitor/browser` to open the OAuth URL in the **system browser**, then deep-link back into the app. Pattern: get the provider URL from Supabase with `skipBrowserRedirect: true`, open it with `Browser.open`, and handle the callback via a custom URL scheme / App Links + `@capacitor/app`'s `appUrlOpen` listener, exchanging the code for a session. Email/password login is unaffected and works today.
-
-### 6b. Apple Guideline 4.2 (minimum functionality)
-A pure remote-URL webview risks rejection. Add native touches so it doesn't read as "just a website":
-- Push notifications (bill reminders, payoff milestones) — strong fit for this app.
-- Native splash screen + status bar styling (`@capacitor/splash-screen`, `@capacitor/status-bar` are installed but not initialized in code yet).
-- Biometric app lock (Face ID / fingerprint) — appropriate for a finance app.
-- Native camera for the document/bill capture instead of the web file input (`@capacitor/camera`).
-- Haptics, offline handling beyond the static `www/index.html`.
-- Android hardware back-button handling (`@capacitor/app` back-button listener).
-
-None of these are wired into the app code yet (no `@capacitor/*` runtime imports in `app/` or `lib/`).
-
-### 6c. Generate the native projects (on a Mac for iOS)
-The `ios/` and `android/` folders don't exist yet. On a Mac with Xcode + Android Studio:
-```
-npm install
-npx cap add ios
-npx cap add android
-npx cap sync
-npx cap open ios       # or: npx cap open android
-```
-`capacitor.config.ts` is set: `appId: com.dibeasi.paycheckplanner`, `appName: Paycheck Planner`, `server.url` -> the Vercel URL, `webDir: www` (offline fallback only). **The `appId` becomes the permanent iOS Bundle ID / Android applicationId — confirm it before first submission.**
-
-### 6d. Deploy flow reminder
-Because the shell loads the live Vercel URL, **any app change must be pushed + redeployed to Vercel** to appear in the wrapped app. Only native-shell changes (icons, plugins, config) require a new store build.
+- **Core:** debt payoff simulation engine (`lib/payoffSimulate.ts` — the canonical one; `lib/financeEngine.ts` is now a thin shim delegating to it), Snowball/Avalanche comparison, Payoff Plan PDF + CSV export, dashboard charts, AI chat/insights.
+- **Bank sync:** Plaid integration (Liabilities product only — Auth/Transactions explicitly declined for cost; checking-only banks with no card/loan remain unconnectable, an accepted tradeoff), bank balance sync mirrored into `assets` for net worth.
+- **i18n:** language + currency selectors, 7 non-English locales + en-AU/en-GB, most-but-not-all pages translated (~37 of ~40 pages were still untranslated as of the last check — verify current status before assuming full coverage).
+- **Marketing/growth:** Financial Hub (blog, URL stays `/blog` for SEO equity, 15 posts queued through 2027-02-22), referral program (3-referral → free→starter bump), `/worksheet` lead magnet + 6-email drip, 6 free calculators at `/calculators/[slug]`, 30-Day Challenge + drip, Money Score quiz (`/money-score`), 4 daily Vercel crons (bill-reminders, blog-notify, lead-magnet-drip, challenge-drip).
+- **Admin:** visitor/traffic tracking (page views, CTA clicks, visitor-by-source), conversion funnels, recent activity feed, UTM/referrer attribution capture.
+- **Security:** MFA (TOTP or email code, optional except hard-gated on the Autopilot bank-connect flow), custom Supabase auth domain, various RLS lockdowns from an Aug 13 full security audit (all fixed same day).
 
 ---
 
-## 7. Known remaining issues / cleanup (non-blocking; app builds and runs)
+## 5. Known open items / things to check on pickup
 
-- **Paywall copy is inconsistent:** `app/components/PaywallCard.tsx` hardcodes "$9/month" and "7-day free trial", but the real tiers in `lib/plans.ts` are Starter $3/mo·$33/yr and Premium $6/mo·$66/yr. Make `plans.ts` the single source of truth everywhere.
-- **Two different `Debt` shapes exist** in older components (`{interest, minimum}` vs the engine's `{interest_rate, minimum_payment}`). The engine and its direct consumers are consistent; some legacy components (e.g. `ScenarioSimulator`, `DebtProgress`) use the short field names and are mapped where needed. Worth unifying eventually.
-- **`middleware.ts`**: Next 16 warns "middleware is deprecated, use proxy." Functional today; rename to `proxy.ts` when convenient.
-- **Empty states:** several dashboard widgets show "..." or zeros before data loads. Fine, but a small loading/empty polish pass would improve first-run UX.
-- **`/api/finance`, `/api/ai`, `/api/chat`** exist but weren't audited this session.
-
----
-
-## 8. Mobile monetization — pick later (after v1 is approved)
-
-When ready to charge on mobile, choose one:
-- **(A) External payment link (US):** open the system browser to the Stripe checkout. Currently commission-free in the US but requires Apple's External Purchase Link entitlement + disclosure sheet, and the legal situation may change. Keeps one Stripe backend for web + mobile.
-- **(B) Native IAP:** Apple StoreKit + Google Play Billing. Fully compliant everywhere; 15% under Apple's Small Business Program (<$1M/yr) and after year one; most native work; needs server-side receipt validation wired into the `subscriptions` table.
-
-The platform gate from §3 makes either path additive — flip the gate to show the appropriate flow on native without touching the web.
+- **Verify University is actually live and behaving** as described in §3 if a meaningful amount of time has passed — don't assume it's still fine without re-checking (use fresh `WebFetch` with a cache-busting query param).
+- **`CalendarPeek.tsx`** is orphaned/dead code, still sitting in the repo. Ask Vince to delete it, or do it yourself if you have shell/git access in a future session.
+- **`app/api/bills/create`** still lacks real type validation (low risk, RLS-scoped, flagged in the Aug 13 security audit, not yet fixed).
+- **Blog posts don't cross-link the other lead-gen pages** (worksheet, challenge, calculators) — flagged, not fixed.
+- **Referral program is only visible on `/account`**, never surfaced on public marketing pages.
+- **All 4 subscriber tables (blog/lead-magnet/challenge/university-waitlist) were still at 0 real rows** as of the last audit — worth checking whether that's changed.
+- **iOS is blocked purely on Apple Developer Program review** — check status before resuming any iOS-specific work.
+- **~37 of ~40 pages were still not fully translated** into the 7 non-English locales as of the last i18n check.
+- **Two duplicate `tailwind.config.js`/`postcss.config.js` file pairs exist** — the root ones are confirmed active; the `app/` ones are kept in sync defensively but their actual usage was never conclusively proven either way.
 
 ---
 
-## 9. How to run / build / deploy
+## 6. Technical gotchas worth remembering
 
-```
-# Local dev
-npm install
-# create .env.local per §5
-npm run dev            # http://localhost:3000
-
-# Production build (run this to confirm nothing is broken)
-npm run build          # currently: 47/47 routes, green
-
-# Deploy: push to GitHub -> Vercel auto-deploys (or `vercel --prod`)
-
-# Wrap for mobile (Mac for iOS), after deploying:
-npx cap add ios && npx cap add android
-npx cap sync
-npx cap open ios   # / android
-```
-
-Test login: `premium-demo@paycheckplanner.ai` (premium + admin). Password unknown — try `DemoPassword123!`, else use Forgot Password, or sign up fresh and have an admin promote it.
-
-Routes worth reviewing: `/pricing`, `/goals`, `/documents`, `/insights`, `/account`, `/admin`, `/dashboard`, `/debts`, `/report`.
+- `prevent_self_privilege_escalation` trigger requires `select set_config('request.jwt.claim.role','service_role',true)` before a manual `UPDATE profiles.plan` via Supabase MCP.
+- Supabase MCP `execute_sql`/`apply_migration` run as the service role and bypass RLS — can't be used to simulate anon-role user experience. Schema changes via `apply_migration` must also be committed as `.sql` files under `supabase/migrations/`.
+- The real server-side Supabase client is `@/lib/supabase/server` (cookie-based, works in Server Components/Route Handlers). `@/lib/supabase/client` is localStorage-only and only valid in Client Components — mixing these up previously caused a 23-file bug where pages silently returned zero rows under RLS.
+- Granting `EXECUTE` on a Postgres function via a migration can get silently re-granted to `anon`/`authenticated` by Supabase's default privileges the next time the function is (re)created — always re-verify with `has_function_privilege` after any function migration that's supposed to restrict access.
+- A persistent "middleware → proxy" deprecation warning appears in every Vercel build log and is safe to ignore.
 
 ---
 
-## 10. File-change manifest for this session
-
-New files:
-- `lib/financeEngine.ts`, `lib/payoffEngine.ts`, `lib/previewEngine.ts`, `lib/financeInsights.ts`
-- `lib/safeArray.ts`, `lib/useSafeArray.ts`, `lib/referral.ts`
-- `lib/email.ts` (lazy Resend), `lib/platform.ts` (native detection)
-- `app/components/AIPayoffStrategy.tsx`
-- `app/api/stripe/checkout/route.ts`
-
-Edited:
-- `lib/supabase.ts`, `lib/supabase/client.ts` (added `createClient`)
-- `app/layout.tsx` (viewport export, safe area, user typing), `app/globals.css` (safe-area CSS)
-- `app/login/page.tsx` (Suspense), `app/report/page.tsx` (supabase import)
-- `app/api/billing/route.ts`, `app/api/webhook/route.ts` (Stripe apiVersion)
-- `app/analytics/page.tsx`, `app/api/admin/users/route.ts`, `app/components/charts/PieCard.tsx`
-- `app/components/PaywallCard.tsx`, `app/components/DebtStrategyRace.tsx`, `app/components/DebtProgress.tsx`, `app/components/ScenarioSimulator.tsx`
-- `app/dashboard/page.tsx` (fetch + pass debt data)
-- `lib/generateSummaryPdf.ts` (ts directives)
-- Gating: `app/components/UpgradeButton.tsx`, `UpgradeModel.tsx`, `PaywallOverlay.tsx`, `app/pricing/page.tsx`
-
-Removed:
-- `app/stripe/checkout/route.ts` (broken fragment; replaced by `app/api/stripe/checkout/route.ts`)
+_If picking this up fresh: read §1 first, it's the process that avoids repeating this session's friction. Then skim §3 for the most recent state of the app. §5 is the actual to-do list._
