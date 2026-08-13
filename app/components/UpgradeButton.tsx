@@ -2,12 +2,14 @@
 
 import { useState } from "react"
 import { useIsNativeApp } from "@/lib/platform"
+import { trackCta } from "@/lib/trackClient"
 
 export default function UpgradeButton() {
   const native = useIsNativeApp()
   const [loading, setLoading] = useState(false)
 
   const handleUpgrade = async () => {
+    trackCta('upgrade')
     try {
       setLoading(true)
       const res = await fetch("/api/stripe/checkout", { method: "POST" })

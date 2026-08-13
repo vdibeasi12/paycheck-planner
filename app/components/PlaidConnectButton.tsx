@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePlaidLink } from "react-plaid-link";
 import { Landmark, RefreshCw, Loader2, ShieldCheck } from "lucide-react";
+import { trackCta } from "@/lib/trackClient";
 
 type Props = {
   onLinked?: () => void;
@@ -123,7 +124,10 @@ export default function PlaidConnectButton({ onLinked, itemId, label, purpose = 
     <div>
       <button
         type="button"
-        onClick={() => open()}
+        onClick={() => {
+          trackCta(itemId ? "reconnect_bank" : "connect_bank");
+          open();
+        }}
         disabled={!ready || busy}
         className="flex items-center gap-2 rounded-lg bg-green-500 px-4 py-2 text-sm font-semibold text-black hover:bg-green-600 disabled:opacity-60"
       >

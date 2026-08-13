@@ -5,6 +5,7 @@ import Footer from "./components/Footer"
 import NativeInit from "./components/NativeInit"
 import BiometricLock from "./components/BiometricLock"
 import AttributionCapture from "./components/AttributionCapture"
+import PageViewTracker from "./components/PageViewTracker"
 import AppNav from "./components/AppNav"
 import Sidebar from "./components/Sidebar"
 import FloatingChat from "./components/FloatingChat"
@@ -110,7 +111,10 @@ export default async function RootLayout({
         <LocaleProvider initialLocale={locale} initialCurrency={currency}>
           <NativeInit />
           {user && <BiometricLock />}
+          {/* PageViewTracker reads the pp_attr cookie AttributionCapture
+              sets, so it must mount after it -- order matters here. */}
           <AttributionCapture />
+          <PageViewTracker />
 
           {/* Logged-in users get the left sidebar (desktop) + mobile drawer. */}
           {user && <Sidebar />}

@@ -4,6 +4,7 @@ import Link from 'next/link'
 import { CheckCircle2, TrendingDown, Brain, Zap } from 'lucide-react'
 import MemberMilestone from './components/MemberMilestone'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
+import { trackCta } from '@/lib/trackClient'
 
 export default function HomePage() {
   const { t } = useLocale()
@@ -30,10 +31,18 @@ export default function HomePage() {
               {t('home.heroSubtitle')}
             </p>
             <div className="flex gap-4">
-              <Link href="/signup" className="bg-green-500 hover:bg-green-600 text-black font-semibold px-8 py-3 rounded-lg text-lg transition">
+              <Link
+                href="/signup"
+                onClick={() => trackCta('get_started_hero')}
+                className="bg-green-500 hover:bg-green-600 text-black font-semibold px-8 py-3 rounded-lg text-lg transition"
+              >
                 {t('home.ctaStartFree')}
               </Link>
-              <Link href="/pricing" className="border border-green-500 text-green-500 hover:bg-green-500/10 font-semibold px-8 py-3 rounded-lg text-lg transition">
+              <Link
+                href="/pricing"
+                onClick={() => trackCta('view_plans_hero')}
+                className="border border-green-500 text-green-500 hover:bg-green-500/10 font-semibold px-8 py-3 rounded-lg text-lg transition"
+              >
                 {t('home.ctaViewPlans')}
               </Link>
             </div>
@@ -90,11 +99,15 @@ export default function HomePage() {
           <p className="text-xl text-gray-300 mb-8">
             {t('home.ctaSubtitle')}
           </p>
-          <Link href="/signup" className="inline-block bg-green-500 hover:bg-green-600 text-black font-semibold px-8 py-4 rounded-lg text-lg transition">
+          <Link
+            href="/signup"
+            onClick={() => trackCta('get_started_bottom')}
+            className="inline-block bg-green-500 hover:bg-green-600 text-black font-semibold px-8 py-4 rounded-lg text-lg transition"
+          >
             {t('home.ctaButton')}
           </Link>
         </div>
       </section>
     </main>
   )
-}
+}
