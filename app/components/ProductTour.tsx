@@ -6,14 +6,19 @@ import "driver.js/dist/driver.css"
 
 type TourStep = { element?: string; title: string; description: string }
 
+// Order matches the sidebar's top-to-bottom link order (Dashboard, Calendar,
+// Debts, Payoff Plan, Bills, Income, ..., University, ..., AI Chat) so the
+// highlight moves straight down the nav instead of jumping around. Admin is
+// intentionally excluded -- it's not part of the regular-user sidebar and
+// has no data-tour attribute.
 const STEPS: TourStep[] = [
   { title: "Welcome to Paycheck Planner", description: "Here's a quick tour of where everything lives. It takes about a minute." },
   { element: '[data-tour="dash-title"]', title: "Your dashboard", description: "Your money at a glance - safe-to-spend, balances, and progress all live here." },
-  { element: '[data-tour="nav-income"]', title: "Add your income", description: "Start here. Enter each paycheck and how often it arrives so the budget math is right." },
-  { element: '[data-tour="nav-debts"]', title: "Add your debts", description: "Balances, interest rates (APR), and minimum payments power your payoff plan." },
-  { element: '[data-tour="nav-bills"]', title: "Track your bills", description: "Add recurring bills so nothing slips through the cracks." },
   { element: '[data-tour="nav-calendar"]', title: "Your calendar", description: "Bills, debts, and income all in one month view, with your next 30 days always visible alongside it." },
+  { element: '[data-tour="nav-debts"]', title: "Add your debts", description: "Balances, interest rates (APR), and minimum payments power your payoff plan." },
   { element: '[data-tour="nav-amortization"]', title: "Your Payoff Plan", description: "See your debt-free date and the order we'll knock out each balance. Download a PDF summary anytime from this page." },
+  { element: '[data-tour="nav-bills"]', title: "Track your bills", description: "Add recurring bills so nothing slips through the cracks." },
+  { element: '[data-tour="nav-income"]', title: "Add your income", description: "Start here. Enter each paycheck and how often it arrives so the budget math is right." },
   { element: '[data-tour="nav-university"]', title: "Paycheck Planner University", description: "Short lessons on budgeting, paychecks, debt payoff, saving, credit, and financial freedom. Finish a course to unlock the next one." },
   { element: '[data-tour="nav-ai-chat"]', title: "AI insights", description: "Ask questions about your numbers in plain English. Included with Accelerate and Autopilot." },
   { title: "You're all set", description: "Add your income and debts to see your payoff date. You can reopen this tour anytime from Getting Started." },
