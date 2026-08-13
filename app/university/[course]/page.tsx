@@ -10,8 +10,13 @@ export function generateStaticParams() {
   return getAllCourses().map((c) => ({ course: c.slug }))
 }
 
-export function generateMetadata({ params }: { params: { course: string } }): Metadata {
-  const course = getCourse(params.course)
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ course: string }>
+}): Promise<Metadata> {
+  const { course: courseSlug } = await params
+  const course = getCourse(courseSlug)
   if (!course) return {}
   return {
     title: `${course.title} -- Paycheck Planner University`,
@@ -22,8 +27,13 @@ export function generateMetadata({ params }: { params: { course: string } }): Me
   }
 }
 
-export default function CoursePage({ params }: { params: { course: string } }) {
-  const course = getCourse(params.course)
+export default async function CoursePage({
+  params,
+}: {
+  params: Promise<{ course: string }>
+}) {
+  const { course: courseSlug } = await params
+  const course = getCourse(courseSlug)
   if (!course) notFound()
 
   return (

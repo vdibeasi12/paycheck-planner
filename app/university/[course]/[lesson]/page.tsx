@@ -9,24 +9,30 @@ export function generateStaticParams() {
   return UNIVERSITY_COURSES.flatMap((c) => c.lessons.map((l) => ({ course: c.slug, lesson: l.slug })))
 }
 
-export function generateMetadata({
+export async function generateMetadata({
   params,
 }: {
-  params: { course: string; lesson: string }
-}): Metadata {
-  const found = getLesson(params.course, params.lesson)
+  params: Promise<{ course: string; lesson: string }>
+}): Promise<Metadata> {
+  const { course: courseSlug, lesson: lessonSlug } = await params
+  const found = getLesson(courseSlug, lessonSlug)
   if (!found) return {}
   return {
     title: `${found.lesson.title} -- Paycheck Planner University`,
     description: found.lesson.summary,
     alternates: {
-      canonical: `/university/${params.course}/${params.lesson}`,
+      canonical: `/university/${courseSlug}/${lessonSlug}`,
     },
   }
 }
 
-export default function LessonPage({ params }: { params: { course: string; lesson: string } }) {
-  const found = getLesson(params.course, params.lesson)
+export default async function LessonPage({
+  params,
+}: {
+  params: Promise<{ course: string; lesson: string }>
+}) {
+  const { course: courseSlug, lesson: lessonSlug } = await params
+  const found = getLesson(courseSlug, lessonSlug)
   if (!found) notFound()
   const { course, lesson } = found
 
