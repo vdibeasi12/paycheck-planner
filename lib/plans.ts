@@ -121,7 +121,10 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     rows: [
       { label: "AI insights & support", free: false, starter: false, premium: true, connected: true },
       { label: "Camera bill & paycheck capture", free: false, starter: false, premium: true, connected: true },
-      { label: "PDF reports & export", free: false, starter: true, premium: true, connected: true },
+      // Was starter-and-up when this lived on a separate Report page; now it's
+      // a "Download PDF summary" action on the Payoff Plan page, which is
+      // itself Accelerate-and-up (see "Snowball & Avalanche payoff" above).
+      { label: "PDF reports & export", free: false, starter: false, premium: true, connected: true },
     ],
   },
   {

@@ -4,6 +4,7 @@ import { createClient } from "@/lib/supabase/server"
 import AmortizationSchedule from "@/app/components/AmortizationSchedule"
 import PaywallOverlay from "@/app/components/PaywallOverlay"
 import InfoHint from "@/app/components/InfoHint"
+import DownloadSummaryButton from "@/app/components/DownloadSummaryButton"
 import { CalendarClock } from "lucide-react"
 
 export default async function AmortizationPage() {
@@ -56,18 +57,25 @@ export default async function AmortizationPage() {
 
   return (
     <div className="mx-auto max-w-6xl space-y-8 px-6 py-10">
-      <div>
-        <div className="flex items-center gap-2">
-          <CalendarClock size={26} className="text-emerald-400" />
-          <h1 className="text-3xl font-bold">Payoff Plan</h1>
-          <InfoHint
-            label="About the Payoff Plan"
-            text="A month-by-month amortization schedule showing how your debts get paid down with the Snowball or Avalanche strategy. Add an extra monthly payment to see how much faster you reach debt-free, then export the full schedule to CSV."
-          />
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <CalendarClock size={26} className="text-emerald-400" />
+            <h1 className="text-3xl font-bold">Payoff Plan</h1>
+            <InfoHint
+              label="About the Payoff Plan"
+              text="A month-by-month amortization schedule showing how your debts get paid down with the Snowball or Avalanche strategy. Add an extra monthly payment to see how much faster you reach debt-free, then export the full schedule to CSV."
+            />
+          </div>
+          <p className="mt-1 text-gray-400">
+            See exactly when each debt is paid off, and export the schedule.
+          </p>
         </div>
-        <p className="mt-1 text-gray-400">
-          See exactly when each debt is paid off, and export the schedule.
-        </p>
+
+        {/* Report was collapsed into this single action -- a broader PDF
+            summary (debts, bills, goals, net worth), separate from the
+            month-by-month schedule PDF/CSV below. */}
+        {canUseAmortization && <DownloadSummaryButton />}
       </div>
 
       {!canUseAmortization ? (

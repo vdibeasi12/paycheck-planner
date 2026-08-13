@@ -16,7 +16,6 @@ import {
   Trophy,
   BarChart3,
   PieChart,
-  FileText,
   Gauge,
   GraduationCap,
   BookOpen,
@@ -31,7 +30,6 @@ import {
 import Logo from "./Logo"
 import GettingStartedModal from "./GettingStartedModal"
 import ProductTour from "./ProductTour"
-import CalendarPeek from "./CalendarPeek"
 import LocaleCurrencySelector from "./LocaleCurrencySelector"
 import { useLocale } from "@/lib/i18n/LocaleProvider"
 import { supabase } from "@/lib/supabase/client"
@@ -47,7 +45,8 @@ const LINKS = [
   { href: "/achievements", labelKey: "nav.achievements", Icon: Trophy },
   { href: "/insights", labelKey: "nav.insights", Icon: BarChart3 },
   { href: "/analytics", labelKey: "nav.analytics", Icon: PieChart },
-  { href: "/report", labelKey: "nav.report", Icon: FileText },
+  // Report was collapsed into a "Download PDF summary" action on the Payoff
+  // Plan page (/amortization) -- no separate Report link/page anymore.
   { href: "/money-score", labelKey: "nav.moneyScore", Icon: Gauge },
   { href: "/university", labelKey: "nav.university", Icon: GraduationCap },
   // Calculators and the 30-Day Challenge are deliberately not linked here --
@@ -195,7 +194,9 @@ export default function Sidebar() {
 
       <div className="my-1 border-t border-gray-800" />
 
-      <CalendarPeek onNavigate={onNavigate} />
+      {/* "Upcoming (30 days)" used to be a separate drawer trigger here --
+          it now lives as an always-visible side panel on the Calendar page
+          itself, next to the month grid, so Calendar is a single link. */}
 
       <button
         onClick={() => openFeedback(onNavigate)}
