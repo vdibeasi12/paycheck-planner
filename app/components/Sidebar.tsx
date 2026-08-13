@@ -19,8 +19,6 @@ import {
   FileText,
   Gauge,
   GraduationCap,
-  Calculator,
-  Rocket,
   BookOpen,
   MessageSquare,
   MessageSquarePlus,
@@ -52,8 +50,9 @@ const LINKS = [
   { href: "/report", labelKey: "nav.report", Icon: FileText },
   { href: "/money-score", labelKey: "nav.moneyScore", Icon: Gauge },
   { href: "/university", labelKey: "nav.university", Icon: GraduationCap },
-  { href: "/calculators", labelKey: "nav.calculators", Icon: Calculator },
-  { href: "/challenge", labelKey: "nav.challenge", Icon: Rocket },
+  // Calculators and the 30-Day Challenge are deliberately not linked here --
+  // Financial Hub already surfaces both as cards, and duplicating them in
+  // the sidebar just adds clutter. Reach them via Financial Hub instead.
   { href: "/blog", labelKey: "nav.financialHub", Icon: BookOpen },
   { href: "/ai-chat", labelKey: "nav.aiChat", Icon: MessageSquare },
   { href: "/account", labelKey: "nav.account", Icon: Settings },
