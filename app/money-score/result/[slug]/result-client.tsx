@@ -110,9 +110,9 @@ export default function MoneyScoreResultClient({
         : "You're making solid progress across the board.";
 
   return (
-    <div className="min-h-screen bg-gray-50 py-12 px-4">
+    <div className="min-h-screen bg-[#020617] py-12 px-4">
       <div className="max-w-2xl mx-auto">
-        <div className="bg-white rounded-2xl shadow-lg p-8 text-center">
+        <div className="bg-[#0f172a] border border-gray-800 rounded-2xl shadow-2xl shadow-black/40 p-8 text-center">
           <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
             Your Money Score
           </p>
@@ -120,22 +120,22 @@ export default function MoneyScoreResultClient({
             className="mx-auto mb-4 flex h-40 w-40 items-center justify-center rounded-full border-8"
             style={{ borderColor: band.color }}
           >
-            <span className="text-5xl font-bold text-gray-900">{score}</span>
+            <span className="text-5xl font-bold text-white">{score}</span>
           </div>
           <h1 className="text-xl font-bold mb-1" style={{ color: band.color }}>
             {headline}
           </h1>
-          <p className="text-gray-600 mb-6">{subhead}</p>
+          <p className="text-gray-400 mb-6">{subhead}</p>
 
           {(showStrongest || weakestTwo.length > 0) && (
             <div className="space-y-2 text-left mb-6 max-w-md mx-auto">
               {showStrongest && (
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-gray-300">
                   {"✅"} Strong {CATEGORY_LABELS[strongest[0]]}
                 </p>
               )}
               {weakestTwo.map(([key]) => (
-                <p key={key} className="text-sm text-gray-700">
+                <p key={key} className="text-sm text-gray-300">
                   {"⚠️"} {CATEGORY_LABELS[key]} needs improvement
                 </p>
               ))}
@@ -144,14 +144,14 @@ export default function MoneyScoreResultClient({
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-8">
             {entries.map(([key, val]) => (
-              <div key={key} className="rounded-lg border border-gray-100 p-3">
+              <div key={key} className="rounded-lg border border-gray-800 p-3">
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-sm font-medium text-gray-700">
+                  <span className="text-sm font-medium text-gray-300">
                     {CATEGORY_LABELS[key]}
                   </span>
-                  <span className="text-sm font-semibold text-gray-900">{val.percent}%</span>
+                  <span className="text-sm font-semibold text-white">{val.percent}%</span>
                 </div>
-                <div className="h-1.5 w-full bg-gray-100 rounded-full overflow-hidden">
+                <div className="h-1.5 w-full bg-gray-800 rounded-full overflow-hidden">
                   <div className="h-full bg-emerald-500" style={{ width: `${val.percent}%` }} />
                 </div>
               </div>
@@ -159,16 +159,16 @@ export default function MoneyScoreResultClient({
           </div>
 
           {isLow && (
-            <div className="mb-8 rounded-xl border border-emerald-100 bg-emerald-50 p-5 text-left">
-              <p className="font-semibold text-gray-900 mb-1">Not sure where to start?</p>
-              <p className="text-sm text-gray-600 mb-3">
+            <div className="mb-8 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-left">
+              <p className="font-semibold text-white mb-1">Not sure where to start?</p>
+              <p className="text-sm text-gray-300 mb-3">
                 Paycheck Planner University has free, step-by-step lessons on exactly the basics
                 that move a score like this -- budgeting, debt, and building your first safety
                 net.
               </p>
               <Link
                 href="/university"
-                className="inline-block px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
+                className="inline-block px-4 py-2 rounded-lg bg-emerald-500 text-black text-sm font-semibold hover:bg-emerald-400"
               >
                 Explore Paycheck Planner University
               </Link>
@@ -178,7 +178,7 @@ export default function MoneyScoreResultClient({
           <div className="flex flex-wrap justify-center gap-3 mb-8">
             <button
               onClick={copyLink}
-              className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50"
+              className="px-4 py-2 rounded-lg border border-gray-700 text-gray-300 text-sm font-medium hover:bg-white/5"
             >
               {copied ? "Link copied!" : "Copy share link"}
             </button>
@@ -186,7 +186,7 @@ export default function MoneyScoreResultClient({
               href={`https://twitter.com/intent/tweet?text=${tweetText}&url=${encodeURIComponent(shareUrl)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50"
+              className="px-4 py-2 rounded-lg border border-gray-700 text-gray-300 text-sm font-medium hover:bg-white/5"
             >
               Share on X
             </a>
@@ -194,19 +194,19 @@ export default function MoneyScoreResultClient({
               href={`https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="px-4 py-2 rounded-lg border border-gray-200 text-sm font-medium hover:bg-gray-50"
+              className="px-4 py-2 rounded-lg border border-gray-700 text-gray-300 text-sm font-medium hover:bg-white/5"
             >
               Share on Facebook
             </a>
           </div>
 
-          <div className="border-t border-gray-100 pt-8">
+          <div className="border-t border-gray-800 pt-8">
             {!unlocked ? (
               <>
-                <h2 className="text-lg font-bold text-gray-900 mb-2">
+                <h2 className="text-lg font-bold text-white mb-2">
                   Get Your Personalized Financial Progress Plan
                 </h2>
-                <p className="text-gray-600 mb-4">
+                <p className="text-gray-400 mb-4">
                   Enter your email and we'll send your personalized plan to raise your Money
                   Score straight to your inbox.
                 </p>
@@ -220,30 +220,30 @@ export default function MoneyScoreResultClient({
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="flex-1 px-4 py-3 rounded-lg border border-gray-300 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                    className="flex-1 px-4 py-3 rounded-lg border border-gray-700 bg-[#020617] text-white placeholder-gray-500 outline-none focus:ring-2 focus:ring-emerald-500 focus:border-emerald-400"
                   />
                   <button
                     type="submit"
                     disabled={submitting}
-                    className="px-5 py-3 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50"
+                    className="px-5 py-3 rounded-lg bg-emerald-500 text-black font-semibold hover:bg-emerald-400 disabled:opacity-50"
                   >
                     {submitting ? "Sending…" : "Get My Plan"}
                   </button>
                 </form>
-                {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+                {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
               </>
             ) : (
               <>
-                <h2 className="text-lg font-bold text-gray-900 mb-2">
+                <h2 className="text-lg font-bold text-white mb-2">
                   {"Your plan is on the way 🎉"}
                 </h2>
-                <p className="text-gray-600 mb-4">
+                <p className="text-gray-400 mb-4">
                   Check your inbox -- your personalized plan just landed. Paycheck Planner can
                   help you build a real plan to improve every category above.
                 </p>
                 <Link
                   href="/signup"
-                  className="inline-block px-6 py-3 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700"
+                  className="inline-block px-6 py-3 rounded-lg bg-emerald-500 text-black font-semibold hover:bg-emerald-400"
                 >
                   Start Free with Paycheck Planner
                 </Link>
@@ -252,8 +252,8 @@ export default function MoneyScoreResultClient({
           </div>
         </div>
 
-        <p className="text-center text-sm text-gray-400 mt-6">
-          <Link href="/money-score" className="hover:underline">
+        <p className="text-center text-sm text-gray-500 mt-6">
+          <Link href="/money-score" className="hover:underline hover:text-gray-300">
             Retake the quiz
           </Link>
         </p>

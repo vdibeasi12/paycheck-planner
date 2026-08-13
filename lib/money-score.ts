@@ -193,7 +193,7 @@ export interface ScoreBand {
 
 export function getScoreBand(score: number): ScoreBand {
   if (score >= 80) {
-    return { key: "excellent", label: "Excellent", color: "#059669" };
+    return { key: "excellent", label: "Excellent", color: "#34d399" };
   }
   if (score >= 60) {
     return { key: "good", label: "Good", color: "#10b981" };
@@ -201,9 +201,9 @@ export function getScoreBand(score: number): ScoreBand {
   if (score >= 40) {
     return { key: "needsImprovement", label: "Needs Improvement", color: "#f59e0b" };
   }
-  return { key: "atRisk", label: "At Risk", color: "#dc2626" };
+  return { key: "atRisk", label: "At Risk", color: "#f87171" };
 }
 
 export function generateShareSlug(): string {
   return Math.random().toString(36).slice(2, 10);
-}
+}
