@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
+import confetti from "canvas-confetti";
 import { CATEGORY_LABELS, type MoneyScoreCategory } from "@/lib/money-score";
 
 interface Props {
@@ -24,18 +25,46 @@ export default function MoneyScoreResultClient({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const firedConfetti = useRef(false);
 
   const entries = Object.entries(categoryScores) as [
     MoneyScoreCategory,
     { earned: number; max: number; percent: number }
   ][];
-  const sorted = [...entries].sort((a, b) => b[1].percent - a[1].percent);
-  const strongest = sorted[0];
-  const weakest = sorted[sorted.length - 1];
+  const byPercentDesc = [...entries].sort((a, b) => b[1].percent - a[1].percent);
+  const byPercentAsc = [...entries].sort((a, b) => a[1].percent - b[1].percent);
+  const strongest = byPercentDesc[0];
+  const showStrongest = strongest && strongest[1].percent >= 70;
+  const needsWork = byPercentAsc.filter(([, v]) => v.percent < 70);
+  const weakestTwo = needsWork.slice(0, 2);
+
+  const isExcellent = band.key === "excellent";
+  const isLow = band.key === "needsImprovement" || band.key === "atRisk";
+
+  useEffect(() => {
+    if (!isExcellent || firedConfetti.current) return;
+    firedConfetti.current = true;
+    const colors = ["#059669", "#34d399", "#a7f3d0"];
+    confetti({ particleCount: 90, spread: 100, origin: { y: 0.6 }, colors });
+    const t1 = setTimeout(
+      () =>
+        confetti({ particleCount: 50, angle: 60, spread: 70, origin: { x: 0, y: 0.7 }, colors }),
+      200
+    );
+    const t2 = setTimeout(
+      () =>
+        confetti({ particleCount: 50, angle: 120, spread: 70, origin: { x: 1, y: 0.7 }, colors }),
+      200
+    );
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+    };
+  }, [isExcellent]);
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
   const tweetText = encodeURIComponent(
-    `I just took the Paycheck Planner Money Score quiz and scored ${score}/100. See how you compare:`
+    `I scored ${score}/100 on the Paycheck Planner Money Score. What's yours?`
   );
 
   async function handleUnlock(e: FormEvent) {
@@ -64,6 +93,22 @@ export default function MoneyScoreResultClient({
     setTimeout(() => setCopied(false), 2000);
   }
 
+  const headline = isExcellent
+    ? "You're Crushing It! 🎉"
+    : isLow
+      ? "Let's Turn This Around"
+      : "You're Making Progress";
+
+  const subhead = isExcellent
+    ? "Your money habits are paying off -- literally. Keep it up."
+    : isLow
+      ? "Every financial journey starts somewhere. Here's exactly where to focus first."
+      : needsWork.length > 0
+        ? `You're making progress, but there ${needsWork.length === 1 ? "is" : "are"} ${needsWork.length} area${
+            needsWork.length === 1 ? "" : "s"
+          } holding you back.`
+        : "You're making solid progress across the board.";
+
   return (
     <div className="min-h-screen bg-gray-50 py-12 px-4">
       <div className="max-w-2xl mx-auto">
@@ -78,11 +123,24 @@ export default function MoneyScoreResultClient({
             <span className="text-5xl font-bold text-gray-900">{score}</span>
           </div>
           <h1 className="text-xl font-bold mb-1" style={{ color: band.color }}>
-            {band.label}
+            {headline}
           </h1>
-          <p className="text-gray-600 mb-6">
-            {`You're doing well with ${CATEGORY_LABELS[strongest[0]]}, but your ${CATEGORY_LABELS[weakest[0]]} could use improvement.`}
-          </p>
+          <p className="text-gray-600 mb-6">{subhead}</p>
+
+          {(showStrongest || weakestTwo.length > 0) && (
+            <div className="space-y-2 text-left mb-6 max-w-md mx-auto">
+              {showStrongest && (
+                <p className="text-sm text-gray-700">
+                  {"✅"} Strong {CATEGORY_LABELS[strongest[0]]}
+                </p>
+              )}
+              {weakestTwo.map(([key]) => (
+                <p key={key} className="text-sm text-gray-700">
+                  {"⚠️"} {CATEGORY_LABELS[key]} needs improvement
+                </p>
+              ))}
+            </div>
+          )}
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-left mb-8">
             {entries.map(([key, val]) => (
@@ -99,6 +157,23 @@ export default function MoneyScoreResultClient({
               </div>
             ))}
           </div>
+
+          {isLow && (
+            <div className="mb-8 rounded-xl border border-emerald-100 bg-emerald-50 p-5 text-left">
+              <p className="font-semibold text-gray-900 mb-1">Not sure where to start?</p>
+              <p className="text-sm text-gray-600 mb-3">
+                Paycheck Planner University has free, step-by-step lessons on exactly the basics
+                that move a score like this -- budgeting, debt, and building your first safety
+                net.
+              </p>
+              <Link
+                href="/university"
+                className="inline-block px-4 py-2 rounded-lg bg-emerald-600 text-white text-sm font-semibold hover:bg-emerald-700"
+              >
+                Explore Paycheck Planner University
+              </Link>
+            </div>
+          )}
 
           <div className="flex flex-wrap justify-center gap-3 mb-8">
             <button
@@ -129,10 +204,11 @@ export default function MoneyScoreResultClient({
             {!unlocked ? (
               <>
                 <h2 className="text-lg font-bold text-gray-900 mb-2">
-                  Want to improve your score?
+                  Get Your Personalized Financial Progress Plan
                 </h2>
                 <p className="text-gray-600 mb-4">
-                  Get your free personalized plan to raise your Money Score, straight to your inbox.
+                  Enter your email and we'll send your personalized plan to raise your Money
+                  Score straight to your inbox.
                 </p>
                 <form
                   onSubmit={handleUnlock}
@@ -151,7 +227,7 @@ export default function MoneyScoreResultClient({
                     disabled={submitting}
                     className="px-5 py-3 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-50"
                   >
-                    {submitting ? "Sending\u2026" : "Get My Plan"}
+                    {submitting ? "Sending…" : "Get My Plan"}
                   </button>
                 </form>
                 {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
@@ -159,10 +235,11 @@ export default function MoneyScoreResultClient({
             ) : (
               <>
                 <h2 className="text-lg font-bold text-gray-900 mb-2">
-                  {"Your plan is on the way \uD83C\uDF89"}
+                  {"Your plan is on the way 🎉"}
                 </h2>
                 <p className="text-gray-600 mb-4">
-                  Paycheck Planner can help you build a real plan to improve every category above.
+                  Check your inbox -- your personalized plan just landed. Paycheck Planner can
+                  help you build a real plan to improve every category above.
                 </p>
                 <Link
                   href="/signup"
