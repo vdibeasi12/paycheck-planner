@@ -37,23 +37,33 @@ export default function ConnectedBankAccounts() {
   const load = useCallback(async () => {
     try {
       const [itemsRes, assetsRes] = await Promise.all([
-        fetch("/api/plaid/items?product=auth"),
+        fetch("/api/plaid/items"),
         supabase.from("assets").select("id, name, asset_type, value").eq("source", "plaid"),
       ])
       const itemsData = await itemsRes.json().catch(() => ({}))
       setEligible(!!itemsData?.eligible)
       setEnabled(!!itemsData?.enabled)
-      setBanks(Array.isArray(itemsData?.items) ? itemsData.items : [])
+      const items: Bank[] = Array.isArray(itemsData?.items) ? itemsData.items : []
+      setBanks(items)
       setAssets(assetsRes.data ? (assetsRes.data as BankAsset[]) : [])
+      return items
     } catch {
       setEligible(false)
+      return []
     } finally {
       setLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    load()
+    load().then((items) => {
+      const oneHourMs = 60 * 60 * 1000
+      const stale = items.some((b) => !b.updated_at || Date.now() - new Date(b.updated_at).getTime() > oneHourMs)
+      if (items.length > 0 && stale) {
+        refresh()
+      }
+    })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [load])
 
   const totalBalance = assets.reduce((sum, a) => sum + (Number(a.value) || 0), 0)

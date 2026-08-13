@@ -47,21 +47,27 @@ export async function POST() {
 
   const totals = { items: 0, accounts: 0, liabilities: 0, debts: 0, assets: 0 }
   for (const it of items ?? []) {
+    let touched = false
     try {
-      if (it.product === "auth") {
-        const r = await syncBalancesForItem(sb, user.id, it.access_token, it.item_id)
-        totals.items += 1
-        totals.accounts += r.accounts
-        totals.assets += r.assets
-      } else {
-        const r = await syncLiabilitiesForItem(sb, user.id, it.access_token, it.item_id)
-        totals.items += 1
-        totals.accounts += r.accounts
-        totals.liabilities += r.liabilities
-        totals.debts += r.debts
-      }
+      const r = await syncLiabilitiesForItem(sb, user.id, it.access_token, it.item_id)
+      totals.accounts += r.accounts
+      totals.liabilities += r.liabilities
+      totals.debts += r.debts
+      touched = true
     } catch (e) {
-      console.error("Plaid sync failed for item", it.item_id, (e as any)?.response?.data || (e as any)?.message || e)
+      console.error("Plaid liabilities sync failed for item", it.item_id, (e as any)?.response?.data || (e as any)?.message || e)
+    }
+    try {
+      const r = await syncBalancesForItem(sb, user.id, it.access_token, it.item_id)
+      totals.accounts += r.accounts
+      totals.assets += r.assets
+      touched = true
+    } catch (e) {
+      console.error("Plaid balance sync failed for item", it.item_id, (e as any)?.response?.data || (e as any)?.message || e)
+    }
+    if (touched) {
+      totals.items += 1
+    } else {
       await sb
         .from("plaid_items")
         .update({ status: "error", updated_at: new Date().toISOString() })
