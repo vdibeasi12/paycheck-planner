@@ -12,6 +12,12 @@ module.exports = {
         bold: "600",
         extrabold: "700",
       },
+      colors: {
+        gray: {
+          400: "#d1d5db",
+          500: "#9ca3af",
+        },
+      },
     },
   },
   plugins: [],
