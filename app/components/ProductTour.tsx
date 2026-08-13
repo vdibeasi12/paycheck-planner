@@ -6,21 +6,32 @@ import "driver.js/dist/driver.css"
 
 type TourStep = { element?: string; title: string; description: string }
 
-// Order matches the sidebar's top-to-bottom link order (Dashboard, Calendar,
-// Debts, Payoff Plan, Bills, Income, ..., University, ..., AI Chat) so the
-// highlight moves straight down the nav instead of jumping around. Admin is
-// intentionally excluded -- it's not part of the regular-user sidebar and
-// has no data-tour attribute.
+// Order matches the sidebar's top-to-bottom order exactly (Dashboard,
+// Getting Started, Calendar, Debts, Payoff Plan, Bills, Income, Goals,
+// Achievements, Insights, Analytics, Money Score, University, Financial Hub,
+// AI Chat, Account, Feedback, Sign out) so the highlight walks straight down
+// the nav instead of jumping around. Admin is intentionally excluded -- it's
+// only shown to admin accounts and has no data-tour attribute.
 const STEPS: TourStep[] = [
   { title: "Welcome to Paycheck Planner", description: "Here's a quick tour of where everything lives. It takes about a minute." },
   { element: '[data-tour="dash-title"]', title: "Your dashboard", description: "Your money at a glance - safe-to-spend, balances, and progress all live here." },
+  { element: '[data-tour="nav-getting-started"]', title: "Getting Started checklist", description: "Reopen this anytime to see what's left to set up for your plan." },
   { element: '[data-tour="nav-calendar"]', title: "Your calendar", description: "Bills, debts, and income all in one month view, with your next 30 days always visible alongside it." },
   { element: '[data-tour="nav-debts"]', title: "Add your debts", description: "Balances, interest rates (APR), and minimum payments power your payoff plan." },
   { element: '[data-tour="nav-amortization"]', title: "Your Payoff Plan", description: "See your debt-free date and the order we'll knock out each balance. Download a PDF summary anytime from this page." },
   { element: '[data-tour="nav-bills"]', title: "Track your bills", description: "Add recurring bills so nothing slips through the cracks." },
   { element: '[data-tour="nav-income"]', title: "Add your income", description: "Start here. Enter each paycheck and how often it arrives so the budget math is right." },
+  { element: '[data-tour="nav-goals"]', title: "Set your goals", description: "Create savings targets and other financial goals to work toward." },
+  { element: '[data-tour="nav-achievements"]', title: "Achievements", description: "Milestones you unlock as you build better money habits." },
+  { element: '[data-tour="nav-insights"]', title: "Insights", description: "A closer look at your spending and progress trends." },
+  { element: '[data-tour="nav-analytics"]', title: "Analytics", description: "Deeper charts and breakdowns of your finances over time." },
+  { element: '[data-tour="nav-money-score"]', title: "Your Money Score", description: "A quick read on your financial health, with next steps to improve it." },
   { element: '[data-tour="nav-university"]', title: "Paycheck Planner University", description: "Short lessons on budgeting, paychecks, debt payoff, saving, credit, and financial freedom. Finish a course to unlock the next one." },
+  { element: '[data-tour="nav-blog"]', title: "Financial Hub", description: "Articles, free calculators, and the 30-Day Challenge live here." },
   { element: '[data-tour="nav-ai-chat"]', title: "AI insights", description: "Ask questions about your numbers in plain English. Included with Accelerate and Autopilot." },
+  { element: '[data-tour="nav-account"]', title: "Account settings", description: "Manage your plan, security (2FA), notifications, and connected banks." },
+  { element: '[data-tour="nav-feedback"]', title: "Send feedback", description: "Tell us what's working or what you'd like to see next." },
+  { element: '[data-tour="nav-sign-out"]', title: "Sign out", description: "Sign out of your account from here anytime." },
   { title: "You're all set", description: "Add your income and debts to see your payoff date. You can reopen this tour anytime from Getting Started." },
 ]
 

@@ -163,6 +163,7 @@ export default function Sidebar() {
                   onNavigate?.()
                   setGsOpen(true)
                 }}
+                data-tour="nav-getting-started"
                 className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-gray-300 transition hover:bg-white/5 hover:text-white"
               >
                 <Sparkles size={20} className="text-gray-400" />
@@ -200,6 +201,7 @@ export default function Sidebar() {
 
       <button
         onClick={() => openFeedback(onNavigate)}
+        data-tour="nav-feedback"
         className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-gray-300 transition hover:bg-white/5 hover:text-white"
       >
         <MessageSquarePlus size={20} className="text-gray-400" />
@@ -211,6 +213,7 @@ export default function Sidebar() {
           onNavigate?.()
           signOut()
         }}
+        data-tour="nav-sign-out"
         className="mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-gray-400 transition hover:bg-white/5 hover:text-white"
       >
         <LogOut size={20} className="text-gray-500" />
