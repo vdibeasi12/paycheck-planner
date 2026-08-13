@@ -138,7 +138,12 @@ export default async function RootLayout({
               </header>
             )}
 
-            <main className="flex-1">
+            {/* The fixed top-right language/currency widget (Sidebar.tsx, "fixed
+                top-4 right-4") floats over whatever is at the top-right of the
+                viewport. Logged-in pages often put a button/badge there (e.g.
+                the Payoff Plan header), so give every logged-in page enough
+                top clearance here, once, instead of patching each page. */}
+            <main className={`flex-1 ${user ? "md:pt-20" : ""}`}>
               {children}
             </main>
 
