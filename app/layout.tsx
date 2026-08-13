@@ -3,6 +3,7 @@ import Link from "next/link"
 import Logo from "./components/Logo"
 import Footer from "./components/Footer"
 import NativeInit from "./components/NativeInit"
+import BiometricLock from "./components/BiometricLock"
 import AttributionCapture from "./components/AttributionCapture"
 import AppNav from "./components/AppNav"
 import Sidebar from "./components/Sidebar"
@@ -108,6 +109,7 @@ export default async function RootLayout({
       <body className="bg-[#020617] text-white">
         <LocaleProvider initialLocale={locale} initialCurrency={currency}>
           <NativeInit />
+          {user && <BiometricLock />}
           <AttributionCapture />
 
           {/* Logged-in users get the left sidebar (desktop) + mobile drawer. */}
@@ -146,4 +148,4 @@ export default async function RootLayout({
       </body>
     </html>
   )
-}
+}

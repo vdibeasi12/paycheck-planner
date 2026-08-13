@@ -19,7 +19,9 @@ import { isNativeApp } from "@/lib/platform"
  * so these imports only actually execute on device.
  *
  * NOTE (Guideline 4.2 native touches — status bar, splash screen, Android
- * back button, biometric lock — slot into this same effect next.)
+ * back button — slot into this same effect next. Biometric app lock lives
+ * separately in BiometricLock.tsx / lib/biometric.ts, since it only applies
+ * to logged-in users and needs its own lifecycle.)
  */
 export default function NativeInit() {
   const router = useRouter()

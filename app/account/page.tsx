@@ -4,6 +4,7 @@ import { useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { useRouter } from "next/navigation";
 import MfaSetup from "@/components/MfaSetup";
+import BiometricLockToggle from "@/components/BiometricLockToggle";
 import NotificationPreferences from "@/components/NotificationPreferences";
 import ReferralCard from "@/components/ReferralCard";
 import DeleteAccount from "@/components/DeleteAccount";
@@ -65,6 +66,9 @@ export default function AccountPage() {
 
         {/* Two-factor */}
         <MfaSetup onVerified={signOut} />
+
+        {/* Device-level biometric app lock (native app only) */}
+        <BiometricLockToggle />
 
         {/* Change password */}
         <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-6 shadow-sm">
@@ -136,4 +140,4 @@ export default function AccountPage() {
       </div>
     </div>
   );
-}
+}

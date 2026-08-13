@@ -54,4 +54,8 @@
     <!-- Permissions -->
 
     <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- Biometric app lock (see app/components/BiometricLock.tsx). Required
+         for BiometricPrompt (fingerprint/face) on Android. -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 </manifest>
