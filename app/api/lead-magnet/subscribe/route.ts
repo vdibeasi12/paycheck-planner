@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { resend } from "@/lib/email"
 import { SEQUENCE } from "@/lib/email-sequence"
 import { checkAnonRateLimit, getClientIp } from "@/lib/anonRateLimit"
+import { track } from "@/lib/track"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -52,6 +53,10 @@ export async function POST(req: Request) {
 
   if (error || !row) {
     return NextResponse.json({ error: "Could not save your request" }, { status: 500 })
+  }
+
+  if (row.last_sequence_step === 0) {
+    await track("lead_magnet_subscribed", { metadata: { magnet: "worksheet" } })
   }
 
   // Send the day-0 worksheet email right away rather than waiting for

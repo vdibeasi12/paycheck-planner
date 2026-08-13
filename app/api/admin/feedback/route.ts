@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { requireAdmin, serviceClient } from "@/lib/adminGuard";
+import { requireAdmin, serviceClient, logAdminAction } from "@/lib/adminGuard";
 
 export const dynamic = "force-dynamic";
 
@@ -35,6 +35,15 @@ export async function PATCH(req: Request) {
   const sb = serviceClient();
   const { error } = await sb.from("feedback").update({ status }).eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAdminAction({
+    actorId: gate.userId,
+    actorEmail: gate.userEmail,
+    action: "feedback_status_change",
+    targetId: id,
+    metadata: { status },
+  });
+
   return NextResponse.json({ ok: true });
 }
 
@@ -51,5 +60,13 @@ export async function DELETE(req: Request) {
   const sb = serviceClient();
   const { error } = await sb.from("feedback").delete().eq("id", id);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  await logAdminAction({
+    actorId: gate.userId,
+    actorEmail: gate.userEmail,
+    action: "feedback_delete",
+    targetId: id,
+  });
+
   return NextResponse.json({ ok: true });
-}
+}

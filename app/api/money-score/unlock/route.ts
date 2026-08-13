@@ -7,6 +7,7 @@ import {
   type MoneyScoreCategoryResult,
 } from "@/lib/money-score";
 import { buildMoneyScorePlanEmail } from "@/lib/money-score-email";
+import { track } from "@/lib/track";
 
 export async function POST(req: Request) {
   try {
@@ -30,6 +31,13 @@ export async function POST(req: Request) {
       console.error("money-score unlock error", error);
       return NextResponse.json({ error: "Failed to save email" }, { status: 500 });
     }
+
+    // This is the actual conversion point in the marketing flow (email
+    // captured in exchange for the personalized plan) -- worth its own
+    // event distinct from money_score_completed.
+    await track("money_score_plan_unlocked", {
+      metadata: { slug: data.share_slug, score: data.score },
+    });
 
     // Best-effort: send the personalized plan email. A failure here should
     // never block the user from seeing their unlocked results -- they've

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { checkAnonRateLimit, getClientIp } from "@/lib/anonRateLimit"
+import { track } from "@/lib/track"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -41,6 +42,8 @@ export async function POST(req: Request) {
     console.error("university waitlist error", error)
     return NextResponse.json({ error: "Could not save your request" }, { status: 500 })
   }
+
+  await track("lead_magnet_subscribed", { metadata: { magnet: "university", source } })
 
   return NextResponse.json({ ok: true })
 }

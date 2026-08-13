@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import Stripe from "stripe"
 import { createClient } from "@supabase/supabase-js"
 import { planForPriceId, type TierId } from "@/lib/plans"
+import { track } from "@/lib/track"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: "2026-02-25.clover",
@@ -171,6 +172,10 @@ export async function POST(req: Request) {
           { userId, email }
         )
         if (sub) await upsertSubscription(sub, userId)
+        await track("subscription_started", {
+          userId,
+          metadata: { plan, interval: sub?.items.data[0]?.price?.recurring?.interval ?? null },
+        })
         break
       }
 
@@ -208,6 +213,7 @@ export async function POST(req: Request) {
           { userId: sub.metadata?.userId, email: null }
         )
         await upsertSubscription(sub)
+        await track("subscription_canceled", { userId: sub.metadata?.userId ?? null })
         break
       }
 
@@ -220,4 +226,4 @@ export async function POST(req: Request) {
   }
 
   return NextResponse.json({ received: true })
-}
+}

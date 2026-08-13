@@ -13,6 +13,8 @@ import {
   Trash2,
   History,
   RefreshCw,
+  ShieldAlert,
+  Activity,
 } from "lucide-react";
 import AdminFeedback from "@/app/components/AdminFeedback";
 
@@ -62,6 +64,19 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
   reset_password: "Password reset link",
   reset_mfa: "2FA reset",
   delete_user: "Deleted user",
+  feedback_status_change: "Feedback status change",
+  feedback_delete: "Feedback deleted",
+};
+
+const EVENT_LABELS: Record<string, string> = {
+  signup_completed: "Signups",
+  subscription_started: "Subscriptions started",
+  subscription_canceled: "Subscriptions canceled",
+  bank_connected: "Banks connected (Autopilot)",
+  money_score_completed: "Money Score quizzes completed",
+  money_score_plan_unlocked: "Money Score plans unlocked",
+  lead_magnet_subscribed: "Lead magnet signups",
+  referral_completed: "Referrals completed",
 };
 
 const PLAN_LABELS: Record<string, string> = {
@@ -87,10 +102,54 @@ export default function AdminPage() {
   const [auditOpen, setAuditOpen] = useState(false);
   const [auditLog, setAuditLog] = useState<AuditRow[]>([]);
   const [auditStatus, setAuditStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
+  const [events, setEvents] = useState<{
+    totals: Record<string, number>;
+    last30: Record<string, number>;
+  } | null>(null);
+  const [securityOpen, setSecurityOpen] = useState(false);
+  const [security, setSecurity] = useState<{
+    admins: { id: string; email: string; hasVerifiedFactor: boolean; factorCount: number }[];
+    rateLimitBlocks24h: { bucket: string; ip: string; count: number; window_start: string }[];
+  } | null>(null);
+  const [securityStatus, setSecurityStatus] = useState<"idle" | "loading" | "ok" | "error">("idle");
 
   useEffect(() => {
     load();
+    loadEvents();
   }, []);
+
+  async function loadEvents() {
+    try {
+      const res = await fetch("/api/admin/events");
+      if (!res.ok) return;
+      const data = await res.json();
+      setEvents({ totals: data.totals || {}, last30: data.last30 || {} });
+    } catch {
+      /* non-fatal -- the rest of the dashboard still works */
+    }
+  }
+
+  async function loadSecurity() {
+    setSecurityStatus("loading");
+    try {
+      const res = await fetch("/api/admin/security");
+      if (!res.ok) {
+        setSecurityStatus("error");
+        return;
+      }
+      const data = await res.json();
+      setSecurity({ admins: data.admins || [], rateLimitBlocks24h: data.rateLimitBlocks24h || [] });
+      setSecurityStatus("ok");
+    } catch {
+      setSecurityStatus("error");
+    }
+  }
+
+  function toggleSecurity() {
+    const next = !securityOpen;
+    setSecurityOpen(next);
+    if (next && securityStatus === "idle") loadSecurity();
+  }
 
   async function load() {
     try {
@@ -380,6 +439,30 @@ export default function AdminPage() {
           </div>
         </div>
 
+        {events && (Object.keys(events.totals).length > 0 ? (
+          <div className="mt-4 rounded-2xl border border-gray-700 bg-[#0f172a] p-5 shadow-sm">
+            <div className="flex items-center gap-2">
+              <Activity size={16} className="text-emerald-500" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+                Marketing &amp; product events (last 30 days / all-time)
+              </h2>
+            </div>
+            <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
+              {Object.keys(EVENT_LABELS).map((key) => (
+                <div key={key} className="rounded-xl border border-gray-800 px-3 py-2">
+                  <p className="text-xs text-gray-500">{EVENT_LABELS[key]}</p>
+                  <p className="mt-1 text-lg font-semibold text-white">
+                    {events.last30[key] ?? 0}
+                    <span className="ml-1 text-xs font-normal text-gray-500">
+                      / {events.totals[key] ?? 0} all-time
+                    </span>
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null)}
+
         {actionMsg && (
           <div
             className={`mt-6 rounded-xl border p-4 text-sm ${
@@ -623,6 +706,82 @@ export default function AdminPage() {
           )}
         </div>
 
+        <div className="mt-6 rounded-2xl border border-gray-700 bg-[#0f172a] shadow-sm">
+          <button
+            type="button"
+            onClick={toggleSecurity}
+            className="flex w-full items-center justify-between px-5 py-4 text-left"
+          >
+            <span className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wide text-gray-300">
+              <ShieldAlert size={16} /> Security
+            </span>
+            <span className="text-xs text-gray-500">{securityOpen ? "Hide" : "Show"}</span>
+          </button>
+
+          {securityOpen && (
+            <div className="border-t border-gray-700 px-5 py-4 space-y-6">
+              {securityStatus === "loading" && (
+                <p className="py-6 text-center text-sm text-gray-400">Loading...</p>
+              )}
+              {securityStatus === "error" && (
+                <p className="py-6 text-center text-sm text-rose-300">Could not load security data.</p>
+              )}
+              {securityStatus === "ok" && security && (
+                <>
+                  <div>
+                    <h3 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Admin accounts &amp; 2FA
+                    </h3>
+                    <ul className="mt-2 divide-y divide-gray-800">
+                      {security.admins.map((a) => (
+                        <li key={a.id} className="flex items-center justify-between py-2 text-sm">
+                          <span className="text-gray-200">{a.email}</span>
+                          <span
+                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${
+                              a.hasVerifiedFactor
+                                ? "bg-emerald-100 text-emerald-700"
+                                : "bg-rose-500/10 text-rose-300"
+                            }`}
+                          >
+                            {a.hasVerifiedFactor ? "2FA verified" : "No verified 2FA"}
+                          </span>
+                        </li>
+                      ))}
+                      {security.admins.length === 0 && (
+                        <li className="py-2 text-sm text-gray-400">No admin accounts found.</li>
+                      )}
+                    </ul>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                      Rate-limit blocks, last 24h
+                    </h3>
+                    <p className="mt-1 text-xs text-gray-500">
+                      IPs that exceeded 5 requests/hour on a public subscribe form -- an early signal of
+                      bot or scraper traffic.
+                    </p>
+                    {security.rateLimitBlocks24h.length === 0 ? (
+                      <p className="mt-2 text-sm text-gray-400">No rate-limit blocks in the last 24 hours.</p>
+                    ) : (
+                      <ul className="mt-2 divide-y divide-gray-800">
+                        {security.rateLimitBlocks24h.map((r, i) => (
+                          <li key={i} className="flex items-center justify-between py-2 text-sm">
+                            <span className="text-gray-300">
+                              {r.bucket} <span className="text-gray-500">from</span> {r.ip}
+                            </span>
+                            <span className="text-gray-400">{r.count} requests</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+
         <AdminFeedback />
       </div>
 
@@ -700,4 +859,4 @@ function Line({ label, value, strong }: { label: string; value: string; strong?:
       <dd className={strong ? "font-semibold text-white" : "text-gray-300"}>{value}</dd>
     </div>
   );
-}
+}

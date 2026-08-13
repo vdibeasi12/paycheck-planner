@@ -4,6 +4,7 @@ import { resend } from "@/lib/email"
 import { getChallengeDay } from "@/lib/challenge-days"
 import { challengeEmailSubject, challengeEmailHtml } from "@/lib/challenge-email"
 import { checkAnonRateLimit, getClientIp } from "@/lib/anonRateLimit"
+import { track } from "@/lib/track"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -64,6 +65,12 @@ export async function POST(req: Request) {
 
   if (error || !row) {
     return NextResponse.json({ error: "Could not save your request" }, { status: 500 })
+  }
+
+  // Same "first join" signal used below to gate the day-1 email -- only
+  // count it once, not on every re-submit of an already-subscribed email.
+  if (row.last_day_sent === 0) {
+    await track("lead_magnet_subscribed", { userId, metadata: { magnet: "challenge" } })
   }
 
   // Day 1 fires immediately -- same reasoning as the worksheet's day-0
