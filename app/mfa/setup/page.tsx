@@ -4,14 +4,7 @@ import { Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
 import MfaSetup from "@/components/MfaSetup"
-
-// Only allow same-origin relative redirects (prevents open-redirect abuse).
-function safeRedirect(raw: string | null): string {
-  if (raw && raw.startsWith("/") && !raw.startsWith("//")) {
-    return raw
-  }
-  return "/dashboard"
-}
+import { safeRedirect } from "@/lib/safeRedirect"
 
 function MfaSetupRequired() {
   const searchParams = useSearchParams()

@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import Link from "next/link";
 import { usePlaidLink } from "react-plaid-link";
-import { Landmark, RefreshCw, Loader2 } from "lucide-react";
+import { Landmark, RefreshCw, Loader2, ShieldCheck } from "lucide-react";
 
 type Props = {
   onLinked?: () => void;
@@ -18,6 +19,7 @@ export default function PlaidConnectButton({ onLinked, itemId, label, purpose = 
   const [linkToken, setLinkToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [mfaRequired, setMfaRequired] = useState<"setup" | "step_up" | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -28,7 +30,16 @@ export default function PlaidConnectButton({ onLinked, itemId, label, purpose = 
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(itemId ? { item_id: itemId } : { purpose }),
         });
-        if (!res.ok) return;
+        if (!res.ok) {
+          // Every other ineligibility (wrong tier, feature disabled) stays
+          // silent by design -- no token, no button, nothing to act on. MFA
+          // is the one case worth surfacing: the user IS on Autopilot, they
+          // just need one more step, so tell them what it is.
+          const data = await res.json().catch(() => null);
+          if (active && data?.code === "mfa_setup_required") setMfaRequired("setup");
+          if (active && data?.code === "mfa_step_up_required") setMfaRequired("step_up");
+          return;
+        }
         const data = await res.json().catch(() => null);
         if (active && data?.link_token) setLinkToken(data.link_token);
       } catch {
@@ -85,6 +96,27 @@ export default function PlaidConnectButton({ onLinked, itemId, label, purpose = 
     onSuccess: (publicToken) => exchange(publicToken),
   });
 
+  if (mfaRequired) {
+    return (
+      <div className="flex items-start gap-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm">
+        <ShieldCheck size={16} className="mt-0.5 shrink-0 text-amber-400" />
+        <div>
+          <p className="text-amber-200">
+            {mfaRequired === "setup"
+              ? "Autopilot requires two-factor authentication. Set it up to connect your bank."
+              : "Verify your two-factor code, then come back to connect your bank."}
+          </p>
+          <Link
+            href={mfaRequired === "setup" ? "/mfa/setup" : "/mfa"}
+            className="mt-1 inline-block font-semibold text-amber-300 hover:underline"
+          >
+            {mfaRequired === "setup" ? "Set up two-factor →" : "Verify now →"}
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   if (!linkToken) return null;
 
   return (
@@ -107,4 +139,4 @@ export default function PlaidConnectButton({ onLinked, itemId, label, purpose = 
       {err && <p className="mt-2 text-sm text-rose-500">{err}</p>}
     </div>
   );
-}
+}

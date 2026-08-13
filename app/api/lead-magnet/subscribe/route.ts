@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { resend } from "@/lib/email"
 import { SEQUENCE } from "@/lib/email-sequence"
+import { checkAnonRateLimit, getClientIp } from "@/lib/anonRateLimit"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -30,6 +31,11 @@ export async function POST(req: Request) {
   const email = (body.email || "").trim().toLowerCase()
   if (!EMAIL_RE.test(email)) {
     return NextResponse.json({ error: "Enter a valid email address" }, { status: 400 })
+  }
+
+  const underLimit = await checkAnonRateLimit("lead-magnet-subscribe", getClientIp(req))
+  if (!underLimit) {
+    return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 })
   }
 
   const from = process.env.EMAIL_FROM

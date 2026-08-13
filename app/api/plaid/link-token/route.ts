@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient as createUserClient } from "@/lib/supabase/server"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { plaid, PLAID_ENABLED, planCanUsePlaid } from "@/lib/plaid"
+import { checkAal2Status } from "@/lib/adminGuard"
 import { CountryCode, Products } from "plaid"
 
 export const dynamic = "force-dynamic"
@@ -42,6 +43,24 @@ export async function POST(req: Request) {
   if (!planCanUsePlaid(profile?.plan)) {
     return NextResponse.json(
       { error: "Bank sync is an Autopilot feature." },
+      { status: 403 }
+    )
+  }
+
+  // Autopilot requires MFA to be enrolled -- not just optional, and not just
+  // step-up-if-you-have-it. Connecting a bank account is the single most
+  // sensitive action in the app, so this is the gate, regardless of which
+  // page/flow got the user here.
+  const aal2 = await checkAal2Status(supabase)
+  if (aal2 !== "verified") {
+    return NextResponse.json(
+      {
+        error:
+          aal2 === "not_enrolled"
+            ? "Autopilot requires two-factor authentication. Set it up to connect your bank."
+            : "Please verify your two-factor code, then try connecting your bank again.",
+        code: aal2 === "not_enrolled" ? "mfa_setup_required" : "mfa_step_up_required",
+      },
       { status: 403 }
     )
   }
@@ -88,4 +107,4 @@ export async function POST(req: Request) {
       { status: 500 }
     )
   }
-}
+}

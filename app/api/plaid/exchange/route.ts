@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient as createUserClient } from "@/lib/supabase/server"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { plaid, PLAID_ENABLED, planCanUsePlaid, syncBalancesForItem } from "@/lib/plaid"
+import { checkAal2Status } from "@/lib/adminGuard"
 import { CountryCode } from "plaid"
 
 export const dynamic = "force-dynamic"
@@ -37,6 +38,23 @@ export async function POST(req: Request) {
   if (!planCanUsePlaid(profile?.plan)) {
     return NextResponse.json(
       { error: "Bank sync is an Autopilot feature." },
+      { status: 403 }
+    )
+  }
+
+  // Same MFA-required gate as /api/plaid/link-token -- belt and suspenders,
+  // since a stale link_token issued before enrollment could otherwise still
+  // be exchanged after the fact.
+  const aal2 = await checkAal2Status(userClient)
+  if (aal2 !== "verified") {
+    return NextResponse.json(
+      {
+        error:
+          aal2 === "not_enrolled"
+            ? "Autopilot requires two-factor authentication. Set it up to connect your bank."
+            : "Please verify your two-factor code, then try connecting your bank again.",
+        code: aal2 === "not_enrolled" ? "mfa_setup_required" : "mfa_step_up_required",
+      },
       { status: 403 }
     )
   }
@@ -198,4 +216,4 @@ export async function POST(req: Request) {
     console.error("Plaid exchange error:", (err as any)?.response?.data || (err as any)?.message || err)
     return NextResponse.json({ error: "Could not link your bank." }, { status: 500 })
   }
-}
+}

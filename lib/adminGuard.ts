@@ -4,7 +4,7 @@ import { createClient as createUserClient } from "@/lib/supabase/server";
 // Reads the `aal` claim from a Supabase access token (JWT) with no network
 // call. Node runtime, so we decode base64url via Buffer. Returns null on any
 // problem so the caller falls back to the authoritative MFA-factor check.
-function getAalClaim(token?: string | null): string | null {
+export function getAalClaim(token?: string | null): string | null {
   if (!token) return null;
   try {
     const part = token.split(".")[1];
@@ -63,6 +63,28 @@ export async function requireAdmin(): Promise<AdminGate> {
   return { ok: true, userId: user.id, userEmail: user.email ?? null };
 }
 
+export type Aal2Status = "verified" | "needs_step_up" | "not_enrolled";
+
+// General-purpose AAL2 check for any route that must require MFA outright
+// (not just step-up-if-you-have-it, like requireAdmin above). Distinguishes
+// "has a verified factor but this session hasn't stepped up" from "has no
+// verified factor at all" -- callers send the user to different places for
+// each (the /mfa challenge vs /mfa/setup enrollment). Used by the Plaid
+// connect flow: Autopilot requires MFA to be enrolled, period.
+export async function checkAal2Status(
+  userClient: Awaited<ReturnType<typeof createUserClient>>
+): Promise<Aal2Status> {
+  const {
+    data: { session },
+  } = await userClient.auth.getSession();
+  if (getAalClaim(session?.access_token) === "aal2") return "verified";
+
+  const { data: factors } = await userClient.auth.mfa.listFactors();
+  const hasVerifiedFactor =
+    !!factors && Array.isArray(factors.all) && factors.all.some((f) => f.status === "verified");
+  return hasVerifiedFactor ? "needs_step_up" : "not_enrolled";
+}
+
 // Service-role client (bypasses RLS). Server-only; never expose to the client.
 export function serviceClient() {
   return createServiceClient(
@@ -95,4 +117,4 @@ export async function logAdminAction(entry: {
   } catch (e) {
     console.error("admin_audit_log insert failed:", e);
   }
-}
+}

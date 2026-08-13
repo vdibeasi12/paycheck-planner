@@ -3,14 +3,7 @@
 import { Suspense, useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { useSearchParams } from "next/navigation"
-
-// Only allow same-origin relative redirects (prevents open-redirect abuse).
-function safeRedirect(raw: string | null): string {
-  if (raw && raw.startsWith("/") && !raw.startsWith("//")) {
-    return raw
-  }
-  return "/dashboard"
-}
+import { safeRedirect } from "@/lib/safeRedirect"
 
 function MfaChallenge() {
   const searchParams = useSearchParams()
@@ -206,4 +199,4 @@ export default function MfaPage() {
       <MfaChallenge />
     </Suspense>
   )
-}
+}
