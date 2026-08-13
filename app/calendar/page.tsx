@@ -344,8 +344,10 @@ export default function CalendarPage() {
               </div>
             </div>
 
-            {/* Side column: Upcoming (30 days), always visible next to the calendar */}
-            <div className="lg:sticky lg:top-6 lg:self-start">
+            {/* Side column: Upcoming (30 days), always visible next to the calendar.
+                top-24 (not top-6) keeps this clear of the fixed language/currency
+                widget in the page corner (top-4, ~56px tall) once it sticks. */}
+            <div className="lg:sticky lg:top-24 lg:self-start">
               <h3 className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
                 Upcoming (30 days)
               </h3>
