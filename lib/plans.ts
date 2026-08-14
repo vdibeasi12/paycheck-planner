@@ -106,6 +106,7 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       { label: "Debts tracked", free: "Up to 3", starter: "Up to 10", premium: "Unlimited", connected: "Unlimited" },
       { label: "Bills & paychecks", free: true, starter: true, premium: true, connected: true },
       { label: "Net worth & assets", free: true, starter: true, premium: true, connected: true },
+      { label: "Calendar & 30-day upcoming view", free: true, starter: true, premium: true, connected: true },
     ],
   },
   {
@@ -114,6 +115,10 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       { label: "Charts & visualizations", free: false, starter: true, premium: true, connected: true },
       { label: "Snowball & Avalanche payoff", free: false, starter: false, premium: true, connected: true },
       { label: "Advanced analytics", free: false, starter: false, premium: true, connected: true },
+      // Not tier-gated -- every signed-in user gets all 6 courses, with each
+      // course unlocking once the one before it is fully complete. Listed
+      // here (true across every column) to show it's not a paywalled perk.
+      { label: "Paycheck Planner University (6 courses)", free: true, starter: true, premium: true, connected: true },
     ],
   },
   {
@@ -131,6 +136,10 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     group: "Automation",
     rows: [
       { label: "Bank account sync (Plaid)", free: false, starter: false, premium: false, connected: true },
+      // New: connecting a bank is no longer limited to accounts that carry
+      // a loan/credit card balance -- plain checking/savings accounts can
+      // connect too, with balances refreshing automatically.
+      { label: "Checking & savings balance sync", free: false, starter: false, premium: false, connected: true },
       { label: "Auto-import debts, balances & APRs", free: false, starter: false, premium: false, connected: true },
       { label: "Auto income, bills & safe-to-spend", free: false, starter: false, premium: false, connected: true },
       { label: "Recurring-charge detector", free: false, starter: false, premium: false, connected: true },
