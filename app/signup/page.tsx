@@ -7,6 +7,8 @@ import Link from "next/link"
 import { isNativeApp } from "@/lib/platform"
 import { useLocale } from "@/lib/i18n/LocaleProvider"
 
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+
 export default function SignupPage() {
   const router = useRouter()
   const { t } = useLocale()
@@ -16,6 +18,20 @@ export default function SignupPage() {
   const [agreed, setAgreed] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+
+  // Fire-and-forget: captures the email for abandoned-signup recovery
+  // (Task #22) the moment someone finishes typing it, before they ever
+  // submit the form. Never blocks or surfaces errors on the signup flow --
+  // see app/api/abandoned-signup/capture.
+  const handleEmailBlur = () => {
+    const trimmed = email.trim()
+    if (!EMAIL_RE.test(trimmed)) return
+    fetch("/api/abandoned-signup/capture", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: trimmed }),
+    }).catch(() => {})
+  }
 
   const handleGoogleSignup = async () => {
     if (!agreed) {
@@ -166,6 +182,7 @@ export default function SignupPage() {
             className="w-full bg-[#1a233a] border border-gray-700 rounded px-4 py-3 text-white placeholder-gray-500 focus:outline-none focus:border-green-500"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
+            onBlur={handleEmailBlur}
             required
           />
 
