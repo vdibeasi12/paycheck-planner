@@ -23,6 +23,11 @@ export type BlogPost = {
   publishedAt: string
   // Markdown. Rendered to HTML at request time via `marked`.
   content: string
+  // Slug into lib/calculators.ts CALCULATORS -- the single most relevant free
+  // tool for this post's topic. Rendered as an internal link (post -> tool
+  // -> signup) on the post page. Omit when no calculator is a natural fit;
+  // the post page falls back to a generic "browse all calculators" link.
+  relatedCalculator?: string
 }
 
 export const POSTS: BlogPost[] = [
@@ -30,6 +35,7 @@ export const POSTS: BlogPost[] = [
     slug: "debt-snowball-vs-debt-avalanche",
     title: "Debt Snowball vs. Debt Avalanche: Which Pays Off Debt Faster?",
     category: "Debt",
+    relatedCalculator: "debt-payoff",
     excerpt:
       "Two proven strategies, two very different psychological approaches. Here's exactly how each one works, with real numbers.",
     publishedAt: "2026-08-10",
@@ -65,6 +71,7 @@ Paycheck Planner runs both strategies side by side against your actual debts, so
     slug: "how-long-to-pay-off-credit-card-debt",
     title: "How Long Will It Take to Pay Off My Credit Card Debt?",
     category: "Credit",
+    relatedCalculator: "debt-payoff",
     excerpt:
       "The honest answer depends on three numbers -- your balance, your rate, and your monthly payment. Here's exactly how they interact.",
     publishedAt: "2026-08-24",
@@ -106,6 +113,7 @@ Paycheck Planner's payoff calculator does this math for you against your real ba
     slug: "budgeting-biweekly-paycheck-monthly-bills",
     title: "How to Budget on a Biweekly Paycheck When All Your Bills Are Monthly",
     category: "Paychecks",
+    relatedCalculator: "biweekly-budget",
     excerpt:
       "Getting paid every two weeks doesn't split evenly into monthly bills -- here's how to build a budget that actually matches your pay schedule.",
     publishedAt: "2026-09-21",
@@ -148,6 +156,7 @@ Paycheck Planner maps your actual pay dates against your bills automatically, so
     slug: "emergency-fund-how-much",
     title: "How Big Should Your Emergency Fund Actually Be?",
     category: "Saving",
+    relatedCalculator: "savings-goal",
     excerpt:
       "\"3 to 6 months of expenses\" is the standard advice -- but the right number depends on your situation more than that range suggests.",
     publishedAt: "2026-10-05",
@@ -199,6 +208,7 @@ Paycheck Planner's goals feature tracks progress toward a specific emergency fun
     slug: "what-does-financial-freedom-cost",
     title: "What Does \"Financial Freedom\" Actually Cost? A Realistic Number, Not $1 Million",
     category: "Financial Freedom",
+    relatedCalculator: "savings-goal",
     excerpt:
       "The flat $1 million target gets repeated everywhere. It's not wrong for everyone -- but it's not right for most people either. Here's the actual math.",
     publishedAt: "2026-10-19",
@@ -297,6 +307,7 @@ Paycheck Planner's debt tools show your real balances against your real limits, 
     slug: "debt-consolidation-when-it-works",
     title: "Debt Consolidation: When It Actually Saves You Money (and When It Doesn't)",
     category: "Debt",
+    relatedCalculator: "debt-payoff",
     excerpt:
       "Consolidation can genuinely help -- or quietly cost you more while feeling like progress. Here's how to tell which one you're looking at.",
     publishedAt: "2026-11-16",
@@ -347,6 +358,7 @@ Paycheck Planner runs your existing payoff timeline against a proposed consolida
     slug: "zero-based-budgeting-explained",
     title: "Zero-Based Budgeting Explained: Give Every Dollar a Job",
     category: "Budgeting",
+    relatedCalculator: "monthly-budget",
     excerpt:
       "Unlike percentage-based rules like 50/30/20, zero-based budgeting assigns every single dollar a purpose before the month starts. Here's how it actually works.",
     publishedAt: "2026-11-30",
@@ -401,6 +413,7 @@ Paycheck Planner lets you build this category-by-category against your real payc
     slug: "semi-monthly-vs-biweekly-pay",
     title: "Semi-Monthly vs. Biweekly Pay: Why the Difference Actually Matters for Budgeting",
     category: "Paychecks",
+    relatedCalculator: "biweekly-budget",
     excerpt:
       "They sound almost identical and get used interchangeably -- but they behave completely differently against a monthly budget.",
     publishedAt: "2026-12-14",
@@ -445,6 +458,7 @@ Paycheck Planner reads your actual pay schedule -- biweekly, semi-monthly, or ot
     slug: "envelope-budgeting-digital-cash-stuffing",
     title: "Envelope Budgeting in the Digital Age: The Cash-Stuffing Method Without the Cash",
     category: "Budgeting",
+    relatedCalculator: "monthly-budget",
     excerpt:
       "The envelope system works because it makes overspending physically impossible. Here's how to get the same effect without carrying cash.",
     publishedAt: "2026-12-28",
@@ -496,6 +510,7 @@ Paycheck Planner's category budgets work exactly like digital envelopes -- funde
     slug: "extra-principal-payments-amortization-math",
     title: "How Extra Principal Payments Actually Shorten a Loan (The Math Behind Amortization)",
     category: "Debt",
+    relatedCalculator: "debt-payoff",
     excerpt:
       "Extra payments made early in a loan save far more than the same extra payment made later. Here's the amortization math that explains why.",
     publishedAt: "2027-01-11",
@@ -535,6 +550,7 @@ Paycheck Planner's payoff calculator applies extra payments to principal correct
     slug: "high-yield-savings-accounts-worth-it",
     title: "High-Yield Savings Accounts: Is the Extra Percent Actually Worth Switching Banks?",
     category: "Saving",
+    relatedCalculator: "savings-goal",
     excerpt:
       "Big banks often pay a fraction of a percent on savings. Online banks routinely pay far more. Here's what that gap is actually worth in real dollars.",
     publishedAt: "2027-01-25",
@@ -618,6 +634,7 @@ Paycheck Planner's debt tools track balances and limits across every card you co
     slug: "coast-fi-lean-fi-fat-fi-explained",
     title: "Coast FI, Lean FI, and Fat FI: The FIRE Numbers, Explained Simply",
     category: "Financial Freedom",
+    relatedCalculator: "savings-goal",
     excerpt:
       "The FIRE movement splits \"financial independence\" into several distinct targets. Here's what each one actually means in real numbers.",
     publishedAt: "2027-02-22",
@@ -661,6 +678,7 @@ Paycheck Planner's goals feature tracks your investable savings and debt payoff 
     slug: "50-30-20-budget-rule-explained",
     title: "The 50/30/20 Budget Rule, Explained (With a Real Paycheck Example)",
     category: "Budgeting",
+    relatedCalculator: "50-30-20-budget",
     excerpt:
       "One of the simplest budgeting frameworks that exists -- here's how the split actually works against a real paycheck.",
     publishedAt: "2026-09-07",

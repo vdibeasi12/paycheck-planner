@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import Link from "next/link"
 import { notFound } from "next/navigation"
 import { CALCULATORS, getCalculatorMeta } from "@/lib/calculators"
+import { getAllPosts } from "@/lib/blog"
 import PaycheckCalculator from "@/app/components/calculators/PaycheckCalculator"
 import FiftyThirtyTwentyCalculator from "@/app/components/calculators/FiftyThirtyTwentyCalculator"
 import BiweeklyBudgetCalculator from "@/app/components/calculators/BiweeklyBudgetCalculator"
@@ -49,6 +50,14 @@ export default async function CalculatorPage({
   const Component = COMPONENTS[slug]
   if (!meta || !Component) notFound()
 
+  // Reverse of the link added on each blog post (see app/blog/[slug]/page.tsx)
+  // -- posts that point readers to this calculator also get linked back from
+  // it, so the two content types reinforce each other instead of sitting in
+  // isolation.
+  const relatedPosts = getAllPosts()
+    .filter((p) => p.relatedCalculator === slug)
+    .slice(0, 3)
+
   return (
     <div className="min-h-screen bg-[#020617] py-12 text-white">
       <div className="mx-auto max-w-2xl px-6">
@@ -73,6 +82,26 @@ export default async function CalculatorPage({
             Try Paycheck Planner free
           </Link>
         </div>
+
+        {relatedPosts.length > 0 && (
+          <div className="mt-10">
+            <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+              Related reading
+            </p>
+            <div className="space-y-3">
+              {relatedPosts.map((p) => (
+                <Link
+                  key={p.slug}
+                  href={`/blog/${p.slug}`}
+                  className="block rounded-xl border border-gray-800 bg-[#0f172a] p-4 transition hover:border-gray-700"
+                >
+                  <p className="font-semibold text-white">{p.title}</p>
+                  <p className="mt-1 text-sm text-gray-400">{p.excerpt}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
