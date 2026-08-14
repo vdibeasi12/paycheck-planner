@@ -4,6 +4,7 @@ import Logo from "./components/Logo"
 import Footer from "./components/Footer"
 import NativeInit from "./components/NativeInit"
 import BiometricLock from "./components/BiometricLock"
+import PushNotificationsInit from "./components/PushNotificationsInit"
 import AttributionCapture from "./components/AttributionCapture"
 import PageViewTracker from "./components/PageViewTracker"
 import AppNav from "./components/AppNav"
@@ -111,6 +112,7 @@ export default async function RootLayout({
         <LocaleProvider initialLocale={locale} initialCurrency={currency}>
           <NativeInit />
           {user && <BiometricLock />}
+          {user && <PushNotificationsInit />}
           {/* PageViewTracker reads the pp_attr cookie AttributionCapture
               sets, so it must mount after it -- order matters here. */}
           <AttributionCapture />

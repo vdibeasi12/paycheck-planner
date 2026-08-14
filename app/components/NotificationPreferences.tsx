@@ -14,6 +14,10 @@ type Prefs = {
   reminder_days_before: number;
   email_payday_reminder: boolean;
   payday_reminder_days_before: number;
+  push_payday_reminder: boolean;
+  push_debt_reminder: boolean;
+  push_savings_milestone: boolean;
+  push_inactivity: boolean;
 };
 
 const DEFAULTS: Prefs = {
@@ -25,6 +29,10 @@ const DEFAULTS: Prefs = {
   reminder_days_before: 3,
   email_payday_reminder: true,
   payday_reminder_days_before: 1,
+  push_payday_reminder: false,
+  push_debt_reminder: false,
+  push_savings_milestone: false,
+  push_inactivity: false,
 };
 
 // userId/userEmail: pass the already-fetched account values (see
@@ -57,7 +65,7 @@ export default function NotificationPreferences({
           supabase
             .from("notification_preferences")
             .select(
-              "email_bill_reminders, email_weekly_summary, email_product_updates, email_new_posts, push_bill_reminders, reminder_days_before, email_payday_reminder, payday_reminder_days_before"
+              "email_bill_reminders, email_weekly_summary, email_product_updates, email_new_posts, push_bill_reminders, reminder_days_before, email_payday_reminder, payday_reminder_days_before, push_payday_reminder, push_debt_reminder, push_savings_milestone, push_inactivity"
             )
             .eq("user_id", id)
             .maybeSingle(),
@@ -166,6 +174,30 @@ export default function NotificationPreferences({
               desc="Get an email before your next paycheck lands."
               checked={prefs.email_payday_reminder}
               onChange={(v) => update("email_payday_reminder", v)}
+            />
+            <Toggle
+              label="Payday reminders (push)"
+              desc="A push notification before your next paycheck lands."
+              checked={prefs.push_payday_reminder}
+              onChange={(v) => update("push_payday_reminder", v)}
+            />
+            <Toggle
+              label="Debt payment reminders (push)"
+              desc="A push notification before a debt payment is due."
+              checked={prefs.push_debt_reminder}
+              onChange={(v) => update("push_debt_reminder", v)}
+            />
+            <Toggle
+              label="Savings milestones (push)"
+              desc="A push notification when a savings goal crosses 25/50/75/90/100%."
+              checked={prefs.push_savings_milestone}
+              onChange={(v) => update("push_savings_milestone", v)}
+            />
+            <Toggle
+              label={'"Still there?" nudge (push)'}
+              desc="A push notification if you haven't opened the app in 14 days."
+              checked={prefs.push_inactivity}
+              onChange={(v) => update("push_inactivity", v)}
             />
             <Toggle
               label="Weekly summary (email)"

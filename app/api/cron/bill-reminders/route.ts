@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { resend } from "@/lib/email"
 import { formatCurrency } from "@/lib/i18n/formatCurrency"
+import { sendPushToUser } from "@/lib/push"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -43,23 +44,24 @@ export async function GET(req: Request) {
   }
 
   const from = process.env.EMAIL_FROM
-  if (!from) {
-    return NextResponse.json({ error: "EMAIL_FROM not set" }, { status: 500 })
-  }
 
   const db = adminDb()
 
+  // Either channel qualifies a user for this cron -- email and push are
+  // sent independently below based on each user's own toggles, so someone
+  // who only wants push (email_bill_reminders off) isn't skipped entirely.
   const { data: prefs, error: prefsErr } = await db
     .from("notification_preferences")
-    .select("user_id, email_bill_reminders, reminder_days_before")
-    .eq("email_bill_reminders", true)
+    .select("user_id, email_bill_reminders, push_bill_reminders, reminder_days_before")
+    .or("email_bill_reminders.eq.true,push_bill_reminders.eq.true")
 
   if (prefsErr) {
     return NextResponse.json({ error: prefsErr.message }, { status: 500 })
   }
 
   let sent = 0
-  const results: Array<{ user_id: string; bills: number; emailed: boolean }> = []
+  let pushSent = 0
+  const results: Array<{ user_id: string; bills: number; emailed: boolean; pushed: boolean }> = []
 
   for (const pref of prefs || []) {
     const daysBefore =
@@ -84,69 +86,82 @@ export async function GET(req: Request) {
     })
 
     if (due.length === 0) {
-      results.push({ user_id: pref.user_id, bills: 0, emailed: false })
+      results.push({ user_id: pref.user_id, bills: 0, emailed: false, pushed: false })
       continue
     }
 
-    const { data: profile } = await db
-      .from("profiles")
-      .select("email, full_name, locale, display_currency")
-      .eq("id", pref.user_id)
-      .single()
+    let emailed = false
+    if (from && pref.email_bill_reminders) {
+      const { data: profile } = await db
+        .from("profiles")
+        .select("email, full_name, locale, display_currency")
+        .eq("id", pref.user_id)
+        .single()
 
-    const to = profile && profile.email ? String(profile.email) : ""
-    if (!to) {
-      results.push({ user_id: pref.user_id, bills: due.length, emailed: false })
-      continue
+      const to = profile && profile.email ? String(profile.email) : ""
+      if (to) {
+        const name = profile && profile.full_name ? String(profile.full_name) : "there"
+        const userLocale = (profile && (profile as any).locale) || "en-US"
+        const userCurrency = (profile && (profile as any).display_currency) || "USD"
+
+        const rows = due
+          .map((b: any) => {
+            const amt = formatCurrency(Number(b.amount || 0), userCurrency, userLocale)
+            return (
+              '<tr><td style="padding:6px 12px;border-bottom:1px solid #1f2937;">' +
+              escapeHtml(b.name) +
+              '</td><td style="padding:6px 12px;border-bottom:1px solid #1f2937;text-align:right;">' +
+              amt +
+              "</td></tr>"
+            )
+          })
+          .join("")
+
+        const html =
+          '<div style="font-family:Arial,Helvetica,sans-serif;color:#e5e7eb;background:#0b1220;padding:24px;border-radius:12px;">' +
+          '<h2 style="margin:0 0 8px;color:#34d399;">Upcoming bills</h2>' +
+          "<p>Hi " +
+          escapeHtml(name) +
+          ", these bills are due in about " +
+          daysBefore +
+          " day(s):</p>" +
+          '<table style="border-collapse:collapse;width:100%;max-width:420px;"><tbody>' +
+          rows +
+          "</tbody></table>" +
+          '<p style="margin-top:20px;"><a style="color:#34d399;" href="' + APP_URL + '/bills">Review your bills</a></p>' +
+          "</div>"
+
+        const r = await resend.emails.send({
+          from,
+          to,
+          subject: "Bills due in " + daysBefore + " day(s)",
+          html,
+        })
+
+        emailed = !(r && (r as any).error)
+        if (emailed) sent++
+      }
     }
 
-    const name = profile && profile.full_name ? String(profile.full_name) : "there"
-    const userLocale = (profile && (profile as any).locale) || "en-US"
-    const userCurrency = (profile && (profile as any).display_currency) || "USD"
-
-    const rows = due
-      .map((b: any) => {
-        const amt = formatCurrency(Number(b.amount || 0), userCurrency, userLocale)
-        return (
-          '<tr><td style="padding:6px 12px;border-bottom:1px solid #1f2937;">' +
-          escapeHtml(b.name) +
-          '</td><td style="padding:6px 12px;border-bottom:1px solid #1f2937;text-align:right;">' +
-          amt +
-          "</td></tr>"
-        )
+    let pushed = false
+    if (pref.push_bill_reminders) {
+      const billNames = due.map((b: any) => b.name).filter(Boolean).slice(0, 3).join(", ")
+      const result = await sendPushToUser(pref.user_id, {
+        title: due.length === 1 ? "A bill is due soon" : due.length + " bills are due soon",
+        body: billNames + (due.length > 3 ? ", and more" : "") + " -- due in about " + daysBefore + " day(s).",
       })
-      .join("")
+      pushed = result.sent > 0
+      if (pushed) pushSent++
+    }
 
-    const html =
-      '<div style="font-family:Arial,Helvetica,sans-serif;color:#e5e7eb;background:#0b1220;padding:24px;border-radius:12px;">' +
-      '<h2 style="margin:0 0 8px;color:#34d399;">Upcoming bills</h2>' +
-      "<p>Hi " +
-      escapeHtml(name) +
-      ", these bills are due in about " +
-      daysBefore +
-      " day(s):</p>" +
-      '<table style="border-collapse:collapse;width:100%;max-width:420px;"><tbody>' +
-      rows +
-      "</tbody></table>" +
-      '<p style="margin-top:20px;"><a style="color:#34d399;" href="' + APP_URL + '/bills">Review your bills</a></p>' +
-      "</div>"
-
-    const r = await resend.emails.send({
-      from,
-      to,
-      subject: "Bills due in " + daysBefore + " day(s)",
-      html,
-    })
-
-    const ok = !(r && (r as any).error)
-    if (ok) sent++
-    results.push({ user_id: pref.user_id, bills: due.length, emailed: ok })
+    results.push({ user_id: pref.user_id, bills: due.length, emailed, pushed })
   }
 
   return NextResponse.json({
     ok: true,
     processed: (prefs || []).length,
     sent,
+    pushSent,
     results,
   })
 }

@@ -51,6 +51,20 @@ export default async function DashboardPage() {
     redirect("/login")
   }
 
+  // Best-effort last-seen timestamp for the inactivity push trigger
+  // (app/api/cron/inactivity-nudge). Not awaited -- a dashboard load
+  // shouldn't wait on this, and a failure here shouldn't break the page.
+  void (async () => {
+    try {
+      await supabase
+        .from("profiles")
+        .update({ last_active_at: new Date().toISOString() })
+        .eq("id", user.id)
+    } catch {
+      // best-effort only
+    }
+  })()
+
   const { data: profile, error } = await supabase
     .from("profiles")
     .select("plan, onboarded, welcome_email_sent, is_admin")

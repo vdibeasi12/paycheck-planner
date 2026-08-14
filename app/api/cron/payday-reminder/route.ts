@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { resend } from "@/lib/email"
 import { formatCurrency } from "@/lib/i18n/formatCurrency"
 import { occurrencesInMonth, type Frequency } from "@/lib/schedule"
+import { sendPushToUser } from "@/lib/push"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -41,23 +42,21 @@ export async function GET(req: Request) {
   }
 
   const from = process.env.EMAIL_FROM
-  if (!from) {
-    return NextResponse.json({ error: "EMAIL_FROM not set" }, { status: 500 })
-  }
 
   const db = adminDb()
 
   const { data: prefs, error: prefsErr } = await db
     .from("notification_preferences")
-    .select("user_id, email_payday_reminder, payday_reminder_days_before")
-    .eq("email_payday_reminder", true)
+    .select("user_id, email_payday_reminder, push_payday_reminder, payday_reminder_days_before")
+    .or("email_payday_reminder.eq.true,push_payday_reminder.eq.true")
 
   if (prefsErr) {
     return NextResponse.json({ error: prefsErr.message }, { status: 500 })
   }
 
   let sent = 0
-  const results: Array<{ user_id: string; paychecks: number; emailed: boolean }> = []
+  let pushSent = 0
+  const results: Array<{ user_id: string; paychecks: number; emailed: boolean; pushed: boolean }> = []
 
   for (const pref of prefs || []) {
     const daysBefore =
@@ -86,75 +85,88 @@ export async function GET(req: Request) {
     })
 
     if (upcoming.length === 0) {
-      results.push({ user_id: pref.user_id, paychecks: 0, emailed: false })
+      results.push({ user_id: pref.user_id, paychecks: 0, emailed: false, pushed: false })
       continue
     }
-
-    const { data: profile } = await db
-      .from("profiles")
-      .select("email, full_name, locale, display_currency")
-      .eq("id", pref.user_id)
-      .single()
-
-    const to = profile && profile.email ? String(profile.email) : ""
-    if (!to) {
-      results.push({ user_id: pref.user_id, paychecks: upcoming.length, emailed: false })
-      continue
-    }
-
-    const name = profile && profile.full_name ? String(profile.full_name) : "there"
-    const userLocale = (profile && (profile as any).locale) || "en-US"
-    const userCurrency = (profile && (profile as any).display_currency) || "USD"
-
-    const rows = upcoming
-      .map((inc: any) => {
-        const amt = formatCurrency(Number(inc.amount || 0), userCurrency, userLocale)
-        return (
-          '<tr><td style="padding:6px 12px;border-bottom:1px solid #1f2937;">' +
-          escapeHtml(inc.name || "Paycheck") +
-          '</td><td style="padding:6px 12px;border-bottom:1px solid #1f2937;text-align:right;">' +
-          amt +
-          "</td></tr>"
-        )
-      })
-      .join("")
 
     const dayWord = daysBefore === 1 ? "tomorrow" : "in " + daysBefore + " days"
 
-    const html =
-      '<div style="font-family:Arial,Helvetica,sans-serif;color:#e5e7eb;background:#0b1220;padding:24px;border-radius:12px;">' +
-      '<h2 style="margin:0 0 8px;color:#34d399;">Payday is ' +
-      dayWord +
-      "</h2>" +
-      "<p>Hi " +
-      escapeHtml(name) +
-      ", here's what's landing " +
-      dayWord +
-      ":</p>" +
-      '<table style="border-collapse:collapse;width:100%;max-width:420px;"><tbody>' +
-      rows +
-      "</tbody></table>" +
-      '<p style="margin-top:20px;"><a style="color:#34d399;" href="' +
-      APP_URL +
-      '/bills">Review what\'s due against this paycheck</a></p>' +
-      "</div>"
+    let emailed = false
+    if (from && pref.email_payday_reminder) {
+      const { data: profile } = await db
+        .from("profiles")
+        .select("email, full_name, locale, display_currency")
+        .eq("id", pref.user_id)
+        .single()
 
-    const r = await resend.emails.send({
-      from,
-      to,
-      subject: "Payday is " + dayWord,
-      html,
-    })
+      const to = profile && profile.email ? String(profile.email) : ""
+      if (to) {
+        const name = profile && profile.full_name ? String(profile.full_name) : "there"
+        const userLocale = (profile && (profile as any).locale) || "en-US"
+        const userCurrency = (profile && (profile as any).display_currency) || "USD"
 
-    const ok = !(r && (r as any).error)
-    if (ok) sent++
-    results.push({ user_id: pref.user_id, paychecks: upcoming.length, emailed: ok })
+        const rows = upcoming
+          .map((inc: any) => {
+            const amt = formatCurrency(Number(inc.amount || 0), userCurrency, userLocale)
+            return (
+              '<tr><td style="padding:6px 12px;border-bottom:1px solid #1f2937;">' +
+              escapeHtml(inc.name || "Paycheck") +
+              '</td><td style="padding:6px 12px;border-bottom:1px solid #1f2937;text-align:right;">' +
+              amt +
+              "</td></tr>"
+            )
+          })
+          .join("")
+
+        const html =
+          '<div style="font-family:Arial,Helvetica,sans-serif;color:#e5e7eb;background:#0b1220;padding:24px;border-radius:12px;">' +
+          '<h2 style="margin:0 0 8px;color:#34d399;">Payday is ' +
+          dayWord +
+          "</h2>" +
+          "<p>Hi " +
+          escapeHtml(name) +
+          ", here's what's landing " +
+          dayWord +
+          ":</p>" +
+          '<table style="border-collapse:collapse;width:100%;max-width:420px;"><tbody>' +
+          rows +
+          "</tbody></table>" +
+          '<p style="margin-top:20px;"><a style="color:#34d399;" href="' +
+          APP_URL +
+          '/bills">Review what\'s due against this paycheck</a></p>' +
+          "</div>"
+
+        const r = await resend.emails.send({
+          from,
+          to,
+          subject: "Payday is " + dayWord,
+          html,
+        })
+
+        emailed = !(r && (r as any).error)
+        if (emailed) sent++
+      }
+    }
+
+    let pushed = false
+    if (pref.push_payday_reminder) {
+      const total = upcoming.reduce((sum: number, inc: any) => sum + (Number(inc.amount) || 0), 0)
+      const result = await sendPushToUser(pref.user_id, {
+        title: "Payday is " + dayWord,
+        body: "Give every dollar a job -- " + upcoming.length + " paycheck" + (upcoming.length === 1 ? "" : "s") + " landing, about $" + total.toFixed(2) + " total.",
+      })
+      pushed = result.sent > 0
+      if (pushed) pushSent++
+    }
+
+    results.push({ user_id: pref.user_id, paychecks: upcoming.length, emailed, pushed })
   }
 
   return NextResponse.json({
     ok: true,
     processed: (prefs || []).length,
     sent,
+    pushSent,
     results,
   })
 }
