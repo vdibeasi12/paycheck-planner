@@ -34,8 +34,13 @@ export default function PricingPage() {
       return;
     }
 
-    // No in-app purchases in the native app (App Store Guideline 3.1.1).
-    if (isNativeApp()) {
+    // App Store Guideline 3.1.1 is an Apple-only restriction (see isIOSApp's
+    // doc comment in lib/platform.ts) -- Google Play has no equivalent
+    // blanket rule against linking out to a web checkout, so only iOS bails
+    // to sign-up here. Android proceeds to real Stripe checkout below, same
+    // as the web, just opened in an in-app browser overlay instead of
+    // navigating the app's own webview away from itself.
+    if (isIOSApp()) {
       window.location.href = "/signup";
       return;
     }
@@ -68,7 +73,17 @@ export default function PricingPage() {
 
       // Happy path: Stripe handed us a hosted checkout URL.
       if (res.ok && data?.url) {
-        window.location.href = data.url;
+        if (isNativeApp()) {
+          // Android only reaches here (iOS already bailed above). Open in
+          // an in-app browser overlay instead of window.location.href --
+          // that would navigate the app's own Capacitor webview away to
+          // checkout.stripe.com, which breaks the native bridge. Same
+          // pattern already used for Google sign-in (see NativeInit.tsx).
+          const { Browser } = await import("@capacitor/browser");
+          await Browser.open({ url: data.url });
+        } else {
+          window.location.href = data.url;
+        }
         return;
       }
 

@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { withTimeout } from "@/lib/withTimeout";
-import { useIsNativeApp } from "@/lib/platform";
+import { isNativeApp, useIsNativeApp, useIsIOSApp } from "@/lib/platform";
 import { CreditCard, Loader2 } from "lucide-react";
 
 const PLAN_NAMES: Record<string, string> = {
@@ -19,46 +19,70 @@ const PLAN_NAMES: Record<string, string> = {
 // fetching it itself when used standalone without the prop.
 export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
   const native = useIsNativeApp();
+  const ios = useIsIOSApp();
   const [plan, setPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
-  useEffect(() => {
-    let active = true;
-    (async () => {
-      try {
-        let id = userId;
-        if (!id) {
-          const { data } = await withTimeout(supabase.auth.getUser(), 8000, {
-            data: { user: null },
-          } as Awaited<ReturnType<typeof supabase.auth.getUser>>);
-          id = data.user?.id;
-        }
-        if (!id) {
-          if (active) setLoading(false);
-          return;
-        }
-        const { data } = await withTimeout(
-          supabase.from("profiles").select("plan").eq("id", id).single(),
-          8000,
-          { data: null } as any
-        );
-        if (active) {
-          setPlan((data?.plan as string) ?? "free");
-        }
-      } catch {
-        // A hiccup fetching the plan shouldn't leave this card spinning
-        // forever -- fall back to "Free" so the rest of the card (and page)
-        // still renders; the user can retry by revisiting the page.
-        if (active) setPlan("free");
-      } finally {
-        if (active) setLoading(false);
+  const loadPlan = useCallback(async () => {
+    try {
+      let id = userId;
+      if (!id) {
+        const { data } = await withTimeout(supabase.auth.getUser(), 8000, {
+          data: { user: null },
+        } as Awaited<ReturnType<typeof supabase.auth.getUser>>);
+        id = data.user?.id;
       }
-    })();
-    return () => {
-      active = false;
-    };
+      if (!id) {
+        setLoading(false);
+        return;
+      }
+      const { data } = await withTimeout(
+        supabase.from("profiles").select("plan").eq("id", id).single(),
+        8000,
+        { data: null } as any
+      );
+      setPlan((data?.plan as string) ?? "free");
+    } catch {
+      // A hiccup fetching the plan shouldn't leave this card spinning
+      // forever -- fall back to "Free" so the rest of the card (and page)
+      // still renders; the user can retry by revisiting the page.
+      setPlan("free");
+    } finally {
+      setLoading(false);
+    }
   }, [userId]);
+
+  useEffect(() => {
+    loadPlan();
+  }, [loadPlan]);
+
+  useEffect(() => {
+    if (!isNativeApp()) return;
+    let removeListener: (() => void) | undefined;
+    let cancelled = false;
+    ;(async () => {
+      // On Android, "Manage subscription" / "Upgrade plan" below open the
+      // Stripe portal/checkout in an in-app browser overlay (see manage()
+      // and the pricing page) instead of leaving the app. Whenever that
+      // overlay closes, re-check the plan -- the user may have just
+      // upgraded, downgraded, or cancelled, and this card would otherwise
+      // keep showing whatever it last loaded until the page is revisited.
+      const { Browser } = await import("@capacitor/browser")
+      const handle = await Browser.addListener("browserFinished", () => {
+        loadPlan()
+      })
+      if (cancelled) {
+        handle.remove()
+      } else {
+        removeListener = () => handle.remove()
+      }
+    })()
+    return () => {
+      cancelled = true
+      removeListener?.()
+    }
+  }, [loadPlan]);
 
   async function manage() {
     setBusy(true);
@@ -71,10 +95,22 @@ export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
         // so there's no stripe_customer_id to open a portal session for.
         // Rather than dead-end on an error, send them somewhere they can
         // actually act -- the pricing page lets them pick/change a plan.
+        // This is an internal route (same origin as the app itself), so a
+        // normal in-webview navigation is fine here even natively -- only
+        // the external billing.stripe.com URL below needs Browser.open().
         window.location.href = "/pricing";
         return;
       }
-      window.location.href = body.url;
+      if (isNativeApp()) {
+        // Android only -- this button is hidden on iOS (App Store Guideline
+        // 3.1.1). Open in an in-app browser overlay instead of navigating
+        // the app's own webview to billing.stripe.com, which would drop the
+        // Capacitor bridge. Same pattern as Google sign-in (NativeInit.tsx).
+        const { Browser } = await import("@capacitor/browser");
+        await Browser.open({ url: body.url });
+      } else {
+        window.location.href = body.url;
+      }
     } catch {
       window.location.href = "/pricing";
     } finally {
@@ -84,6 +120,12 @@ export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
 
   const isPaid = plan !== null && plan !== "free";
   const planName = plan ? PLAN_NAMES[plan] ?? plan : "Free";
+  // Web and Android get the real, functional buttons below. Only iOS falls
+  // back to the informational message -- App Store Guideline 3.1.1 is an
+  // Apple-only restriction (see isIOSApp's doc comment in lib/platform.ts),
+  // Google Play has no equivalent blanket rule against this.
+  const showLiveControls = native === false || (native === true && ios === false);
+  const iosInfoOnly = native === true && ios === true;
 
   return (
     <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-6 shadow-sm">
@@ -103,7 +145,7 @@ export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
             <span className="font-semibold text-white">{planName}</span>
           </p>
 
-          {native === false ? (
+          {showLiveControls ? (
             isPaid ? (
               <>
                 <button
@@ -117,7 +159,7 @@ export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
                 </button>
                 <p className="mt-2 text-xs text-gray-500">
                   Opens the secure Stripe portal to change plan, update payment,
-                  or cancel.
+                  or cancel{native === true ? " (opens in-app)" : ""}.
                 </p>
               </>
             ) : (
@@ -128,10 +170,10 @@ export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
                 Upgrade plan
               </Link>
             )
-          ) : native === true ? (
+          ) : iosInfoOnly ? (
             <p className="mt-4 text-sm text-gray-400">
               {isPaid
-                ? "Manage your subscription in the App Store or Google Play."
+                ? "Manage your subscription in the App Store."
                 : "Upgrade from the web app at paycheckplanner.ai."}
             </p>
           ) : null}

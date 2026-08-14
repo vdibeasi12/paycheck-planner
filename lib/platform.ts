@@ -47,3 +47,17 @@ export function useIsNativeApp(): boolean | null {
   }, [])
   return native
 }
+
+/**
+ * Mount-safe counterpart to `isIOSApp()`. Returns `null` until mounted, then
+ * `true`/`false`. Use this (not `isIOSApp()` directly) for render-time
+ * branching so a page doesn't flash the wrong variant before hydration --
+ * same reasoning as `useIsNativeApp()` above.
+ */
+export function useIsIOSApp(): boolean | null {
+  const [ios, setIos] = useState<boolean | null>(null)
+  useEffect(() => {
+    setIos(isIOSApp())
+  }, [])
+  return ios
+}
