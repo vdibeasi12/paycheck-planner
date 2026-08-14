@@ -3,6 +3,7 @@
 import { useEffect, useRef } from "react"
 import { driver } from "driver.js"
 import "driver.js/dist/driver.css"
+import { isNativeApp } from "@/lib/platform"
 
 type TourStep = { element?: string; title: string; description: string }
 
@@ -43,10 +44,22 @@ export default function ProductTour() {
       if (running.current) return
       running.current = true
 
+      // Below the sidebar's own mobile breakpoint (see Sidebar.tsx's
+      // md:hidden/md:flex split) there's no persistently-visible sidebar to
+      // highlight, and there isn't room on screen for a popover pinned to a
+      // corner near a nav item -- it was landing off in the top right with
+      // no way to comfortably read it or reach Next. The native app is
+      // always this narrow. Drop the `element` on every step in that case:
+      // driver.js already renders a centered, un-highlighted popover for
+      // steps with no element (that's how the Welcome/You're-all-set steps
+      // above already work), so this just reuses that existing behavior for
+      // every step instead of highlighting the sidebar.
+      const mobile = isNativeApp() || window.innerWidth < 768
+
       const steps = STEPS.filter(
-        (s) => !s.element || document.querySelector(s.element)
+        (s) => mobile || !s.element || document.querySelector(s.element)
       ).map((s) => ({
-        element: s.element,
+        element: mobile ? undefined : s.element,
         popover: { title: s.title, description: s.description },
       }))
 

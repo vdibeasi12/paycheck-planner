@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react"
 import { isNativeApp } from "@/lib/platform"
-import { getBiometricLockEnabled, verifyBiometric } from "@/lib/biometric"
+import { getBiometricLockEnabled, getLockTiming, verifyBiometric } from "@/lib/biometric"
 import { ShieldCheck, Loader2 } from "lucide-react"
 
 /**
@@ -27,6 +27,11 @@ export default function BiometricLock() {
   const [checking, setChecking] = useState(false)
   const [failed, setFailed] = useState(false)
   const inFlight = useRef(false)
+  // Set the moment the app leaves the foreground, cleared once it's back and
+  // judged. Lives only in memory -- if the process gets killed while
+  // backgrounded, this is gone on relaunch anyway, which is fine: that's a
+  // cold start and the mount effect below already locks unconditionally.
+  const backgroundedAt = useRef<number | null>(null)
 
   const attemptUnlock = useCallback(async () => {
     if (inFlight.current) return
@@ -59,10 +64,24 @@ export default function BiometricLock() {
 
       const { App } = await import("@capacitor/app")
       const handle = await App.addListener("appStateChange", ({ isActive }) => {
-        if (!isActive) return
-        getBiometricLockEnabled().then((stillOn) => {
-          if (stillOn) {
-            setEnabled(true)
+        if (!isActive) {
+          backgroundedAt.current = Date.now()
+          return
+        }
+        // Returning to the foreground. Snapshot and clear the background
+        // timestamp immediately so a second rapid appStateChange event can't
+        // read a stale value.
+        const since = backgroundedAt.current
+        backgroundedAt.current = null
+        Promise.all([getBiometricLockEnabled(), getLockTiming()]).then(([stillOn, timing]) => {
+          if (!stillOn) {
+            setEnabled(false)
+            return
+          }
+          setEnabled(true)
+          const elapsed = since === null ? Infinity : Date.now() - since
+          const shouldLock = timing === "never" ? false : timing === 0 ? true : elapsed >= timing
+          if (shouldLock) {
             setLocked(true)
             attemptUnlock()
           }

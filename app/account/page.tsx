@@ -11,6 +11,7 @@ import ReferralCard from "@/components/ReferralCard";
 import DeleteAccount from "@/components/DeleteAccount";
 import SubscriptionCard from "@/components/SubscriptionCard";
 import BankConnections from "@/components/BankConnections";
+import SectionErrorBoundary from "@/components/SectionErrorBoundary";
 import { KeyRound, LogOut, Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function AccountPage() {
@@ -91,10 +92,14 @@ export default function AccountPage() {
         </div>
 
         {/* Two-factor */}
-        <MfaSetup onVerified={signOut} />
+        <SectionErrorBoundary label="Two-factor authentication">
+          <MfaSetup onVerified={signOut} />
+        </SectionErrorBoundary>
 
         {/* Device-level biometric app lock (native app only) */}
-        <BiometricLockToggle />
+        <SectionErrorBoundary label="App lock">
+          <BiometricLockToggle />
+        </SectionErrorBoundary>
 
         {/* Change password */}
         <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-6 shadow-sm">
@@ -154,15 +159,25 @@ export default function AccountPage() {
           </button>
         </div>
 
-        <SubscriptionCard userId={accountUser?.id} />
+        <SectionErrorBoundary label="Subscription">
+          <SubscriptionCard userId={accountUser?.id} />
+        </SectionErrorBoundary>
 
-        <BankConnections />
+        <SectionErrorBoundary label="Bank connections">
+          <BankConnections />
+        </SectionErrorBoundary>
 
-        <NotificationPreferences userId={accountUser?.id} />
+        <SectionErrorBoundary label="Notifications">
+          <NotificationPreferences userId={accountUser?.id} />
+        </SectionErrorBoundary>
 
-        <ReferralCard userId={accountUser?.id} />
+        <SectionErrorBoundary label="Refer & Earn">
+          <ReferralCard userId={accountUser?.id} />
+        </SectionErrorBoundary>
 
-        <DeleteAccount userEmail={accountUser?.email} />
+        <SectionErrorBoundary label="Delete account">
+          <DeleteAccount userEmail={accountUser?.email} />
+        </SectionErrorBoundary>
       </div>
     </div>
   );

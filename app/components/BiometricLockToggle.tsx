@@ -6,9 +6,20 @@ import {
   isBiometricAvailable,
   getBiometricLockEnabled,
   setBiometricLockEnabled,
+  getLockTiming,
+  setLockTiming,
   verifyBiometric,
+  type LockTiming,
 } from "@/lib/biometric"
 import { Fingerprint, Loader2 } from "lucide-react"
+
+const TIMING_OPTIONS: { value: LockTiming; label: string }[] = [
+  { value: 0, label: "Immediately" },
+  { value: 60000, label: "After 1 minute" },
+  { value: 300000, label: "After 5 minutes" },
+  { value: 900000, label: "After 15 minutes" },
+  { value: "never", label: "Never (only on a fresh app launch)" },
+]
 
 /**
  * Lives in Account & security (app/account/page.tsx). Renders nothing on
@@ -19,6 +30,7 @@ export default function BiometricLockToggle() {
   const native = useIsNativeApp()
   const [available, setAvailable] = useState(false)
   const [enabled, setEnabled] = useState(false)
+  const [timing, setTiming] = useState<LockTiming>(0)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [loaded, setLoaded] = useState(false)
@@ -27,12 +39,14 @@ export default function BiometricLockToggle() {
     if (native !== true) return
     ;(async () => {
       try {
-        const [avail, on] = await Promise.all([
+        const [avail, on, savedTiming] = await Promise.all([
           isBiometricAvailable(),
           getBiometricLockEnabled(),
+          getLockTiming(),
         ])
         setAvailable(avail)
         setEnabled(on)
+        setTiming(savedTiming)
       } catch {
         // A hiccup checking biometric availability shouldn't leave this
         // whole card invisible forever -- show it as unavailable, which is
@@ -70,6 +84,11 @@ export default function BiometricLockToggle() {
     }
   }
 
+  async function changeTiming(next: LockTiming) {
+    setTiming(next)
+    await setLockTiming(next)
+  }
+
   return (
     <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-6 shadow-sm">
       <div className="flex items-center gap-2">
@@ -101,6 +120,35 @@ export default function BiometricLockToggle() {
           {enabled ? "Turn off app lock" : "Turn on app lock"}
         </button>
       )}
+
+      {available && enabled && (
+        <div className="mt-4">
+          <label htmlFor="lock_timing" className="text-sm text-gray-300">
+            Require it
+          </label>
+          <select
+            id="lock_timing"
+            value={String(timing)}
+            onChange={(e) => {
+              const raw = e.target.value
+              const next = raw === "never" ? "never" : (Number(raw) as LockTiming)
+              changeTiming(next)
+            }}
+            className="mt-1.5 w-full rounded-lg border border-gray-700 bg-[#0f172a] px-3 py-2 text-sm text-white outline-none focus:border-emerald-400 sm:w-auto"
+          >
+            {TIMING_OPTIONS.map((opt) => (
+              <option key={String(opt.value)} value={String(opt.value)}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+          <p className="mt-1.5 text-xs text-gray-500">
+            How long the app can sit in the background before it asks again when you come
+            back. This does not sign you out -- your session stays active either way.
+          </p>
+        </div>
+      )}
+
       {error && <p className="mt-3 text-sm text-rose-400">{error}</p>}
     </div>
   )
