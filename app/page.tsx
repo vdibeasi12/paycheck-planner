@@ -1,13 +1,102 @@
 'use client'
 
+import { useEffect, useLayoutEffect, useState } from 'react'
 import Link from 'next/link'
 import { CheckCircle2, TrendingDown, Brain, Zap } from 'lucide-react'
 import MemberMilestone from './components/MemberMilestone'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { trackCta } from '@/lib/trackClient'
+import { isNativeApp } from '@/lib/platform'
+import { supabase } from '@/lib/supabase/client'
+import { withTimeout } from '@/lib/withTimeout'
+import { PaycheckPlannerLogo } from './components/PaycheckPlannerLogo'
+
+// SSR can't tell native from web, so it always renders this page's real
+// return value below -- fine, since useLayoutEffect (guarded here so it
+// doesn't warn during SSR) runs and corrects things before the browser
+// paints, never after.
+const useIsoLayoutEffect = typeof window !== 'undefined' ? useLayoutEffect : useEffect
 
 export default function HomePage() {
   const { t } = useLocale()
+
+  // Capacitor's server.url has no path of its own, so ANY webview repaint on
+  // native -- not just a true cold start, but also Android recreating the
+  // host Activity after the Google OAuth Custom Tab backgrounds it (common
+  // under memory pressure / "don't keep activities") -- always paints this
+  // marketing page first. NativeInit.tsx (mounted alongside every page, see
+  // app/layout.tsx) handles the OAuth callback and hard-navigates away once
+  // it's done, but that involves dynamic plugin imports plus a listener /
+  // getLaunchUrl check, so there's a real window where this page is what's
+  // actually on screen. That's the "hits the main page then refreshes"
+  // symptom. `ready` starts true so the server-rendered HTML (identical for
+  // web and native -- the server has no way to tell them apart) matches the
+  // very first client paint with no hydration mismatch; the layout effect
+  // below then corrects BEFORE the browser paints anything, so a native user
+  // never sees this page interactive while a sign-in might be resolving
+  // underneath it. Web is unaffected -- isNativeApp() is false there and
+  // this effect returns immediately, every time.
+  const [ready, setReady] = useState(true)
+
+  useIsoLayoutEffect(() => {
+    if (!isNativeApp()) return
+    setReady(false)
+
+    let cancelled = false
+    const reveal = () => {
+      if (!cancelled) setReady(true)
+    }
+    // Hard safety net: whatever happens below, never leave a genuine
+    // logged-out native user staring at a loading screen forever.
+    const safety = setTimeout(reveal, 4000)
+
+    ;(async () => {
+      try {
+        // Already signed in (session persisted from a previous visit) --
+        // skip marketing content entirely and go straight into the app.
+        const { data } = await withTimeout(
+          supabase.auth.getSession(),
+          3000,
+          { data: { session: null } } as any
+        )
+        if (!cancelled && data?.session) {
+          window.location.href = '/dashboard'
+          return
+        }
+      } catch {
+        /* no session available yet -- fall through to the launch-url check */
+      }
+
+      try {
+        const { App } = await import('@capacitor/app')
+        const launch = await App.getLaunchUrl()
+        if (!cancelled && launch?.url?.includes('auth-callback')) {
+          // NativeInit is handling this exact URL right now and will hard-
+          // navigate away in a moment -- stay hidden, don't reveal marketing
+          // content underneath it only to yank it away again.
+          return
+        }
+      } catch {
+        /* getLaunchUrl isn't available on every platform/version */
+      }
+
+      clearTimeout(safety)
+      reveal()
+    })()
+
+    return () => {
+      cancelled = true
+      clearTimeout(safety)
+    }
+  }, [])
+
+  if (!ready) {
+    return (
+      <main className="min-h-screen bg-[#020617] flex items-center justify-center">
+        <PaycheckPlannerLogo size={40} className="opacity-80" />
+      </main>
+    )
+  }
 
   const features = [
     { title: t('home.feature1Title'), desc: t('home.feature1Desc') },
@@ -110,4 +199,4 @@ export default function HomePage() {
       </section>
     </main>
   )
-}
+}
