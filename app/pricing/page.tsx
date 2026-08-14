@@ -184,7 +184,7 @@ export default function PricingPage() {
           <h2 className="text-center text-2xl font-bold tracking-tight">
             Compare every feature
           </h2>
-          <p className="mt-2 text-center text-sm text-slate-400">
+          <p className="mt-2 text-center text-base text-slate-300">
             Everything in each plan, side by side.
           </p>
 
@@ -193,15 +193,15 @@ export default function PricingPage() {
             <table className="w-full min-w-[560px] border-collapse text-left">
               <thead>
                 <tr className="border-b border-slate-800">
-                  <th className="bg-[#0f172a] px-5 py-4 text-sm font-semibold text-slate-300">
+                  <th className="bg-[#0f172a] px-5 py-4 text-base font-semibold text-white">
                     Feature
                   </th>
                   {VISIBLE_TIERS.map((t) => (
                     <th
                       key={t.id}
-                      className="px-5 py-4 text-center text-sm font-semibold"
+                      className="px-5 py-4 text-center text-base font-semibold"
                     >
-                      <span className={t.highlight ? "text-emerald-400" : "text-slate-200"}>
+                      <span className={t.highlight ? "text-emerald-400" : "text-white"}>
                         {t.name}
                       </span>
                     </th>
@@ -238,7 +238,7 @@ export default function PricingPage() {
             <div className="mt-4 overflow-hidden rounded-2xl border border-slate-800 bg-slate-900/40">
               {FEATURE_GROUPS.map((group) => (
                 <div key={group.group}>
-                  <div className="bg-[#0f172a] px-5 pt-4 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <div className="bg-[#0f172a] px-5 pt-4 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-300">
                     {group.group}
                   </div>
                   {group.rows.map((row, i) => {
@@ -250,9 +250,9 @@ export default function PricingPage() {
                           i % 2 ? "bg-slate-900/20" : ""
                         }`}
                       >
-                        <span className="text-sm text-slate-300">{row.label}</span>
+                        <span className="text-base text-white">{row.label}</span>
                         {typeof value === "string" ? (
-                          <span className="shrink-0 text-right text-sm font-medium text-slate-200">
+                          <span className="shrink-0 text-right text-base font-medium text-white">
                             {value}
                           </span>
                         ) : value ? (
@@ -468,14 +468,14 @@ function GroupRows({ group, rows }: { group: string; rows: typeof FEATURE_GROUPS
       <tr>
         <td
           colSpan={VISIBLE_TIERS.length + 1}
-          className="bg-[#0f172a] px-5 pt-5 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-500"
+          className="bg-[#0f172a] px-5 pt-5 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-300"
         >
           {group}
         </td>
       </tr>
       {rows.map((row, i) => (
         <tr key={row.label} className={i % 2 ? "bg-slate-900/20" : ""}>
-          <td className="bg-[#0f172a] px-5 py-3 text-sm text-slate-300">
+          <td className="bg-[#0f172a] px-5 py-3 text-base text-white">
             {row.label}
           </td>
           {VISIBLE_TIERS.map((col) => (
@@ -491,7 +491,7 @@ function Cell({ value, highlight = false }: { value: FeatureCell; highlight?: bo
   return (
     <td className={`px-5 py-3 text-center ${highlight ? "bg-emerald-400/[0.04]" : ""}`}>
       {typeof value === "string" ? (
-        <span className="text-sm font-medium text-slate-200">{value}</span>
+        <span className="text-base font-medium text-white">{value}</span>
       ) : value ? (
         <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-400">
           <Check size={15} strokeWidth={3} aria-label="Included" />
