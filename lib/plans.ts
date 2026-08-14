@@ -68,8 +68,8 @@ export const TIERS: Tier[] = [
     id: "connected",
     name: "Autopilot",
     tagline: "Connect your accounts and your whole plan runs itself.",
-    priceMonthly: 11.99,
-    priceAnnual: 119.99, // ~2 months free vs paying monthly
+    priceMonthly: 12.99,
+    priceAnnual: 129.99, // ~2 months free vs paying monthly (10 x 12.99 = 129.90)
     cta: "Get Autopilot",
     stripe: {
       monthly: process.env.NEXT_PUBLIC_STRIPE_CONNECTED_MONTHLY,
