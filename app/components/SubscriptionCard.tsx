@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
+import { withTimeout } from "@/lib/withTimeout";
 import { useIsNativeApp } from "@/lib/platform";
 import { CreditCard, Loader2 } from "lucide-react";
 
@@ -13,7 +14,10 @@ const PLAN_NAMES: Record<string, string> = {
   connected: "Autopilot",
 };
 
-export default function SubscriptionCard() {
+// userId: pass the already-fetched account id (see app/account/page.tsx) to
+// skip this component's own supabase.auth.getUser() call. Falls back to
+// fetching it itself when used standalone without the prop.
+export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
   const native = useIsNativeApp();
   const [plan, setPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -23,18 +27,22 @@ export default function SubscriptionCard() {
     let active = true;
     (async () => {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
-        if (!user) {
+        let id = userId;
+        if (!id) {
+          const { data } = await withTimeout(supabase.auth.getUser(), 8000, {
+            data: { user: null },
+          } as Awaited<ReturnType<typeof supabase.auth.getUser>>);
+          id = data.user?.id;
+        }
+        if (!id) {
           if (active) setLoading(false);
           return;
         }
-        const { data } = await supabase
-          .from("profiles")
-          .select("plan")
-          .eq("id", user.id)
-          .single();
+        const { data } = await withTimeout(
+          supabase.from("profiles").select("plan").eq("id", id).single(),
+          8000,
+          { data: null } as any
+        );
         if (active) {
           setPlan((data?.plan as string) ?? "free");
         }
@@ -50,7 +58,7 @@ export default function SubscriptionCard() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [userId]);
 
   async function manage() {
     setBusy(true);

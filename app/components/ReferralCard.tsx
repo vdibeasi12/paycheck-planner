@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase/client"
+import { withTimeout } from "@/lib/withTimeout"
 import { Gift, Loader2, Check, Copy } from "lucide-react"
 
 type State = {
@@ -13,7 +14,10 @@ type State = {
 
 const GOAL = 3
 
-export default function ReferralCard() {
+// userId: pass the already-fetched account id (see app/account/page.tsx) to
+// skip this component's own supabase.auth.getUser() call. Falls back to
+// fetching it itself when used standalone without the prop.
+export default function ReferralCard({ userId }: { userId?: string } = {}) {
   const [state, setState] = useState<State>(null)
   const [failed, setFailed] = useState(false)
   const [copied, setCopied] = useState(false)
@@ -22,21 +26,34 @@ export default function ReferralCard() {
     let active = true
     ;(async () => {
       try {
-        const { data: auth } = await supabase.auth.getUser()
-        const user = auth?.user
-        if (!user) return
+        let id = userId
+        if (!id) {
+          const { data: auth } = await withTimeout(supabase.auth.getUser(), 8000, {
+            data: { user: null },
+          } as Awaited<ReturnType<typeof supabase.auth.getUser>>)
+          id = auth?.user?.id
+        }
+        if (!id) return
 
-        const { data: profile } = await supabase
-          .from("profiles")
-          .select("referral_code, plan, referral_reward_granted")
-          .eq("id", user.id)
-          .single()
+        const { data: profile } = await withTimeout(
+          supabase
+            .from("profiles")
+            .select("referral_code, plan, referral_reward_granted")
+            .eq("id", id)
+            .single(),
+          8000,
+          { data: null } as any
+        )
 
-        const { count } = await supabase
-          .from("referrals")
-          .select("id", { count: "exact", head: true })
-          .eq("referrer_id", user.id)
-          .eq("status", "completed")
+        const { count } = await withTimeout(
+          supabase
+            .from("referrals")
+            .select("id", { count: "exact", head: true })
+            .eq("referrer_id", id)
+            .eq("status", "completed"),
+          8000,
+          { count: 0 } as any
+        )
 
         if (!active || !profile) return
         setState({
@@ -55,7 +72,7 @@ export default function ReferralCard() {
     return () => {
       active = false
     }
-  }, [])
+  }, [userId])
 
   if (!state) {
     return (

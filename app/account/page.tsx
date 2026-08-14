@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { withTimeout } from "@/lib/withTimeout";
 import { useRouter } from "next/navigation";
 import MfaSetup from "@/components/MfaSetup";
 import BiometricLockToggle from "@/components/BiometricLockToggle";
@@ -19,6 +20,31 @@ export default function AccountPage() {
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [showPw, setShowPw] = useState(false);
+
+  // Fetched once here and handed down to Subscription/Notifications/Referral/
+  // DeleteAccount as props, instead of each of those five sections calling
+  // supabase.auth.getUser() independently on mount. That fan-out of
+  // simultaneous auth calls is what was leaving this page stuck on
+  // "Loading..." (and occasionally unresponsive) in the mobile app --
+  // supabase-js serializes auth calls behind an internal lock, and several
+  // firing at once in the same WebView could pile up behind it. One call
+  // here, bounded by withTimeout so it can't hang the page either.
+  const [accountUser, setAccountUser] = useState<{ id: string; email: string } | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      const { data } = await withTimeout(supabase.auth.getUser(), 8000, {
+        data: { user: null },
+      } as Awaited<ReturnType<typeof supabase.auth.getUser>>);
+      if (active && data.user) {
+        setAccountUser({ id: data.user.id, email: data.user.email || "" });
+      }
+    })();
+    return () => {
+      active = false;
+    };
+  }, []);
 
   async function changePassword() {
     setMsg(null);
@@ -128,15 +154,15 @@ export default function AccountPage() {
           </button>
         </div>
 
-        <SubscriptionCard />
+        <SubscriptionCard userId={accountUser?.id} />
 
         <BankConnections />
 
-        <NotificationPreferences />
+        <NotificationPreferences userId={accountUser?.id} />
 
-        <ReferralCard />
+        <ReferralCard userId={accountUser?.id} />
 
-        <DeleteAccount />
+        <DeleteAccount userEmail={accountUser?.email} />
       </div>
     </div>
   );

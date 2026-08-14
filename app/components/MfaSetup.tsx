@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { withTimeout } from "@/lib/withTimeout";
 import { ShieldCheck, ShieldPlus, Trash2, Loader2 } from "lucide-react";
 
 type Factor = { id: string; friendly_name: string | null; status: string };
@@ -31,7 +32,9 @@ export default function MfaSetup({ onVerified }: { onVerified?: () => void } = {
   async function loadFactors() {
     setLoading(true);
     try {
-      const { data } = await supabase.auth.mfa.listFactors();
+      const { data } = await withTimeout(supabase.auth.mfa.listFactors(), 8000, {
+        data: { totp: [], phone: [] },
+      } as Awaited<ReturnType<typeof supabase.auth.mfa.listFactors>>);
       // verified TOTP factors
       setFactors((data?.totp ?? []) as Factor[]);
     } catch {

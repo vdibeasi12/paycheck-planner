@@ -2,31 +2,34 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { withTimeout } from "@/lib/withTimeout";
 import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 
-export default function DeleteAccount() {
-  const [email, setEmail] = useState("");
+// userEmail: pass the already-fetched account email (see
+// app/account/page.tsx) to skip this component's own supabase.auth.getUser()
+// call. Falls back to fetching it itself when used standalone.
+export default function DeleteAccount({ userEmail }: { userEmail?: string } = {}) {
+  const [email, setEmail] = useState(userEmail || "");
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
   useEffect(() => {
+    if (userEmail) {
+      setEmail(userEmail);
+      return;
+    }
     let active = true;
-    supabase.auth
-      .getUser()
-      .then(({ data }) => {
-        if (active) setEmail(data.user?.email || "");
-      })
-      .catch(() => {
-        // Non-fatal: the confirm-email field just shows "..." as a
-        // placeholder (see the label below) until the user opens the
-        // confirm step, which is harmless if this never resolves.
-      });
+    withTimeout(supabase.auth.getUser(), 8000, {
+      data: { user: null },
+    } as Awaited<ReturnType<typeof supabase.auth.getUser>>).then(({ data }) => {
+      if (active) setEmail(data.user?.email || "");
+    });
     return () => {
       active = false;
     };
-  }, []);
+  }, [userEmail]);
 
   const matches =
     typed.trim().length > 0 &&

@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
+import { withTimeout } from "@/lib/withTimeout";
 import { Bell, Loader2, Check } from "lucide-react";
 
 type Prefs = {
@@ -22,7 +23,13 @@ const DEFAULTS: Prefs = {
   reminder_days_before: 3,
 };
 
-export default function NotificationPreferences() {
+// userId/userEmail: pass the already-fetched account values (see
+// app/account/page.tsx) to skip this component's own supabase.auth.getUser()
+// call. Falls back to fetching them itself when used standalone.
+export default function NotificationPreferences({
+  userId,
+  userEmail,
+}: { userId?: string; userEmail?: string } = {}) {
   const [prefs, setPrefs] = useState<Prefs | null>(null);
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -31,19 +38,28 @@ export default function NotificationPreferences() {
     let active = true;
     (async () => {
       try {
-        const { data: auth } = await supabase.auth.getUser();
-        const user = auth?.user;
-        if (!user) {
+        let id = userId;
+        if (!id) {
+          const { data: auth } = await withTimeout(supabase.auth.getUser(), 8000, {
+            data: { user: null },
+          } as Awaited<ReturnType<typeof supabase.auth.getUser>>);
+          id = auth?.user?.id;
+        }
+        if (!id) {
           if (active) setPrefs(DEFAULTS);
           return;
         }
-        const { data } = await supabase
-          .from("notification_preferences")
-          .select(
-            "email_bill_reminders, email_weekly_summary, email_product_updates, email_new_posts, push_bill_reminders, reminder_days_before"
-          )
-          .eq("user_id", user.id)
-          .maybeSingle();
+        const { data } = await withTimeout(
+          supabase
+            .from("notification_preferences")
+            .select(
+              "email_bill_reminders, email_weekly_summary, email_product_updates, email_new_posts, push_bill_reminders, reminder_days_before"
+            )
+            .eq("user_id", id)
+            .maybeSingle(),
+          8000,
+          { data: null } as any
+        );
         if (active) {
           setPrefs(data ? { ...DEFAULTS, ...(data as Partial<Prefs>) } : DEFAULTS);
         }
@@ -56,7 +72,7 @@ export default function NotificationPreferences() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [userId]);
 
   function update<K extends keyof Prefs>(key: K, value: Prefs[K]) {
     setPrefs((p) => (p ? { ...p, [key]: value } : p));
@@ -68,13 +84,18 @@ export default function NotificationPreferences() {
     setSaving(true);
     setSaved(false);
     try {
-      const { data: auth } = await supabase.auth.getUser();
-      const user = auth?.user;
-      if (!user) return;
+      let id = userId;
+      let email = userEmail;
+      if (!id) {
+        const { data: auth } = await supabase.auth.getUser();
+        id = auth?.user?.id;
+        email = auth?.user?.email ?? undefined;
+      }
+      if (!id) return;
       const { error } = await supabase
         .from("notification_preferences")
         .upsert(
-          { user_id: user.id, ...prefs, updated_at: new Date().toISOString() },
+          { user_id: id, ...prefs, updated_at: new Date().toISOString() },
           { onConflict: "user_id" }
         );
 
@@ -91,7 +112,7 @@ export default function NotificationPreferences() {
               "Content-Type": "application/json",
               Authorization: "Bearer " + token,
             },
-            body: JSON.stringify({ email: user.email, source: "account_settings" }),
+            body: JSON.stringify({ email, source: "account_settings" }),
           });
         } else {
           await fetch("/api/blog/subscribe", {
