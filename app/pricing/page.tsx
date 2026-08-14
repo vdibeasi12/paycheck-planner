@@ -72,7 +72,7 @@ export default function PricingPage() {
         return;
       }
 
-      // Not signed in yet â€” expected from the public pricing page. Send them
+      // Not signed in yet — expected from the public pricing page. Send them
       // to sign up; they can come back and subscribe afterward.
       if (res.status === 401) {
         window.location.href = "/signup";
@@ -83,7 +83,7 @@ export default function PricingPage() {
       // Stripe-account mismatch, an outage, etc. Show it instead of hiding it.
       console.error("Checkout failed:", res.status, data);
       setError(
-        `We couldn't start checkout. Please try again â€” if it keeps happening, email ${BRAND.supportEmail}.`
+        `We couldn't start checkout. Please try again — if it keeps happening, email ${BRAND.supportEmail}.`
       );
     } catch (err) {
       console.error("Checkout request error:", err);
@@ -291,7 +291,7 @@ export default function PricingPage() {
                     name: "Can I switch plans later?",
                     acceptedAnswer: {
                       "@type": "Answer",
-                      text: "Yes â€” upgrade or downgrade anytime. Changes take effect immediately and we prorate the difference.",
+                      text: "Yes — upgrade or downgrade anytime. Changes take effect immediately and we prorate the difference.",
                     },
                   },
                   {
@@ -299,7 +299,7 @@ export default function PricingPage() {
                     name: "What does the annual plan save me?",
                     acceptedAnswer: {
                       "@type": "Answer",
-                      text: "Annual billing is ten months for the price of twelve â€” two months free on Momentum and Accelerate.",
+                      text: "Annual billing is ten months for the price of twelve — two months free on Momentum and Accelerate.",
                     },
                   },
                   {
@@ -325,11 +325,11 @@ export default function PricingPage() {
           <h2 className="text-center text-2xl font-bold tracking-tight">Common questions</h2>
           <div className="mt-8 space-y-5">
             <Faq q="Can I switch plans later?">
-              Yes â€” upgrade or downgrade anytime. Changes take effect immediately and
+              Yes — upgrade or downgrade anytime. Changes take effect immediately and
               we prorate the difference.
             </Faq>
             <Faq q="What does the annual plan save me?">
-              Annual billing is ten months for the price of twelve â€” two months free
+              Annual billing is ten months for the price of twelve — two months free
               on Momentum and Accelerate.
             </Faq>
             <Faq q="Do I need a card for the Free plan?">
@@ -348,7 +348,7 @@ export default function PricingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-6 py-10 text-center sm:flex-row sm:justify-between sm:text-left">
           <PaycheckPlannerLogo size={26} />
           <p className="text-sm text-slate-500">
-            A product of {BRAND.company} Â·{" "}
+            A product of {BRAND.company} ·{" "}
             <a href={`mailto:${BRAND.supportEmail}`}
               className="text-slate-400 underline-offset-4 hover:text-emerald-400 hover:underline"
             >
@@ -356,7 +356,7 @@ export default function PricingPage() {
             </a>
           </p>
           <p className="text-xs text-slate-600">
-            Â© {new Date().getFullYear()} {BRAND.company}
+            © {new Date().getFullYear()} {BRAND.company}
           </p>
         </div>
       </footer>
@@ -445,7 +445,7 @@ function TierCard({
           {isFree
             ? "Free forever"
             : annual
-            ? `$${tier.priceAnnual} billed yearly Â· 2 months free`
+            ? `$${tier.priceAnnual} billed yearly · 2 months free`
             : "Billed monthly"}
         </p>
       </div>
@@ -456,7 +456,7 @@ function TierCard({
         disabled={loading}
         className="mt-6 w-full rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 px-4 py-2.5 text-sm font-semibold text-slate-950 transition hover:brightness-110 disabled:opacity-60"
       >
-        {loading ? "Redirectingâ€¦" : tier.cta}
+        {loading ? "Redirecting…" : tier.cta}
       </button>
     </div>
   );
@@ -508,8 +508,8 @@ function Cell({ value, highlight = false }: { value: FeatureCell; highlight?: bo
 function Faq({ q, children }: { q: string; children: React.ReactNode }) {
   return (
     <div className="rounded-xl border border-slate-800 bg-slate-900/40 p-5">
-      <h3 className="text-sm font-semibold text-slate-100">{q}</h3>
-      <p className="mt-2 text-sm leading-relaxed text-slate-400">{children}</p>
+      <h3 className="text-base font-semibold text-white">{q}</h3>
+      <p className="mt-2 text-base leading-relaxed text-slate-300">{children}</p>
     </div>
   );
 }
