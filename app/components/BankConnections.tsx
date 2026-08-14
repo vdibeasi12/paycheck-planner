@@ -95,8 +95,10 @@ export default function BankConnections() {
         <h2 className="text-lg font-semibold text-white">Bank connections</h2>
       </div>
       <p className="mt-1 text-sm text-gray-400">
-        Link a bank to import your loans and credit cards automatically. Synced
-        balances flow into your debts and payoff plan.
+        Link a bank to import loans and credit cards automatically, and to view
+        balances on any account -- checking and savings included. We only ever
+        view balances, never move money. Balances refresh daily and flow into
+        your debts, payoff plan, and full financial picture.
       </p>
 
       {banks.length > 0 && (
@@ -139,7 +141,7 @@ export default function BankConnections() {
       )}
 
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <PlaidConnectButton onLinked={load} />
+        <PlaidConnectButton onLinked={load} purpose="bank" />
         {banks.length > 0 && (
           <button
             type="button"

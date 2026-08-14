@@ -1,6 +1,10 @@
 {
     "crons":  [
                   {
+                      "path":  "/api/cron/bank-balance-refresh",
+                      "schedule":  "0 12 * * *"
+                  },
+                  {
                       "path":  "/api/cron/bill-reminders",
                       "schedule":  "0 13 * * *"
                   },

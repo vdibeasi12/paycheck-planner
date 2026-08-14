@@ -11,8 +11,12 @@ function adminDb() {
   return createClient(url, key, { auth: { persistSession: false } })
 }
 
-// GET: daily cron. Refreshes checking/savings balances for every "auth"
-// -product Plaid item across all users, mirroring each into `assets`.
+// GET: daily cron. Refreshes checking/savings balances for every connected
+// Plaid item across all users, mirroring each into `assets`. Not scoped to a
+// specific `product` tag -- syncBalancesForItem already filters to
+// depository accounts internally and is a safe no-op for items that don't
+// have any (e.g. a credit-card-only item), so this covers every item
+// regardless of which products it was connected with.
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET
   const auth = req.headers.get("authorization") || ""
@@ -25,7 +29,6 @@ export async function GET(req: Request) {
   const { data: items, error } = await db
     .from("plaid_items")
     .select("item_id, user_id, access_token")
-    .eq("product", "auth")
 
   if (error) {
     return NextResponse.json({ error: "Could not load bank items" }, { status: 500 })

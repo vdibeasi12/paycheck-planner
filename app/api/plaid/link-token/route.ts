@@ -94,6 +94,19 @@ export async function POST(req: Request) {
     }
     if (accessToken) {
       params.access_token = accessToken
+    } else if (purpose === "bank") {
+      // Broad connection: Auth is the required gate so ANY account type
+      // (checking, savings, credit card, loan) can be selected in Link, not
+      // just liability accounts -- Liabilities-only was rejecting plain
+      // checking/savings banks with a "No liability accounts" error.
+      // Liabilities is still requested where the institution supports it
+      // (credit cards, student loans, mortgages), so debt auto-import is
+      // unchanged for those. Auth returns account/routing numbers, but we
+      // never use them to move money -- what we actually want is Balance
+      // data, which rides along automatically with any initialized product
+      // at no extra product-selection cost.
+      params.products = [Products.Auth]
+      params.required_if_supported_products = [Products.Liabilities]
     } else {
       params.products = [Products.Liabilities]
     }
