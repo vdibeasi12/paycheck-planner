@@ -18,6 +18,21 @@ export function isNativeApp(): boolean {
 }
 
 /**
+ * True only inside the iOS Capacitor shell, false on Android and web.
+ *
+ * App Store Guideline 3.1.1 (no external purchase links/UI) is an Apple
+ * policy -- Google Play has no equivalent blanket restriction, so gates that
+ * exist purely for Apple compliance (like hiding the pricing/comparison
+ * table) should key off this, not `isNativeApp()`, or Android users lose
+ * functionality they're allowed to have.
+ */
+export function isIOSApp(): boolean {
+  if (typeof window === "undefined") return false
+  const cap = (window as any).Capacitor
+  return !!(cap && typeof cap.getPlatform === "function" && cap.getPlatform() === "ios")
+}
+
+/**
  * Mount-safe platform check.
  * Returns `null` until mounted, then `true` (native) or `false` (web).
  *

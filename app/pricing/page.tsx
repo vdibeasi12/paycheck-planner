@@ -1,6 +1,6 @@
 "use client";
 
-import { isNativeApp } from "@/lib/platform";
+import { isNativeApp, isIOSApp } from "@/lib/platform";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -93,10 +93,16 @@ export default function PricingPage() {
     }
   }
 
-  // Native app users see a simplified screen instead of the full pricing
+  // iOS app users see a simplified screen instead of the full pricing
   // table/checkout flow (App Store Guideline 3.1.1 -- no in-app purchase
   // mechanism is wired up here yet, so we don't show purchase UI natively).
-  if (isNativeApp()) {
+  // Android has no equivalent Google Play restriction, so Android app users
+  // get the real page below -- tier cards, the full feature comparison
+  // (including the mobile tab picker), and FAQ. Tapping a paid plan still
+  // safely redirects to sign-up instead of opening real checkout natively
+  // (see the isNativeApp() check in handleCheckout above) -- only this
+  // browsing screen was ever meant to be iOS-only.
+  if (isIOSApp()) {
     return (
       <main
         className="flex min-h-screen flex-col items-center justify-center px-6 text-center text-slate-100"
