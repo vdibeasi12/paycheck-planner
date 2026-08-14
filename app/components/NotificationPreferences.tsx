@@ -12,6 +12,8 @@ type Prefs = {
   email_new_posts: boolean;
   push_bill_reminders: boolean;
   reminder_days_before: number;
+  email_payday_reminder: boolean;
+  payday_reminder_days_before: number;
 };
 
 const DEFAULTS: Prefs = {
@@ -21,6 +23,8 @@ const DEFAULTS: Prefs = {
   email_new_posts: true,
   push_bill_reminders: false,
   reminder_days_before: 3,
+  email_payday_reminder: true,
+  payday_reminder_days_before: 1,
 };
 
 // userId/userEmail: pass the already-fetched account values (see
@@ -53,7 +57,7 @@ export default function NotificationPreferences({
           supabase
             .from("notification_preferences")
             .select(
-              "email_bill_reminders, email_weekly_summary, email_product_updates, email_new_posts, push_bill_reminders, reminder_days_before"
+              "email_bill_reminders, email_weekly_summary, email_product_updates, email_new_posts, push_bill_reminders, reminder_days_before, email_payday_reminder, payday_reminder_days_before"
             )
             .eq("user_id", id)
             .maybeSingle(),
@@ -158,6 +162,12 @@ export default function NotificationPreferences({
               onChange={(v) => update("push_bill_reminders", v)}
             />
             <Toggle
+              label="Payday reminders (email)"
+              desc="Get an email before your next paycheck lands."
+              checked={prefs.email_payday_reminder}
+              onChange={(v) => update("email_payday_reminder", v)}
+            />
+            <Toggle
               label="Weekly summary (email)"
               desc="A short recap of your week."
               checked={prefs.email_weekly_summary}
@@ -191,6 +201,22 @@ export default function NotificationPreferences({
               <option value={3}>3 days</option>
               <option value={5}>5 days</option>
               <option value={7}>7 days</option>
+            </select>
+          </div>
+
+          <div className="mt-4 flex items-center justify-between gap-4">
+            <label htmlFor="payday_reminder_days" className="text-sm text-gray-300">
+              Remind me this many days before payday
+            </label>
+            <select
+              id="payday_reminder_days"
+              value={prefs.payday_reminder_days_before}
+              onChange={(e) => update("payday_reminder_days_before", Number(e.target.value))}
+              className="rounded-lg border border-gray-700 bg-[#0f172a] px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
+            >
+              <option value={1}>1 day</option>
+              <option value={2}>2 days</option>
+              <option value={3}>3 days</option>
             </select>
           </div>
 
