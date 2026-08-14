@@ -34,7 +34,7 @@ export default function MfaSetup({ onVerified }: { onVerified?: () => void } = {
     try {
       const { data } = await withTimeout(supabase.auth.mfa.listFactors(), 8000, {
         data: { totp: [], phone: [] },
-      } as Awaited<ReturnType<typeof supabase.auth.mfa.listFactors>>);
+      } as any);
       // verified TOTP factors
       setFactors((data?.totp ?? []) as Factor[]);
     } catch {

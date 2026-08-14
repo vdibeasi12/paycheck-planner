@@ -14,7 +14,13 @@
 // rejection or a timeout. Treating both the same keeps call sites simple:
 // one straight-line `await withTimeout(...)` instead of a try/catch plus a
 // separate timeout mechanism.
-export function withTimeout<T>(promise: Promise<T>, ms: number, fallback: T): Promise<T> {
+//
+// Takes PromiseLike<T> rather than Promise<T> on purpose: supabase-js's
+// query builders (the objects returned by .select()/.eq()/etc. before you
+// await them) are thenable but not real Promise instances -- they don't
+// have .catch/.finally/[Symbol.toStringTag]. Promise<T> would reject them
+// at the type level even though `await` and `.then()` both work fine.
+export function withTimeout<T>(promise: PromiseLike<T>, ms: number, fallback: T): Promise<T> {
   return new Promise<T>((resolve) => {
     let done = false
     const timer = setTimeout(() => {
