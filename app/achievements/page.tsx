@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { Lock, Check, Loader2 } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
+import { withTimeout } from "@/lib/withTimeout"
 import { BADGES } from "@/lib/achievements"
 import { celebrate } from "@/lib/confetti"
 import BadgeIcon from "@/components/badgeIcon"
@@ -24,15 +25,27 @@ export default function AchievementsPage() {
         // ignore
       }
 
-      const { data } = await supabase
-        .from("achievements")
-        .select("badge_key, earned_at")
-
-      const map: Record<string, string | null> = {}
-      ;(data || []).forEach((r: EarnedRow) => {
-        map[r.badge_key] = r.earned_at
-      })
-      if (active) setEarned(map)
+      // Bounded + guarded: right after a fresh sign-in (especially the hard
+      // navigation Google login does on mobile, see NativeInit.tsx) this
+      // browser-side query can hang instead of resolving or rejecting --
+      // same supabase-js WebView lock-contention issue already worked
+      // around on the account page (see lib/withTimeout.ts). Without this,
+      // `earned` stays null forever and the page never leaves "Loading your
+      // badges..." until the user manually refreshes.
+      try {
+        const { data } = await withTimeout(
+          supabase.from("achievements").select("badge_key, earned_at"),
+          8000,
+          { data: [] as EarnedRow[] } as any
+        )
+        const map: Record<string, string | null> = {}
+        ;(data || []).forEach((r: EarnedRow) => {
+          map[r.badge_key] = r.earned_at
+        })
+        if (active) setEarned(map)
+      } catch {
+        if (active) setEarned({})
+      }
     }
 
     run()

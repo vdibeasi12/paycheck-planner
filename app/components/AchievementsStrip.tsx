@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import Link from "next/link"
 import { Trophy, ChevronRight, Lock } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
+import { withTimeout } from "@/lib/withTimeout"
 import { BADGES, type Badge } from "@/lib/achievements"
 import { celebrate } from "@/lib/confetti"
 import BadgeIcon from "@/components/badgeIcon"
@@ -27,12 +28,25 @@ export default function AchievementsStrip() {
         // ignore: the read below still drives the display
       }
 
-      const { data } = await supabase
-        .from("achievements")
-        .select("badge_key, earned_at")
-        .order("earned_at", { ascending: false })
-
-      if (active) setEarnedKeys((data || []).map((r) => r.badge_key as string))
+      // Bounded + guarded, same reasoning as app/achievements/page.tsx: this
+      // strip sits on the dashboard, which is the very first page rendered
+      // right after Google login's hard navigation (NativeInit.tsx). If
+      // this client-side query hangs instead of resolving, `earnedKeys`
+      // never leaves null and the strip just silently never appears (see
+      // `if (!earnedKeys) return null` below) until a manual refresh.
+      try {
+        const { data } = await withTimeout(
+          supabase
+            .from("achievements")
+            .select("badge_key, earned_at")
+            .order("earned_at", { ascending: false }),
+          8000,
+          { data: [] as { badge_key: string }[] } as any
+        )
+        if (active) setEarnedKeys((data || []).map((r: any) => r.badge_key as string))
+      } catch {
+        if (active) setEarnedKeys([])
+      }
     }
 
     run()
