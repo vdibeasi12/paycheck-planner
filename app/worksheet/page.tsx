@@ -2,9 +2,9 @@ import type { Metadata } from "next"
 import WorksheetCaptureForm from "@/app/components/WorksheetCaptureForm"
 
 export const metadata: Metadata = {
-  title: "Free Paycheck Budget Worksheet - Paycheck Planner",
+  title: "Free Paycheck Budget Worksheet & Template - Paycheck Planner",
   description:
-    "A free, printable worksheet that matches your bills to the exact paycheck that covers them -- the fastest fix for running out of money before payday.",
+    "A free, printable paycheck budget template that matches your bills to the exact paycheck that covers them -- the fastest fix for running out of money before payday.",
   alternates: {
     canonical: "/worksheet",
   },
@@ -26,7 +26,7 @@ export default function WorksheetPage() {
     <div className="min-h-screen bg-[#020617] py-12 text-white print:bg-white print:text-black print:py-0">
       <div className="mx-auto max-w-3xl px-6">
         <div className="print:hidden">
-          <h1 className="mb-3 text-4xl font-bold">Free Paycheck Budget Worksheet</h1>
+          <h1 className="mb-3 text-4xl font-bold">Free Paycheck Budget Worksheet &amp; Template</h1>
           <p className="mb-6 text-gray-400">
             Match every bill to the exact paycheck that covers it -- the single biggest fix for
             running out of money before payday. Fill it in below, or print this page (

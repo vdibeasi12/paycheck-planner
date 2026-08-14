@@ -6,7 +6,7 @@ import { CALCULATORS } from "@/lib/calculators"
 export const metadata: Metadata = {
   title: "Free Financial Calculators - Paycheck Planner",
   description:
-    "Free calculators for paycheck take-home pay, the 50/30/20 budget rule, biweekly budgeting, debt payoff, savings goals, and monthly budgets.",
+    "Free calculators for paycheck take-home pay, the 50/30/20 budget rule, biweekly budgeting, debt payoff, savings goals, monthly budgets, and your emergency fund target.",
   alternates: {
     canonical: "/calculators",
   },

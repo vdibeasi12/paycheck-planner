@@ -61,6 +61,14 @@ export const CALCULATORS: CalculatorMeta[] = [
     seoDescription:
       "Free monthly budget calculator -- itemize your actual expenses against your income and instantly see whether you're in the black or the red.",
   },
+  {
+    slug: "emergency-fund",
+    title: "Emergency Fund Calculator",
+    shortTitle: "Emergency Fund",
+    description: "Find out how big your emergency fund should be, and how long it'll take to build.",
+    seoDescription:
+      "Free emergency fund calculator -- enter your essential monthly expenses to find your target emergency fund size, then see how long it'll take to save.",
+  },
 ]
 
 export function getCalculatorMeta(slug: string): CalculatorMeta | undefined {

@@ -156,7 +156,7 @@ Paycheck Planner maps your actual pay dates against your bills automatically, so
     slug: "emergency-fund-how-much",
     title: "How Big Should Your Emergency Fund Actually Be?",
     category: "Saving",
-    relatedCalculator: "savings-goal",
+    relatedCalculator: "emergency-fund",
     excerpt:
       "\"3 to 6 months of expenses\" is the standard advice -- but the right number depends on your situation more than that range suggests.",
     publishedAt: "2026-10-05",
@@ -713,6 +713,90 @@ It's a starting point, not a law. A few common situations where the split needs 
 ## Making it actually stick
 
 The rule only works if you know what's actually landing in each bucket, paycheck to paycheck -- not as a rough monthly guess. Paycheck Planner breaks down each paycheck as it comes in, so you can see in real numbers whether you're actually hitting your 50/30/20 split or just estimating it.`,
+  },
+  {
+    slug: "how-much-to-save-from-each-paycheck",
+    title: "How Much Should You Save From Each Paycheck?",
+    category: "Saving",
+    relatedCalculator: "savings-goal",
+    excerpt:
+      "There's no single right percentage -- but there is a right way to figure out your number, in about five minutes.",
+    publishedAt: "2027-03-08",
+    content: `"Save 20% of your paycheck" is the answer you'll see most often, and it's a fine starting point -- but it's a generic percentage, not a number that accounts for what you're actually saving *for* or what you can actually afford. Here's how to land on a real number instead of a borrowed one.
+
+## Start with what the money is for
+
+"Save more" isn't a plan -- it's a mood. A per-paycheck savings number should map to something specific:
+
+- **No emergency fund yet?** This comes first, before any other savings goal. Even $25-$50 per paycheck into a dedicated account beats a bigger number that never actually happens.
+- **Emergency fund funded, working toward a goal** (a house down payment, a car, a vacation)? Work backward from the goal amount and target date to get a per-paycheck number.
+- **Both handled, saving generally for the future?** This is where a flat percentage -- 10%, 15%, 20% -- actually makes sense, because there's no specific deadline to hit.
+
+## The math is simpler than it looks
+
+Take your amount needed and divide it by paychecks remaining, not months remaining. If you're paid biweekly and have 10 months until a goal, that's roughly 21-22 paychecks, not 10 -- dividing by the smaller number (months) overstates how much each paycheck actually needs to cover.
+
+**Example:** $2,400 goal, 6 months away, paid biweekly (about 13 paychecks in that window):
+
+- Wrong way: $2,400 / 6 months = $400/month sounds fine, but doesn't tell you what to move *per paycheck*
+- Right way: $2,400 / 13 paychecks = **about $185 per paycheck**
+
+That per-paycheck number is what you can actually automate.
+
+## Why "per paycheck" beats "per month"
+
+A monthly savings target quietly assumes every month is the same, and for most pay schedules it isn't -- biweekly and weekly earners get extra paychecks in some months (see the biweekly and weekly paycheck budgeting posts), and a monthly target either ignores those extra checks or double-counts them. Setting the target per paycheck sidesteps the whole problem: the same amount moves every time you get paid, extra-paycheck months just mean extra progress.
+
+## Automate it before you can spend it
+
+The number matters less than whether it actually happens. Savings that depend on "whatever's left over" after spending tend to be whatever's left over, which is often close to zero. Savings that move automatically the moment a paycheck lands happen regardless of how the rest of the month goes.
+
+Start smaller than feels meaningful if that's what it takes to make it automatic. $25 a paycheck that actually happens every time beats $200 a paycheck that only happens when things feel comfortable.
+
+Paycheck Planner calculates your per-paycheck number against your real goal and real pay schedule, and tracks it automatically as your bills and income change -- so the number stays right instead of going stale the moment something shifts.`,
+  },
+  {
+    slug: "weekly-paycheck-budget",
+    title: "Weekly Paycheck Budget: How to Budget When You're Paid Every Week",
+    category: "Paychecks",
+    relatedCalculator: "monthly-budget",
+    excerpt:
+      "Getting paid weekly means 4 paychecks most months -- but not every month. Here's how to build a budget that doesn't break in the 5-paycheck months.",
+    publishedAt: "2027-03-22",
+    content: `Weekly pay feels like it should be the easiest schedule to budget -- same amount, every week, like clockwork. The catch: 52 weeks doesn't divide evenly into 12 months. Most months get 4 paychecks. A handful get 5. If your budget assumes every month looks the same, one of those two situations is going to throw it off.
+
+## The math nobody explains
+
+52 paychecks a year, 12 months, 52 / 12 = 4.33. That fraction is the whole story: most months land 4 Fridays (or whichever day you're paid), but 4 times a year -- depending on where your pay day falls on the calendar -- a month stretches to 5 paychecks instead of 4.
+
+This is the same underlying mismatch biweekly earners deal with (26 pay periods don't divide evenly into 12 months either, producing two 3-paycheck months a year), just more frequent because the pay cycle is shorter.
+
+## Budget off the 4-paycheck month, not an average
+
+Build your fixed monthly bills -- rent, utilities, insurance, minimum debt payments -- against **4 paychecks**, not an average of 4.33. That's the number that has to hold up every single month, because it's the floor every month actually meets.
+
+**Example:** you're paid $650 every Friday.
+
+- 4-paycheck month: $2,600 -- this is your real monthly floor
+- 5-paycheck month: $3,250 -- this happens about 4 times a year
+
+Every fixed bill needs to fit inside $2,600. The extra $650 in a 5-paycheck month is real, genuine surplus -- not money your baseline budget was already counting on.
+
+## What to do with the 5th paycheck
+
+Because it's fully predictable once you know your pattern, a 5-paycheck month is one of the easiest wins in a weekly budget. In rough priority order:
+
+1. **Emergency fund**, if it isn't fully funded yet.
+2. **Extra principal payment** on whichever debt you're targeting (snowball or avalanche).
+3. **Pre-fund a known upcoming expense** -- an annual premium, a holiday season, a car registration.
+
+The mistake is spending it like a normal week just because it landed in the account the same way every other paycheck does.
+
+## Finding your own 5-paycheck months
+
+Pull up a calendar and count Fridays (or your actual pay day) per month for the next year -- any month with 5 is a 5-paycheck month, and the pattern repeats annually unless your pay day changes. It's fixed and knowable well in advance, not something that catches you by surprise if you check once.
+
+Paycheck Planner projects your actual weekly pay dates forward and flags which months are 4-paycheck and which are 5-paycheck automatically, so you know which months are the floor and which ones have real breathing room -- before they arrive.`,
   },
 ]
 

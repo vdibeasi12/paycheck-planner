@@ -9,6 +9,7 @@ import BiweeklyBudgetCalculator from "@/app/components/calculators/BiweeklyBudge
 import DebtPayoffCalculator from "@/app/components/calculators/DebtPayoffCalculator"
 import SavingsGoalCalculator from "@/app/components/calculators/SavingsGoalCalculator"
 import MonthlyBudgetCalculator from "@/app/components/calculators/MonthlyBudgetCalculator"
+import EmergencyFundCalculator from "@/app/components/calculators/EmergencyFundCalculator"
 
 const COMPONENTS: Record<string, React.ComponentType> = {
   paycheck: PaycheckCalculator,
@@ -17,6 +18,7 @@ const COMPONENTS: Record<string, React.ComponentType> = {
   "debt-payoff": DebtPayoffCalculator,
   "savings-goal": SavingsGoalCalculator,
   "monthly-budget": MonthlyBudgetCalculator,
+  "emergency-fund": EmergencyFundCalculator,
 }
 
 export function generateStaticParams() {
