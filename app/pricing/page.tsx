@@ -345,17 +345,17 @@ export default function PricingPage() {
 
       {/* Footer */}
       <footer className="border-t border-slate-800/80">
-        <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-6 py-10 text-center sm:flex-row sm:justify-between sm:text-left">
-          <PaycheckPlannerLogo size={26} />
-          <p className="text-sm text-slate-500">
+        <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 px-6 py-10 text-center sm:flex-row sm:justify-between sm:text-left">
+          <PaycheckPlannerLogo size={32} />
+          <p className="text-base text-slate-300">
             A product of {BRAND.company} ·{" "}
             <a href={`mailto:${BRAND.supportEmail}`}
-              className="text-slate-400 underline-offset-4 hover:text-emerald-400 hover:underline"
+              className="text-slate-300 underline-offset-4 hover:text-emerald-400 hover:underline"
             >
               {BRAND.supportEmail}
             </a>
           </p>
-          <p className="text-xs text-slate-600">
+          <p className="text-sm text-slate-400">
             © {new Date().getFullYear()} {BRAND.company}
           </p>
         </div>
