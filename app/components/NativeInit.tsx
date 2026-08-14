@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect } from "react"
-import { useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase/client"
 import { isNativeApp } from "@/lib/platform"
 
@@ -24,8 +23,6 @@ import { isNativeApp } from "@/lib/platform"
  * to logged-in users and needs its own lifecycle.)
  */
 export default function NativeInit() {
-  const router = useRouter()
-
   useEffect(() => {
     if (!isNativeApp()) return
 
@@ -40,6 +37,13 @@ export default function NativeInit() {
         // Expect: com.dibeasi.paycheckplanner://auth-callback?code=XXXX
         if (!url || !url.includes("auth-callback")) return
 
+        // Where we land once the callback is handled. Defaults to bouncing
+        // back to login -- only a genuinely successful token exchange below
+        // sends the user into the app. Previously this always went to
+        // /dashboard even when the exchange failed or Google reported an
+        // error, silently swallowing the failure instead of showing it.
+        let destination = "/login"
+
         try {
           const parsed = new URL(url)
           const code = parsed.searchParams.get("code")
@@ -47,12 +51,16 @@ export default function NativeInit() {
 
           if (errorDescription) {
             console.error("OAuth callback error:", errorDescription)
+            destination = `/login?message=${encodeURIComponent(errorDescription)}`
           } else if (code) {
             // PKCE: the code verifier is in storage from signInWithOAuth,
             // because this is the same persistent webview context.
             const { error } = await supabase.auth.exchangeCodeForSession(code)
             if (error) {
               console.error("exchangeCodeForSession failed:", error.message)
+              destination = `/login?message=${encodeURIComponent(error.message)}`
+            } else {
+              destination = "/dashboard"
             }
           }
         } catch (e) {
@@ -64,7 +72,18 @@ export default function NativeInit() {
           } catch {
             /* browser may already be closed */
           }
-          router.push("/dashboard")
+          // Hard navigation, NOT router.push(). exchangeCodeForSession above
+          // just set the session cookie, but the app's root layout (Sidebar,
+          // BiometricLock, the logged-out marketing header) was server-
+          // rendered back when /login first loaded, before that cookie
+          // existed. router.push() reuses that already-mounted layout
+          // instead of re-running it against the now-current cookies, so a
+          // successful Google sign-in looked stuck loading / never actually
+          // let the user into the app. A full navigation forces the whole
+          // server component tree to re-run, the same way the email/password
+          // and MFA-verify flows already do (see login/page.tsx, which uses
+          // window.location.href for exactly this reason).
+          window.location.href = destination
         }
       })
 
@@ -79,7 +98,7 @@ export default function NativeInit() {
       cancelled = true
       removeListener?.()
     }
-  }, [router])
+  }, [])
 
   return null
 }
