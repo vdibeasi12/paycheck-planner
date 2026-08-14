@@ -22,21 +22,29 @@ export default function SubscriptionCard() {
   useEffect(() => {
     let active = true;
     (async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) {
+      try {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) {
+          if (active) setLoading(false);
+          return;
+        }
+        const { data } = await supabase
+          .from("profiles")
+          .select("plan")
+          .eq("id", user.id)
+          .single();
+        if (active) {
+          setPlan((data?.plan as string) ?? "free");
+        }
+      } catch {
+        // A hiccup fetching the plan shouldn't leave this card spinning
+        // forever -- fall back to "Free" so the rest of the card (and page)
+        // still renders; the user can retry by revisiting the page.
+        if (active) setPlan("free");
+      } finally {
         if (active) setLoading(false);
-        return;
-      }
-      const { data } = await supabase
-        .from("profiles")
-        .select("plan")
-        .eq("id", user.id)
-        .single();
-      if (active) {
-        setPlan((data?.plan as string) ?? "free");
-        setLoading(false);
       }
     })();
     return () => {

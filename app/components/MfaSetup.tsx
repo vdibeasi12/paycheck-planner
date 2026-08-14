@@ -30,10 +30,19 @@ export default function MfaSetup({ onVerified }: { onVerified?: () => void } = {
 
   async function loadFactors() {
     setLoading(true);
-    const { data } = await supabase.auth.mfa.listFactors();
-    // verified TOTP factors
-    setFactors((data?.totp ?? []) as Factor[]);
-    setLoading(false);
+    try {
+      const { data } = await supabase.auth.mfa.listFactors();
+      // verified TOTP factors
+      setFactors((data?.totp ?? []) as Factor[]);
+    } catch {
+      // Don't leave this section stuck on "Checking your security
+      // settings..." forever on a network hiccup -- show it as if there
+      // are no factors yet; the enroll buttons still work and a retry via
+      // re-enrollment or a page refresh recovers cleanly.
+      setFactors([]);
+    } finally {
+      setLoading(false);
+    }
   }
 
   async function startEnroll(chosenMethod: "app" | "email") {

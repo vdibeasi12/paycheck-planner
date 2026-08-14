@@ -28,22 +28,34 @@ export default function NotificationPreferences() {
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
+    let active = true;
     (async () => {
-      const { data: auth } = await supabase.auth.getUser();
-      const user = auth?.user;
-      if (!user) {
-        setPrefs(DEFAULTS);
-        return;
+      try {
+        const { data: auth } = await supabase.auth.getUser();
+        const user = auth?.user;
+        if (!user) {
+          if (active) setPrefs(DEFAULTS);
+          return;
+        }
+        const { data } = await supabase
+          .from("notification_preferences")
+          .select(
+            "email_bill_reminders, email_weekly_summary, email_product_updates, email_new_posts, push_bill_reminders, reminder_days_before"
+          )
+          .eq("user_id", user.id)
+          .maybeSingle();
+        if (active) {
+          setPrefs(data ? { ...DEFAULTS, ...(data as Partial<Prefs>) } : DEFAULTS);
+        }
+      } catch {
+        // A hiccup loading saved preferences shouldn't leave this card
+        // spinning forever -- fall back to defaults so it's still usable.
+        if (active) setPrefs(DEFAULTS);
       }
-      const { data } = await supabase
-        .from("notification_preferences")
-        .select(
-          "email_bill_reminders, email_weekly_summary, email_product_updates, email_new_posts, push_bill_reminders, reminder_days_before"
-        )
-        .eq("user_id", user.id)
-        .maybeSingle();
-      setPrefs(data ? { ...DEFAULTS, ...(data as Partial<Prefs>) } : DEFAULTS);
     })();
+    return () => {
+      active = false;
+    };
   }, []);
 
   function update<K extends keyof Prefs>(key: K, value: Prefs[K]) {

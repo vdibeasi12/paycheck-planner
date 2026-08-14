@@ -13,9 +13,16 @@ export default function DeleteAccount() {
 
   useEffect(() => {
     let active = true;
-    supabase.auth.getUser().then(({ data }) => {
-      if (active) setEmail(data.user?.email || "");
-    });
+    supabase.auth
+      .getUser()
+      .then(({ data }) => {
+        if (active) setEmail(data.user?.email || "");
+      })
+      .catch(() => {
+        // Non-fatal: the confirm-email field just shows "..." as a
+        // placeholder (see the label below) until the user opens the
+        // confirm step, which is harmless if this never resolves.
+      });
     return () => {
       active = false;
     };

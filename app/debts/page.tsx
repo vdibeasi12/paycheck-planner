@@ -318,18 +318,18 @@ export default function DebtsPage() {
 
           {/* List */}
           <div className="lg:col-span-2">
-            <div className="grid grid-cols-3 gap-4 mb-6">
-              <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4 mb-6">
+              <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4 min-w-0">
                 <p className="text-gray-400 text-sm">Total Balance</p>
-                <p className="text-2xl font-bold text-rose-400">{formatMoney(totalBalance)}</p>
+                <p className="text-2xl font-bold text-rose-400 truncate">{formatMoney(totalBalance)}</p>
               </div>
-              <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
+              <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4 min-w-0">
                 <p className="text-gray-400 text-sm">Min / month</p>
-                <p className="text-2xl font-bold text-blue-400">{formatMoney(totalMin)}</p>
+                <p className="text-2xl font-bold text-blue-400 truncate">{formatMoney(totalMin)}</p>
               </div>
-              <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
+              <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4 min-w-0">
                 <p className="text-gray-400 text-sm">Avg APR</p>
-                <p className="text-2xl font-bold text-amber-400">{avgApr.toFixed(2)}%</p>
+                <p className="text-2xl font-bold text-amber-400 truncate">{avgApr.toFixed(2)}%</p>
               </div>
             </div>
 

@@ -112,20 +112,20 @@ export default function Analytics() {
     <div className="min-h-screen bg-[#020617] p-10 text-white">
       <h1 className="mb-8 text-3xl font-bold">Debt Analytics</h1>
 
-      <div className="mb-10 grid grid-cols-3 gap-6">
-        <div className="rounded bg-gray-900 p-6">
+      <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:gap-6">
+        <div className="rounded bg-gray-900 p-6 min-w-0">
           <p>Total Debt</p>
-          <p className="text-2xl font-bold">{formatMoney(totalDebt)}</p>
+          <p className="text-2xl font-bold truncate">{formatMoney(totalDebt)}</p>
         </div>
 
-        <div className="rounded bg-gray-900 p-6">
+        <div className="rounded bg-gray-900 p-6 min-w-0">
           <p>Number of Debts</p>
-          <p className="text-2xl font-bold">{debts.length}</p>
+          <p className="text-2xl font-bold truncate">{debts.length}</p>
         </div>
 
-        <div className="rounded bg-gray-900 p-6">
+        <div className="rounded bg-gray-900 p-6 min-w-0">
           <p>Average Interest</p>
-          <p className="text-2xl font-bold">{avgInterest}%</p>
+          <p className="text-2xl font-bold truncate">{avgInterest}%</p>
         </div>
       </div>
 

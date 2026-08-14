@@ -15,34 +15,42 @@ const GOAL = 3
 
 export default function ReferralCard() {
   const [state, setState] = useState<State>(null)
+  const [failed, setFailed] = useState(false)
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
     let active = true
     ;(async () => {
-      const { data: auth } = await supabase.auth.getUser()
-      const user = auth?.user
-      if (!user) return
+      try {
+        const { data: auth } = await supabase.auth.getUser()
+        const user = auth?.user
+        if (!user) return
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("referral_code, plan, referral_reward_granted")
-        .eq("id", user.id)
-        .single()
+        const { data: profile } = await supabase
+          .from("profiles")
+          .select("referral_code, plan, referral_reward_granted")
+          .eq("id", user.id)
+          .single()
 
-      const { count } = await supabase
-        .from("referrals")
-        .select("id", { count: "exact", head: true })
-        .eq("referrer_id", user.id)
-        .eq("status", "completed")
+        const { count } = await supabase
+          .from("referrals")
+          .select("id", { count: "exact", head: true })
+          .eq("referrer_id", user.id)
+          .eq("status", "completed")
 
-      if (!active || !profile) return
-      setState({
-        code: profile.referral_code,
-        plan: profile.plan,
-        rewardGranted: !!profile.referral_reward_granted,
-        completedCount: count || 0,
-      })
+        if (!active || !profile) return
+        setState({
+          code: profile.referral_code,
+          plan: profile.plan,
+          rewardGranted: !!profile.referral_reward_granted,
+          completedCount: count || 0,
+        })
+      } catch {
+        // Don't leave this card spinning forever on a network/query hiccup --
+        // show a quiet failure instead so the rest of the page still reads
+        // as "done loading".
+        if (active) setFailed(true)
+      }
     })()
     return () => {
       active = false
@@ -53,7 +61,13 @@ export default function ReferralCard() {
     return (
       <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-6 shadow-sm">
         <div className="flex items-center gap-2 text-gray-400">
-          <Loader2 size={16} className="animate-spin" /> Loading...
+          {failed ? (
+            <>Couldn't load your referral link. Refresh the page to try again.</>
+          ) : (
+            <>
+              <Loader2 size={16} className="animate-spin" /> Loading...
+            </>
+          )}
         </div>
       </div>
     )

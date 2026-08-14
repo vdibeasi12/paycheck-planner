@@ -26,13 +26,21 @@ export default function BiometricLockToggle() {
   useEffect(() => {
     if (native !== true) return
     ;(async () => {
-      const [avail, on] = await Promise.all([
-        isBiometricAvailable(),
-        getBiometricLockEnabled(),
-      ])
-      setAvailable(avail)
-      setEnabled(on)
-      setLoaded(true)
+      try {
+        const [avail, on] = await Promise.all([
+          isBiometricAvailable(),
+          getBiometricLockEnabled(),
+        ])
+        setAvailable(avail)
+        setEnabled(on)
+      } catch {
+        // A hiccup checking biometric availability shouldn't leave this
+        // whole card invisible forever -- show it as unavailable, which is
+        // the safe default (no lock silently on, none silently promised).
+        setAvailable(false)
+      } finally {
+        setLoaded(true)
+      }
     })()
   }, [native])
 
