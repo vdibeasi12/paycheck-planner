@@ -94,6 +94,43 @@ export async function POST(req: Request) {
       /* non-fatal */
     }
 
+    // 2.5) Reject a duplicate link to a bank this user already has connected.
+    // The Item above is already live and billable at Plaid the moment
+    // itemPublicTokenExchange succeeded -- Plaid hands back a brand-new
+    // item_id every time Link completes, even for the exact same
+    // institution/login, so nothing before this point could have caught
+    // it. QA fix (Aug 15 2026): remove the just-created duplicate Item at
+    // Plaid immediately (best-effort) and tell the user, instead of
+    // silently persisting a second billable connection to the same bank.
+    // A unique index on (user_id, institution_id) backstops the race where
+    // two link attempts land here at the same instant -- caught below by
+    // Postgres error 23505 on the upsert itself.
+    if (institutionId) {
+      const { data: existing } = await sb
+        .from("plaid_items")
+        .select("item_id")
+        .eq("user_id", user.id)
+        .eq("institution_id", institutionId)
+        .neq("item_id", itemId)
+        .maybeSingle()
+      if (existing) {
+        try {
+          await plaid.itemRemove({ access_token: accessToken })
+        } catch (e) {
+          console.error(
+            "Plaid itemRemove failed while rejecting a duplicate link:",
+            (e as any)?.response?.data || (e as any)?.message || e
+          )
+        }
+        return NextResponse.json(
+          {
+            error: `${institutionName || "This bank"} is already connected. Disconnect it first if you want to relink it.`,
+          },
+          { status: 409 }
+        )
+      }
+    }
+
     // 3) Persist the item. Service role only -- the access token never leaves
     //    the server and is unreadable by any client (RLS-locked table).
     const { error: itemErr } = await sb.from("plaid_items").upsert(
@@ -109,7 +146,29 @@ export async function POST(req: Request) {
       },
       { onConflict: "item_id" }
     )
-    if (itemErr) throw new Error("store item: " + itemErr.message)
+    if (itemErr) {
+      // 23505 = unique_violation -- the (user_id, institution_id) index caught
+      // a race that the pre-check above missed (two simultaneous link
+      // attempts for the same bank). Same handling: drop the duplicate Item
+      // at Plaid and tell the user, rather than surfacing a raw DB error.
+      if ((itemErr as any).code === "23505") {
+        try {
+          await plaid.itemRemove({ access_token: accessToken })
+        } catch (e) {
+          console.error(
+            "Plaid itemRemove failed while rejecting a racing duplicate link:",
+            (e as any)?.response?.data || (e as any)?.message || e
+          )
+        }
+        return NextResponse.json(
+          {
+            error: `${institutionName || "This bank"} is already connected. Disconnect it first if you want to relink it.`,
+          },
+          { status: 409 }
+        )
+      }
+      throw new Error("store item: " + itemErr.message)
+    }
 
     // 4) Pull liabilities (the response also carries the accounts). Not
     // every connected account supports Liabilities -- a plain checking/
