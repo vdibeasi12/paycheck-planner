@@ -9,6 +9,7 @@ import { isPremium } from '@/lib/permissions'
 import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
 import { monthlyFactor } from '@/lib/monthlyFactor'
 import { findBillDebtOverlaps } from '@/lib/billDebtOverlap'
+import BillsVsDebtsHint from '../components/BillsVsDebtsHint'
 
 interface Bill {
   id: string
@@ -228,9 +229,11 @@ export default function BillsPage() {
       <div className="max-w-6xl mx-auto px-6">
         {/* Header */}
         <h1 className="text-4xl font-bold mb-2">Bills & Expenses</h1>
-        <p className="text-gray-300 mb-8">
+        <p className="text-gray-300 mb-4">
           Track your monthly bills and automate payments
         </p>
+
+        <BillsVsDebtsHint page="bills" />
 
         {/* Recurring-detection summary. Combines both tabs so the total
             reflects everything recurring, whether it's a subscription or a

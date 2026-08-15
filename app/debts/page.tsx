@@ -14,6 +14,8 @@ import {
   type Strategy,
   type AvalancheCriterion,
 } from '@/lib/payoffSimulate'
+import { DEBT_TYPES } from '@/lib/debtTypes'
+import BillsVsDebtsHint from '../components/BillsVsDebtsHint'
 
 interface Debt {
   id: string
@@ -25,22 +27,6 @@ interface Debt {
   escrow_payment: number | null
   created_at: string
 }
-
-// QA fix (Aug 15 2026): debt_type existed as a schema column but nothing
-// ever set it. Two things depend on it now: the Payoff Plan can tell a
-// mortgage apart from a car loan or credit card (so it stops silently
-// auto-redirecting freed-up payments into a 30-year mortgage -- see
-// lib/payoffSimulate.ts), and the Bills page can warn when a debt payment
-// looks like it's also being tracked as a recurring bill.
-const DEBT_TYPES = [
-  { value: '', label: 'Not set' },
-  { value: 'mortgage', label: 'Mortgage' },
-  { value: 'auto', label: 'Auto loan' },
-  { value: 'credit_card', label: 'Credit card' },
-  { value: 'student_loan', label: 'Student loan' },
-  { value: 'personal', label: 'Personal loan' },
-  { value: 'other', label: 'Other' },
-]
 
 type EditState = {
   name: string
@@ -251,9 +237,11 @@ export default function DebtsPage() {
     <div className="min-h-screen bg-[#020617] text-white py-12">
       <div className="max-w-6xl mx-auto px-6">
         <h1 className="text-4xl font-bold mb-2">Debts</h1>
-        <p className="text-gray-300 mb-8">
+        <p className="text-gray-300 mb-4">
           Add and update your debts. Enter the APR as a percent (e.g. 19.99) so your payoff plan is accurate.
         </p>
+
+        <BillsVsDebtsHint page="debts" />
 
         <div className="grid lg:grid-cols-3 gap-6">
           {/* Add form */}
