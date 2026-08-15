@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, serviceClient, logAdminAction } from "@/lib/adminGuard";
+import { plaid, PLAID_ENABLED } from "@/lib/plaid";
 
 export const dynamic = "force-dynamic";
 
@@ -25,7 +26,7 @@ export async function GET(req: Request) {
   const authUsers = list?.users || [];
 
   const [{ data: profiles }, { data: subs }] = await Promise.all([
-    sb.from("profiles").select("id, plan, is_admin, signup_source, utm_source, utm_medium, utm_campaign"),
+    sb.from("profiles").select("id, plan, is_admin, signup_source, utm_source, utm_medium, utm_campaign, utm_content"),
     sb.from("subscriptions").select("user_id, tier, status, plan_type, current_period_end"),
   ]);
 
@@ -48,6 +49,7 @@ export async function GET(req: Request) {
       utm_source: p?.utm_source ?? null,
       utm_medium: p?.utm_medium ?? null,
       utm_campaign: p?.utm_campaign ?? null,
+      utm_content: p?.utm_content ?? null,
       sub_tier: s?.tier ?? null,
       sub_status: s?.status ?? null,
       sub_plan_type: s?.plan_type ?? null,
@@ -81,15 +83,28 @@ export async function GET(req: Request) {
     utmSources[src] = (utmSources[src] || 0) + 1;
   });
 
-  // Plan mix across every user (no profile row -> counts as free).
+  // Plan mix, paid-user count, and conversion rate (QA fix, Aug 15 2026):
+  // these three used to trust profiles.plan alone, with no join to real
+  // billing state and no exclusion of admin/internal accounts. Two
+  // problems: (1) profiles.plan is hand-editable from the Users tab above
+  // (see the PATCH handler) with no subscription behind it, so a comped
+  // or internally-testing account showed up as a paying customer; (2) an
+  // admin's own login (Vince's account, test/QA accounts) isn't a real
+  // customer and shouldn't count toward conversion either way. MRR and
+  // Active Subs above are unaffected -- they were already sourced from
+  // real subscriptions.status, which is what these three now match too.
+  const activeSubByUser = new Map(activeSubs.map((s) => [s.user_id, s]));
+  const nonAdminUsers = authUsers.filter((u) => !pMap.get(u.id)?.is_admin);
+
   const planCounts: Record<string, number> = { free: 0, starter: 0, premium: 0, connected: 0 };
-  authUsers.forEach((u) => {
-    const plan = ((pMap.get(u.id)?.plan as string) || "free");
+  nonAdminUsers.forEach((u) => {
+    const plan = (activeSubByUser.get(u.id)?.tier as string) || "free";
     planCounts[plan] = (planCounts[plan] || 0) + 1;
   });
   const totalUsers = authUsers.length;
-  const paidUsers = totalUsers - (planCounts.free || 0);
-  const conversion = totalUsers > 0 ? (paidUsers / totalUsers) * 100 : 0;
+  const paidUsers = nonAdminUsers.filter((u) => activeSubByUser.has(u.id)).length;
+  const conversion =
+    nonAdminUsers.length > 0 ? (paidUsers / nonAdminUsers.length) * 100 : 0;
   const canceledSubs = (subs || []).filter(
     (s) => s.status === "canceled" || s.status === "cancelled"
   ).length;
@@ -207,14 +222,43 @@ export async function DELETE(req: Request) {
     );
   }
 
-  // 1) Purge all app data in one transaction.
-  //    (Plaid /item/remove will be called here once Plaid Phase 0 ships.)
+  // 1) Revoke any linked banks at Plaid's end first, while we still have
+  //    their access tokens. plaid_items (and plaid_accounts/plaid_liabilities,
+  //    which cascade from it) already gets cleaned up locally by the
+  //    auth-user cascade in step 3 below -- ON DELETE CASCADE to
+  //    auth.users is already in place on all three tables. What was
+  //    actually missing (QA fix, Aug 15 2026) is telling Plaid itself the
+  //    Item is gone: without this, the bank connection stayed live and
+  //    billable on Plaid's side forever after the account disappeared
+  //    from our own database, exactly like app/api/plaid/disconnect/route.ts
+  //    already does for a user-initiated disconnect. Best-effort, same as
+  //    that route -- a Plaid outage shouldn't block an account deletion.
+  const { data: plaidItems } = await sb
+    .from("plaid_items")
+    .select("item_id, access_token")
+    .eq("user_id", userId);
+  for (const item of plaidItems ?? []) {
+    if (PLAID_ENABLED) {
+      try {
+        await plaid.itemRemove({ access_token: item.access_token });
+      } catch (e) {
+        console.error(
+          "Plaid itemRemove failed during admin user deletion for",
+          item.item_id,
+          (e as any)?.response?.data || (e as any)?.message || e
+        );
+      }
+    }
+  }
+
+  // 2) Purge all app data in one transaction.
   const { error: purgeErr } = await sb.rpc("app_admin_purge_user", { p_uid: userId });
   if (purgeErr) {
     return NextResponse.json({ error: "Data purge failed: " + purgeErr.message }, { status: 500 });
   }
 
-  // 2) Remove the auth user (also revokes their sessions).
+  // 3) Remove the auth user (also revokes their sessions, and cascades
+  //    the deletion of plaid_items/plaid_accounts/plaid_liabilities).
   const { error: authErr } = await sb.auth.admin.deleteUser(userId);
   if (authErr) {
     return NextResponse.json({ error: "Auth deletion failed: " + authErr.message }, { status: 500 });
