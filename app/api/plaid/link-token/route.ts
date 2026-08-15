@@ -95,18 +95,22 @@ export async function POST(req: Request) {
     if (accessToken) {
       params.access_token = accessToken
     } else if (purpose === "bank") {
-      // Broad connection: Auth is the required gate so ANY account type
-      // (checking, savings, credit card, loan) can be selected in Link, not
-      // just liability accounts -- Liabilities-only was rejecting plain
-      // checking/savings banks with a "No liability accounts" error.
-      // Liabilities is still requested where the institution supports it
-      // (credit cards, student loans, mortgages), so debt auto-import is
-      // unchanged for those. Auth returns account/routing numbers, but we
-      // never use them to move money -- what we actually want is Balance
-      // data, which rides along automatically with any initialized product
-      // at no extra product-selection cost.
-      params.products = [Products.Auth]
-      params.required_if_supported_products = [Products.Liabilities]
+      // REVERTED (Aug 14): this briefly requested Products.Auth so plain
+      // checking/savings accounts (no liability product) wouldn't get
+      // rejected by Link with "No liability accounts" -- Auth was never
+      // used for account/routing numbers or money movement, only as a
+      // Link-gating trick plus free Balance data riding along with it.
+      // Plaid denied Auth for Production ("ineligible use case," which
+      // tracks -- we have no money-movement use case to justify it), so
+      // requesting it now just makes linkTokenCreate fail for this purpose.
+      // Falling back to Liabilities-only restores the pre-Aug-13, already-
+      // accepted tradeoff: checking/savings-only banks (no card/loan) stay
+      // unconnectable until Transactions is requested and approved instead
+      // (a much better fit for a read-only budgeting use case than Auth
+      // ever was) -- see /areas/paycheck-planner.md for the reapplication
+      // plan. Kept as its own branch (identical to "debt" below for now)
+      // so swapping in Products.Transactions later is a one-line change.
+      params.products = [Products.Liabilities]
     } else {
       params.products = [Products.Liabilities]
     }
