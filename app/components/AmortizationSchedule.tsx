@@ -6,7 +6,7 @@ import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import { useLocale } from "@/lib/i18n/LocaleProvider"
 import { generatePayoffPlanPdf } from "@/lib/generatePayoffPlanPdf"
 import type { Debt, Strategy, DebtRow, Sim, AvalancheCriterion } from "@/lib/payoffSimulate"
-import { simulate, monthLabel, strategiesTie, strategyOrder } from "@/lib/payoffSimulate"
+import { simulate, monthLabel, strategiesTie, strategyOrder, MORTGAGE_DEBT_TYPE } from "@/lib/payoffSimulate"
 
 type Props = {
   debts: Debt[]
@@ -57,11 +57,19 @@ export default function AmortizationSchedule({ debts }: Props) {
   const [avalancheCriterion, setAvalancheCriterion] = useState<AvalancheCriterion>("balance")
   const [extra, setExtra] = useState<number>(0)
   const [extraText, setExtraText] = useState<string>("0")
+  // QA fix (Aug 15 2026): mortgages are excluded from the extra-payment
+  // redirect by default (see lib/payoffSimulate.ts) -- this is the opt-in.
+  const [includeMortgageInExtra, setIncludeMortgageInExtra] = useState(false)
+
+  const hasMortgage = useMemo(
+    () => debts.some((d) => (d.debt_type || "").toLowerCase() === MORTGAGE_DEBT_TYPE),
+    [debts]
+  )
 
   const start = useMemo(() => new Date(), [])
   const sim = useMemo(
-    () => simulate(debts, strategy, extra, start, avalancheCriterion),
-    [debts, strategy, extra, start, avalancheCriterion]
+    () => simulate(debts, strategy, extra, start, avalancheCriterion, includeMortgageInExtra),
+    [debts, strategy, extra, start, avalancheCriterion, includeMortgageInExtra]
   )
   const tied = useMemo(() => strategiesTie(debts, avalancheCriterion), [debts, avalancheCriterion])
   const orderedDebts = useMemo(
@@ -222,6 +230,27 @@ export default function AmortizationSchedule({ debts }: Props) {
           </div>
         </div>
 
+        {hasMortgage && (
+          <div className="max-w-xs">
+            <label className="flex cursor-pointer items-start gap-2 text-sm text-gray-300">
+              <input
+                type="checkbox"
+                checked={includeMortgageInExtra}
+                onChange={(e) => setIncludeMortgageInExtra(e.target.checked)}
+                className="mt-0.5"
+              />
+              <span>
+                Apply extra/freed-up payments to my mortgage too
+                <span className="mt-0.5 block text-xs text-gray-500">
+                  Off by default -- your mortgage still gets its own minimum payment either way,
+                  it just won&apos;t get extra money redirected to it once your other debts are
+                  paid off unless you turn this on.
+                </span>
+              </span>
+            </label>
+          </div>
+        )}
+
         <div className="ml-auto flex items-center gap-2">
           <button
             onClick={download}
@@ -292,26 +321,43 @@ export default function AmortizationSchedule({ debts }: Props) {
             </div>
           </div>
 
-          {/* Per-debt payoff order */}
+          {/* Per-debt payoff order. QA fix (Aug 15 2026): "debt-free in N
+              years" used to show with nothing backing it up per debt -- now
+              each row also shows the balance/APR/minimum that number came
+              from, and flags when a mortgage isn't receiving extra payments
+              so it's clear why its payoff date reflects its own minimum-
+              payment pace rather than the strategy above. */}
           <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-5">
             <h3 className="mb-3 text-sm font-medium uppercase tracking-wide text-gray-400">
               Payoff order
             </h3>
-            <div className="space-y-2">
+            <div className="space-y-3">
               {orderedDebts.map((d, idx) => {
                 const info = sim.perDebt.find((p) => p.id === d.id)
                 if (!info) return null
+                const excludedFromExtra = info.isMortgage && !includeMortgageInExtra
                 return (
                   <div
                     key={d.id}
-                    className="flex flex-wrap items-center justify-between gap-2 border-b border-gray-800 pb-2 last:border-0 last:pb-0"
+                    className="flex flex-wrap items-start justify-between gap-2 border-b border-gray-800 pb-3 last:border-0 last:pb-0"
                   >
-                    <span className="flex items-center gap-2 text-white">
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-bold text-emerald-400">
-                        {idx + 1}
+                    <div>
+                      <span className="flex items-center gap-2 text-white">
+                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-bold text-emerald-400">
+                          {idx + 1}
+                        </span>
+                        {d.name}
+                        {excludedFromExtra && (
+                          <span className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-300">
+                            minimum payment only
+                          </span>
+                        )}
                       </span>
-                      {d.name}
-                    </span>
+                      <p className="mt-1 text-xs text-gray-500">
+                        {fmt(d.balance)} balance - {Number(d.interest_rate).toFixed(2)}% APR -{" "}
+                        {fmt(d.minimum_payment)}/mo minimum
+                      </p>
+                    </div>
                     <span className="text-sm text-gray-400">
                       paid off {info.payoffLabel} - {fmt(info.totalInterest)} interest
                     </span>

@@ -9,7 +9,14 @@ export type Debt = {
   balance: number
   interest_rate: number
   minimum_payment: number
+  // Optional -- older debts (and every debt before this field existed) have
+  // this as null/undefined, which is treated exactly like any non-mortgage
+  // type. See `simulate`'s includeMortgageInExtra param for what this
+  // affects.
+  debt_type?: string | null
 }
+
+export const MORTGAGE_DEBT_TYPE = "mortgage"
 
 export type Strategy = "snowball" | "avalanche"
 
@@ -43,6 +50,7 @@ export type PerDebt = {
   payoffMonth: number
   payoffLabel: string
   totalInterest: number
+  isMortgage: boolean
 }
 
 export type Sim = {
@@ -122,7 +130,22 @@ export function simulate(
   strategy: Strategy,
   extra: number,
   start: Date,
-  avalancheCriterion: AvalancheCriterion = "balance"
+  avalancheCriterion: AvalancheCriterion = "balance",
+  // QA fix (Aug 15 2026): root cause of the "debt-free in 9 years 11 months"
+  // bug for a user with a 30-year mortgage and 20+ years left on it. Every
+  // debt's freed-up minimum payment (once it's paid off) used to
+  // automatically redirect into whatever's next in strategy order --
+  // including a mortgage, which this engine has no way to distinguish from
+  // a car loan or credit card. That silently turned "pay off my car" into
+  // "aggressively prepay my mortgage," producing a payoff date nobody asked
+  // for. Defaults to false: a mortgage-type debt still gets its own minimum
+  // payment every month like any other debt (so a real, timely mortgage
+  // payoff still shows up once it naturally amortizes), it just isn't a
+  // target for freed-up money or the user's extra monthly payment unless
+  // they explicitly opt in here -- except when a mortgage is the ONLY debt
+  // left with a balance, since at that point there's nowhere else in this
+  // model for an explicitly-entered extra payment to go.
+  includeMortgageInExtra: boolean = false
 ): Sim {
   // Working copy of each debt, cents-safe.
   // interest_rate is treated as an annual percentage (e.g. 19.99 = 19.99% APR).
@@ -133,6 +156,7 @@ export function simulate(
       balance: round2(Math.max(0, Number(d.balance) || 0)),
       monthlyRate: Math.max(0, Number(d.interest_rate) || 0) / 100 / 12,
       min: round2(Math.max(0, Number(d.minimum_payment) || 0)),
+      isMortgage: (d.debt_type || "").toLowerCase() === MORTGAGE_DEBT_TYPE,
       totalInterest: 0,
       payoffMonth: 0,
     }))
@@ -191,8 +215,21 @@ export function simulate(
       monthPaid[d.id] = round2((monthPaid[d.id] || 0) + pay)
     }
 
-    // 3) Direct the remaining budget at debts in strategy order (the snowball).
-    for (const d of order) {
+    // 3) Direct the remaining budget at debts in strategy order (the snowball
+    // / avalanche redirect). Mortgage-type debts are skipped here by default
+    // (see includeMortgageInExtra above). Deliberately NO fallback to
+    // "redirect to the mortgage anyway once it's the only debt left" -- that
+    // was tried and is exactly the bug this exists to fix: a non-mortgage
+    // debt paying off is precisely the moment freed-up money would
+    // otherwise auto-redirect into the mortgage. If a mortgage is excluded
+    // and there's genuinely nothing else to pay down, the leftover budget
+    // for that month simply isn't applied to anything -- the explicit
+    // opt-in checkbox is the only way to change that.
+    const redirectOrder = includeMortgageInExtra
+      ? order
+      : order.filter((d) => !d.isMortgage)
+
+    for (const d of redirectOrder) {
       if (available <= 0) break
       if (d.balance <= 0) continue
       const pay = round2(Math.min(available, d.balance))
@@ -256,6 +293,7 @@ export function simulate(
     payoffMonth: d.payoffMonth,
     payoffLabel: d.payoffMonth > 0 ? monthLabel(start, d.payoffMonth - 1) : "-",
     totalInterest: round2(d.totalInterest),
+    isMortgage: d.isMortgage,
   }))
 
   return {

@@ -21,17 +21,41 @@ interface Debt {
   balance: number
   interest_rate: number
   minimum_payment: number
+  debt_type: string | null
   created_at: string
 }
+
+// QA fix (Aug 15 2026): debt_type existed as a schema column but nothing
+// ever set it. Two things depend on it now: the Payoff Plan can tell a
+// mortgage apart from a car loan or credit card (so it stops silently
+// auto-redirecting freed-up payments into a 30-year mortgage -- see
+// lib/payoffSimulate.ts), and the Bills page can warn when a debt payment
+// looks like it's also being tracked as a recurring bill.
+const DEBT_TYPES = [
+  { value: '', label: 'Not set' },
+  { value: 'mortgage', label: 'Mortgage' },
+  { value: 'auto', label: 'Auto loan' },
+  { value: 'credit_card', label: 'Credit card' },
+  { value: 'student_loan', label: 'Student loan' },
+  { value: 'personal', label: 'Personal loan' },
+  { value: 'other', label: 'Other' },
+]
 
 type EditState = {
   name: string
   balance: string
   interest_rate: string
   minimum_payment: string
+  debt_type: string
 }
 
-const EMPTY_EDIT: EditState = { name: '', balance: '', interest_rate: '', minimum_payment: '' }
+const EMPTY_EDIT: EditState = {
+  name: '',
+  balance: '',
+  interest_rate: '',
+  minimum_payment: '',
+  debt_type: '',
+}
 
 export default function DebtsPage() {
   const formatMoney = useFormatCurrency()
@@ -40,6 +64,7 @@ export default function DebtsPage() {
   const [balance, setBalance] = useState('')
   const [rate, setRate] = useState('')
   const [minPayment, setMinPayment] = useState('')
+  const [debtType, setDebtType] = useState('')
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [edit, setEdit] = useState<EditState>(EMPTY_EDIT)
@@ -73,7 +98,7 @@ export default function DebtsPage() {
     try {
       const { data } = await supabase
         .from('debts')
-        .select('id, name, balance, interest_rate, minimum_payment, created_at')
+        .select('id, name, balance, interest_rate, minimum_payment, debt_type, created_at')
         .order('balance', { ascending: true })
       if (data) setItems(data as Debt[])
     } catch (error) {
@@ -116,12 +141,14 @@ export default function DebtsPage() {
         original_balance: Number(balance),
         interest_rate: rate === '' ? 0 : Number(rate),
         minimum_payment: minPayment === '' ? 0 : Number(minPayment),
+        debt_type: debtType || null,
       })
       if (error) throw error
       setName('')
       setBalance('')
       setRate('')
       setMinPayment('')
+      setDebtType('')
       loadDebts()
     } catch (error) {
       console.error('Error adding debt:', error)
@@ -149,6 +176,7 @@ export default function DebtsPage() {
       balance: String(d.balance ?? ''),
       interest_rate: String(d.interest_rate ?? ''),
       minimum_payment: String(d.minimum_payment ?? ''),
+      debt_type: d.debt_type ?? '',
     })
   }
 
@@ -161,6 +189,7 @@ export default function DebtsPage() {
           balance: Number(edit.balance) || 0,
           interest_rate: edit.interest_rate === '' ? 0 : Number(edit.interest_rate),
           minimum_payment: edit.minimum_payment === '' ? 0 : Number(edit.minimum_payment),
+          debt_type: edit.debt_type || null,
         })
         .eq('id', id)
       if (error) throw error
@@ -267,6 +296,26 @@ export default function DebtsPage() {
                     className={inputClass}
                   />
                 </div>
+                <div>
+                  <label className="text-gray-400 text-sm block mb-2">Debt type</label>
+                  <select
+                    value={debtType}
+                    onChange={(e) => setDebtType(e.target.value)}
+                    className={inputClass}
+                  >
+                    {DEBT_TYPES.map((t) => (
+                      <option key={t.value} value={t.value}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
+                  {debtType === 'mortgage' && (
+                    <p className="mt-1.5 text-xs text-gray-500">
+                      Mortgages keep their own minimum payment but won&apos;t automatically get
+                      extra/freed-up payments in your Payoff Plan unless you turn that on there.
+                    </p>
+                  )}
+                </div>
                 <button
                   type="submit"
                   disabled={atLimit}
@@ -342,11 +391,16 @@ export default function DebtsPage() {
                   balance: Number(d.balance) || 0,
                   interest_rate: Number(d.interest_rate) || 0,
                   minimum_payment: Number(d.minimum_payment) || 0,
+                  debt_type: d.debt_type,
                 })),
                 strategy,
                 extra,
                 start,
                 avalancheCriterion
+                // includeMortgageInExtra intentionally omitted (defaults to
+                // false) -- this is the quick-preview widget; the toggle to
+                // opt a mortgage into extra payments lives on the full
+                // Payoff Plan page (app/components/AmortizationSchedule.tsx).
               )
               const debtFreeLabel =
                 sim.months > 0 && !sim.nonAmortizing
@@ -511,6 +565,20 @@ export default function DebtsPage() {
                             />
                           </div>
                         </div>
+                        <div>
+                          <label className="text-gray-500 text-xs block mb-1">Debt type</label>
+                          <select
+                            value={edit.debt_type}
+                            onChange={(e) => setEdit({ ...edit, debt_type: e.target.value })}
+                            className={inputClass}
+                          >
+                            {DEBT_TYPES.map((t) => (
+                              <option key={t.value} value={t.value}>
+                                {t.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                         <div className="flex gap-2">
                           <button
                             onClick={() => saveEdit(d.id)}
@@ -534,6 +602,11 @@ export default function DebtsPage() {
                               {idx + 1}
                             </span>
                             <CreditCard size={16} className="text-rose-400" /> {d.name}
+                            {d.debt_type && (
+                              <span className="rounded-full bg-[#1a233a] px-2 py-0.5 text-xs font-medium text-gray-400">
+                                {DEBT_TYPES.find((t) => t.value === d.debt_type)?.label ?? d.debt_type}
+                              </span>
+                            )}
                           </h3>
                           <p className="text-gray-400 text-sm">
                             {Number(d.interest_rate).toFixed(2)}% APR

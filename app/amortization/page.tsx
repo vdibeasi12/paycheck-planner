@@ -44,7 +44,7 @@ export default async function AmortizationPage() {
 
   const { data: debtsData } = await supabase
     .from("debts")
-    .select("id, name, balance, interest_rate, minimum_payment")
+    .select("id, name, balance, interest_rate, minimum_payment, debt_type")
     .eq("user_id", user.id)
 
   const debts = (Array.isArray(debtsData) ? debtsData : []).map((d) => ({
@@ -53,6 +53,7 @@ export default async function AmortizationPage() {
     balance: Number(d.balance) || 0,
     interest_rate: Number(d.interest_rate) || 0,
     minimum_payment: Number(d.minimum_payment) || 0,
+    debt_type: d.debt_type ?? null,
   }))
 
   return (
