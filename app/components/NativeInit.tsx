@@ -78,7 +78,19 @@ export default function NativeInit() {
               console.error("exchangeCodeForSession failed:", error.message)
               destination = `/login?message=${encodeURIComponent(error.message)}`
             } else {
-              destination = "/dashboard"
+              // MFA security fix (QA, Aug 15 2026): this native Google path
+              // used to send every successful exchange straight to
+              // /dashboard, bypassing MFA entirely -- the web password login
+              // (app/login/page.tsx) and web Google login
+              // (app/auth/callback/route.ts) both already check for a
+              // verified factor and route through /mfa first. Do the same
+              // check here so Android Google sign-in can't skip the second
+              // factor.
+              const { data: factors } = await supabase.auth.mfa.listFactors()
+              const hasVerifiedFactor = !!factors?.totp?.some((f) => f.status === "verified")
+              destination = hasVerifiedFactor
+                ? `/mfa?redirectTo=${encodeURIComponent("/dashboard")}`
+                : "/dashboard"
             }
           }
         } catch (e) {
