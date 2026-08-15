@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "270635419879",
+    "project_id": "paycheck-planner-8c533",
+    "storage_bucket": "paycheck-planner-8c533.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:270635419879:android:5383f0ec2ad268022b3a42",
+        "android_client_info": {
+          "package_name": "com.dibeasi.paycheckplanner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAh-gREbYQV9yOQ3f0ZZI0zYWBoHDCjYBs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
