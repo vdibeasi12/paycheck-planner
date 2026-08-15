@@ -80,9 +80,20 @@ export default async function RootLayout({
   let user: any = null
   let locale: LocaleCode | undefined
   let currency: CurrencyCode | undefined
+  // Whether to show the logged-in app chrome (sidebar, biometric lock, push
+  // init, floating chat, etc). Deliberately NOT the same as "user exists" --
+  // a user mid-MFA-challenge (aal1 with a verified factor pending step-up)
+  // has a session but hasn't finished signing in. Rendering the sidebar for
+  // them reserves `md:pl-64` on the content column below, which is exactly
+  // why the /mfa card rendered off-center: it centers itself within a
+  // content area that's already been shifted right for a sidebar the user
+  // can't see yet (Sidebar.tsx itself also gates on aal2 and renders
+  // nothing, but the padding was being applied regardless).
+  let showAppChrome = false
 
   try {
     const { createClient } = await import("@/lib/supabase/server")
+    const { checkAal2Status } = await import("@/lib/adminGuard")
     const supabase = await createClient()
     const { data } = await supabase.auth.getUser()
     user = data?.user || null
@@ -95,10 +106,14 @@ export default async function RootLayout({
         .single()
       locale = (prof?.locale as LocaleCode) || undefined
       currency = (prof?.display_currency as CurrencyCode) || undefined
+
+      const aal2Status = await checkAal2Status(supabase)
+      showAppChrome = aal2Status !== "needs_step_up"
     }
   } catch (error) {
     // Supabase not configured or error - continue without auth
     user = null
+    showAppChrome = false
   }
 
   return (
@@ -112,21 +127,22 @@ export default async function RootLayout({
       <body className="bg-[#020617] text-white">
         <LocaleProvider initialLocale={locale} initialCurrency={currency}>
           <NativeInit />
-          {user && <BiometricLock />}
-          {user && <PushNotificationsInit />}
-          {user && <ReviewPromptInit />}
+          {showAppChrome && <BiometricLock />}
+          {showAppChrome && <PushNotificationsInit />}
+          {showAppChrome && <ReviewPromptInit />}
           {/* PageViewTracker reads the pp_attr cookie AttributionCapture
               sets, so it must mount after it -- order matters here. */}
           <AttributionCapture />
           <PageViewTracker />
 
           {/* Logged-in users get the left sidebar (desktop) + mobile drawer. */}
-          {user && <Sidebar />}
+          {showAppChrome && <Sidebar />}
 
           {/* Content column. Shifted right of the fixed sidebar on desktop. */}
-          <div className={`flex min-h-screen flex-col ${user ? "md:pl-64" : ""}`}>
+          <div className={`flex min-h-screen flex-col ${showAppChrome ? "md:pl-64" : ""}`}>
 
-            {/* Logged-out visitors keep the original marketing top bar. */}
+            {/* Logged-out visitors (and users mid-MFA-challenge, who shouldn't
+                see either the app chrome or the marketing bar) skip this. */}
             {!user && (
               <header className="border-b border-gray-800 bg-[#020617]/95 backdrop-blur sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
                 <div className="w-full px-6 py-4 flex flex-wrap gap-y-3 justify-between items-center">
@@ -147,15 +163,15 @@ export default async function RootLayout({
                 viewport. Logged-in pages often put a button/badge there (e.g.
                 the Payoff Plan header), so give every logged-in page enough
                 top clearance here, once, instead of patching each page. */}
-            <main className={`flex-1 ${user ? "md:pt-20" : ""}`}>
+            <main className={`flex-1 ${showAppChrome ? "md:pt-20" : ""}`}>
               {children}
             </main>
 
             <Footer />
           </div>
 
-          {user && <FloatingChat />}
-          {user && <FeedbackWidget />}
+          {showAppChrome && <FloatingChat />}
+          {showAppChrome && <FeedbackWidget />}
         </LocaleProvider>
         <Analytics />
       </body>
