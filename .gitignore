@@ -11,3 +11,9 @@ apply-*.ps1
 *.keystore
 android/keystore.properties
 *.ps1
+
+# Firebase Admin SDK service account keys (server-side secret -- lives only
+# in Vercel's FIREBASE_SERVICE_ACCOUNT_JSON env var, never in the repo).
+# google-services.json is NOT covered by this -- that one is safe/normal to
+# commit, it's client-side config, not a secret.
+*firebase-adminsdk*.json
