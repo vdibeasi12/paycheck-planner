@@ -356,6 +356,11 @@ export default function AmortizationSchedule({ debts }: Props) {
                       <p className="mt-1 text-xs text-gray-500">
                         {fmt(d.balance)} balance - {Number(d.interest_rate).toFixed(2)}% APR -{" "}
                         {fmt(d.minimum_payment)}/mo minimum
+                        {Number(d.escrow_payment) > 0
+                          ? ` (${fmt(Number(d.escrow_payment))} escrow, ${fmt(
+                              Number(d.minimum_payment) - Number(d.escrow_payment)
+                            )} applied to the loan)`
+                          : ""}
                       </p>
                     </div>
                     <span className="text-sm text-gray-400">

@@ -22,6 +22,7 @@ interface Debt {
   interest_rate: number
   minimum_payment: number
   debt_type: string | null
+  escrow_payment: number | null
   created_at: string
 }
 
@@ -47,6 +48,7 @@ type EditState = {
   interest_rate: string
   minimum_payment: string
   debt_type: string
+  escrow_payment: string
 }
 
 const EMPTY_EDIT: EditState = {
@@ -55,6 +57,7 @@ const EMPTY_EDIT: EditState = {
   interest_rate: '',
   minimum_payment: '',
   debt_type: '',
+  escrow_payment: '',
 }
 
 export default function DebtsPage() {
@@ -65,6 +68,7 @@ export default function DebtsPage() {
   const [rate, setRate] = useState('')
   const [minPayment, setMinPayment] = useState('')
   const [debtType, setDebtType] = useState('')
+  const [escrowPayment, setEscrowPayment] = useState('')
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [edit, setEdit] = useState<EditState>(EMPTY_EDIT)
@@ -98,7 +102,7 @@ export default function DebtsPage() {
     try {
       const { data } = await supabase
         .from('debts')
-        .select('id, name, balance, interest_rate, minimum_payment, debt_type, created_at')
+        .select('id, name, balance, interest_rate, minimum_payment, debt_type, escrow_payment, created_at')
         .order('balance', { ascending: true })
       if (data) setItems(data as Debt[])
     } catch (error) {
@@ -142,6 +146,7 @@ export default function DebtsPage() {
         interest_rate: rate === '' ? 0 : Number(rate),
         minimum_payment: minPayment === '' ? 0 : Number(minPayment),
         debt_type: debtType || null,
+        escrow_payment: escrowPayment === '' ? null : Number(escrowPayment),
       })
       if (error) throw error
       setName('')
@@ -149,6 +154,7 @@ export default function DebtsPage() {
       setRate('')
       setMinPayment('')
       setDebtType('')
+      setEscrowPayment('')
       loadDebts()
     } catch (error) {
       console.error('Error adding debt:', error)
@@ -177,6 +183,7 @@ export default function DebtsPage() {
       interest_rate: String(d.interest_rate ?? ''),
       minimum_payment: String(d.minimum_payment ?? ''),
       debt_type: d.debt_type ?? '',
+      escrow_payment: d.escrow_payment != null ? String(d.escrow_payment) : '',
     })
   }
 
@@ -190,6 +197,7 @@ export default function DebtsPage() {
           interest_rate: edit.interest_rate === '' ? 0 : Number(edit.interest_rate),
           minimum_payment: edit.minimum_payment === '' ? 0 : Number(edit.minimum_payment),
           debt_type: edit.debt_type || null,
+          escrow_payment: edit.escrow_payment === '' ? null : Number(edit.escrow_payment),
         })
         .eq('id', id)
       if (error) throw error
@@ -316,6 +324,27 @@ export default function DebtsPage() {
                     </p>
                   )}
                 </div>
+                {debtType === 'mortgage' && (
+                  <div>
+                    <label className="text-gray-400 text-sm block mb-2">
+                      Escrow included above ($/mo, optional)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={escrowPayment}
+                      onChange={(e) => setEscrowPayment(e.target.value)}
+                      placeholder="e.g., 450.00"
+                      className={inputClass}
+                    />
+                    <p className="mt-1.5 text-xs text-gray-500">
+                      If your minimum payment above bundles in property tax/insurance, enter just
+                      that portion here so your Payoff Plan only counts the part that actually pays
+                      down the loan. Leave blank if your minimum payment is principal &amp;
+                      interest only.
+                    </p>
+                  </div>
+                )}
                 <button
                   type="submit"
                   disabled={atLimit}
@@ -392,6 +421,7 @@ export default function DebtsPage() {
                   interest_rate: Number(d.interest_rate) || 0,
                   minimum_payment: Number(d.minimum_payment) || 0,
                   debt_type: d.debt_type,
+                  escrow_payment: d.escrow_payment,
                 })),
                 strategy,
                 extra,
@@ -579,6 +609,25 @@ export default function DebtsPage() {
                             ))}
                           </select>
                         </div>
+                        {edit.debt_type === 'mortgage' && (
+                          <div>
+                            <label className="text-gray-500 text-xs block mb-1">
+                              Escrow included above ($/mo, optional)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={edit.escrow_payment}
+                              onChange={(e) => setEdit({ ...edit, escrow_payment: e.target.value })}
+                              placeholder="e.g., 450.00"
+                              className={inputClass}
+                            />
+                            <p className="mt-1 text-xs text-gray-500">
+                              The portion of your minimum payment that&apos;s property tax/
+                              insurance, not principal &amp; interest.
+                            </p>
+                          </div>
+                        )}
                         <div className="flex gap-2">
                           <button
                             onClick={() => saveEdit(d.id)}
@@ -612,6 +661,9 @@ export default function DebtsPage() {
                             {Number(d.interest_rate).toFixed(2)}% APR
                             {Number(d.minimum_payment) > 0
                               ? ` - min ${formatMoney(Number(d.minimum_payment))}/mo`
+                              : ''}
+                            {Number(d.escrow_payment) > 0
+                              ? ` (incl. ${formatMoney(Number(d.escrow_payment))} escrow)`
                               : ''}
                           </p>
                         </div>

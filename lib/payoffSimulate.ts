@@ -14,6 +14,14 @@ export type Debt = {
   // type. See `simulate`'s includeMortgageInExtra param for what this
   // affects.
   debt_type?: string | null
+  // QA fix (Aug 15 2026): the portion of minimum_payment that's escrow
+  // (property tax/insurance) rather than principal+interest -- very common
+  // for mortgages, and the reason a real account's mortgage was amortizing
+  // in ~11 years in this simulation when 20+ years actually remain: the
+  // full payment (escrow included) was being treated as if all of it paid
+  // down the loan. Optional/defaults to 0 -- behaves exactly as before for
+  // every debt that doesn't set it.
+  escrow_payment?: number | null
 }
 
 export const MORTGAGE_DEBT_TYPE = "mortgage"
@@ -142,24 +150,37 @@ export function simulate(
   // payment every month like any other debt (so a real, timely mortgage
   // payoff still shows up once it naturally amortizes), it just isn't a
   // target for freed-up money or the user's extra monthly payment unless
-  // they explicitly opt in here -- except when a mortgage is the ONLY debt
-  // left with a balance, since at that point there's nowhere else in this
-  // model for an explicitly-entered extra payment to go.
+  // they explicitly opt in here. If a mortgage ends up the only debt left
+  // and this is off, that month's leftover budget just isn't applied to
+  // anything -- see the redirectOrder comment below for why there's no
+  // "apply it anyway" fallback.
   includeMortgageInExtra: boolean = false
 ): Sim {
   // Working copy of each debt, cents-safe.
   // interest_rate is treated as an annual percentage (e.g. 19.99 = 19.99% APR).
   const working = debts
-    .map((d) => ({
-      id: d.id,
-      name: d.name || "Debt",
-      balance: round2(Math.max(0, Number(d.balance) || 0)),
-      monthlyRate: Math.max(0, Number(d.interest_rate) || 0) / 100 / 12,
-      min: round2(Math.max(0, Number(d.minimum_payment) || 0)),
-      isMortgage: (d.debt_type || "").toLowerCase() === MORTGAGE_DEBT_TYPE,
-      totalInterest: 0,
-      payoffMonth: 0,
-    }))
+    .map((d) => {
+      // QA fix (Aug 15 2026): only the principal+interest portion of a
+      // payment actually reduces the balance -- escrow (property tax/
+      // insurance, common on mortgages) is real money out the door every
+      // month, but the servicer holds it separately and it never touches
+      // what's owed on the loan. Treating the full payment as P&I is what
+      // made a real 20+-year-remaining mortgage amortize in ~11 years in
+      // this simulation. escrow_payment defaults to 0, so this is a no-op
+      // for every debt that doesn't set it.
+      const fullPayment = Math.max(0, Number(d.minimum_payment) || 0)
+      const escrow = Math.max(0, Number(d.escrow_payment) || 0)
+      return {
+        id: d.id,
+        name: d.name || "Debt",
+        balance: round2(Math.max(0, Number(d.balance) || 0)),
+        monthlyRate: Math.max(0, Number(d.interest_rate) || 0) / 100 / 12,
+        min: round2(Math.max(0, fullPayment - escrow)),
+        isMortgage: (d.debt_type || "").toLowerCase() === MORTGAGE_DEBT_TYPE,
+        totalInterest: 0,
+        payoffMonth: 0,
+      }
+    })
     .filter((d) => d.balance > 0)
 
   const budget = round2(working.reduce((s, d) => s + d.min, 0) + Math.max(0, extra))
