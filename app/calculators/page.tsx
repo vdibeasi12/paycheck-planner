@@ -37,6 +37,38 @@ export default function CalculatorsIndexPage() {
             </Link>
           ))}
         </div>
+
+        {/* Programmatic budget/debt-payoff pages (Task #24) -- pre-calculated
+            guides for specific salary and debt amounts, rather than a
+            calculator you fill in yourself. */}
+        <h2 className="mb-3 mt-12 text-2xl font-bold">Budget &amp; Debt Payoff Guides</h2>
+        <p className="mb-6 text-gray-400">Pre-calculated breakdowns for specific salaries and debt balances.</p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <Link
+            href="/budget-by-salary"
+            className="flex items-start gap-4 rounded-2xl border border-gray-800 bg-[#0f172a] p-6 transition hover:border-gray-700"
+          >
+            <Calculator size={24} className="mt-0.5 shrink-0 text-emerald-400" />
+            <div>
+              <p className="font-semibold text-white">Budget by Salary</p>
+              <p className="mt-1 text-sm text-gray-400">
+                Take-home pay and a 50/30/20 budget for salaries from $30k to $150k.
+              </p>
+            </div>
+          </Link>
+          <Link
+            href="/debt-payoff-plans"
+            className="flex items-start gap-4 rounded-2xl border border-gray-800 bg-[#0f172a] p-6 transition hover:border-gray-700"
+          >
+            <Calculator size={24} className="mt-0.5 shrink-0 text-emerald-400" />
+            <div>
+              <p className="font-semibold text-white">Debt Payoff Plans by Amount</p>
+              <p className="mt-1 text-sm text-gray-400">
+                Payoff time and total interest for debts from $1,000 to $100,000.
+              </p>
+            </div>
+          </Link>
+        </div>
       </div>
     </div>
   )

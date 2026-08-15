@@ -2,6 +2,7 @@ import type { MetadataRoute } from "next"
 import { getAllPosts } from "@/lib/blog"
 import { CALCULATORS } from "@/lib/calculators"
 import { UNIVERSITY_COURSES } from "@/lib/university"
+import { SALARY_AMOUNTS, DEBT_AMOUNTS, salarySlug, debtSlug } from "@/lib/pseoPages"
 
 // Only genuinely public, indexable marketing pages belong here. Anything
 // behind auth (see middleware.ts's PROTECTED list) or purely functional
@@ -18,6 +19,8 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { url: `${base}/blog`, lastModified: now, changeFrequency: "weekly", priority: 0.7 },
     { url: `${base}/money-score`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
     { url: `${base}/calculators`, lastModified: now, changeFrequency: "monthly", priority: 0.7 },
+    { url: `${base}/budget-by-salary`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
+    { url: `${base}/debt-payoff-plans`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${base}/challenge`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${base}/worksheet`, lastModified: now, changeFrequency: "monthly", priority: 0.6 },
     { url: `${base}/university`, lastModified: now, changeFrequency: "monthly", priority: 0.5 },
@@ -66,11 +69,30 @@ export default function sitemap(): MetadataRoute.Sitemap {
     }))
   )
 
+  // Programmatic budget/debt-payoff pages (Task #24). Add an amount to
+  // lib/pseoPages.ts's SALARY_AMOUNTS/DEBT_AMOUNTS and it's indexable here
+  // automatically.
+  const salaryPseoPages: MetadataRoute.Sitemap = SALARY_AMOUNTS.map((amount) => ({
+    url: `${base}/${salarySlug(amount)}`,
+    lastModified: now,
+    changeFrequency: "yearly",
+    priority: 0.6,
+  }))
+
+  const debtPseoPages: MetadataRoute.Sitemap = DEBT_AMOUNTS.map((amount) => ({
+    url: `${base}/${debtSlug(amount)}`,
+    lastModified: now,
+    changeFrequency: "yearly",
+    priority: 0.6,
+  }))
+
   return [
     ...staticPages,
     ...blogPages,
     ...calculatorPages,
     ...universityCoursePages,
     ...universityLessonPages,
+    ...salaryPseoPages,
+    ...debtPseoPages,
   ]
 }
