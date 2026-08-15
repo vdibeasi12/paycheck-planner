@@ -31,7 +31,8 @@ interface Income {
 }
 
 // A row tagged "transfer" is money moving between the user's own accounts
-// (most often CSV-detected, e.g. "Transfer from Chime Checking Account") --
+// (most often detected from an imported bank statement or CSV, e.g.
+// "Transfer from Chime Checking Account") --
 // it's excluded from income totals everywhere (here and on the dashboard)
 // instead of being counted as real income. See lib/csvImport.ts's
 // CATEGORY_RULES for the auto-detection and app/dashboard/page.tsx for the

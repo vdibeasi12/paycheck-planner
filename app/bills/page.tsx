@@ -337,13 +337,16 @@ export default function BillsPage() {
                   </button>
                 )}
 
-                {/* CSV import (Autopilot Phase 1) -- bulk-fill bills, income
-                    and transaction history from a bank export in one go. */}
+                {/* Bank statement import (Autopilot Phase 1: CSV; Phase D:
+                    PDF) -- bulk-fill bills, income and transaction history
+                    from a bank statement or export in one go. Most banks
+                    hand out a PDF, not a CSV, so the PDF is the primary path
+                    now -- see app/import/page.tsx and app/api/extract-statement. */}
                 <button
                   onClick={() => router.push('/import')}
                   className="w-full mt-3 border border-gray-700 text-gray-200 hover:bg-[#1a233a] font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
                 >
-                  <FileSpreadsheet size={20} /> Import from bank CSV
+                  <FileSpreadsheet size={20} /> Import bank statement
                 </button>
               </div>
             </div>
@@ -505,8 +508,8 @@ export default function BillsPage() {
                     <>
                       <p>No subscriptions added yet</p>
                       <p className="text-sm mt-2">
-                        Check &quot;This is a subscription&quot; when adding a bill, or import a bank
-                        CSV to auto-detect ones like Netflix and Spotify
+                        Check &quot;This is a subscription&quot; when adding a bill, or import a bank statement
+                        to auto-detect ones like Netflix and Spotify
                       </p>
                     </>
                   ) : (

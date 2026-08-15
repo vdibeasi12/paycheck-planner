@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react"
 import { Camera, Upload, Loader2, AlertCircle } from "lucide-react"
+import { pdfFirstPageToJpeg } from "@/lib/pdfToImages"
 
 type DocType = "bill" | "debt" | "income"
 
@@ -61,30 +62,6 @@ export default function SmartCapture<T extends DocType>({
       reader.onerror = () => reject(reader.error)
       reader.readAsDataURL(file)
     })
-  }
-
-  // Renders page 1 of a PDF to a canvas client-side and hands back a JPEG,
-  // so PDF paystubs flow through the exact same extraction pipeline as photos.
-  async function pdfFirstPageToJpeg(file: File): Promise<{ data: string; mediaType: string }> {
-    const pdfjsLib = await import("pdfjs-dist")
-    pdfjsLib.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjsLib.version}/pdf.worker.min.mjs`
-
-    const arrayBuffer = await file.arrayBuffer()
-    const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise
-    const page = await pdf.getPage(1)
-
-    const viewport = page.getViewport({ scale: 2 })
-    const canvas = document.createElement("canvas")
-    canvas.width = viewport.width
-    canvas.height = viewport.height
-    const ctx = canvas.getContext("2d")
-    if (!ctx) throw new Error("PDF render: could not create canvas context")
-
-    await page.render({ canvasContext: ctx, canvas: canvas, viewport }).promise
-
-    const dataUrl = canvas.toDataURL("image/jpeg", 0.92)
-    const commaIdx = dataUrl.indexOf(",")
-    return { data: dataUrl.slice(commaIdx + 1), mediaType: "image/jpeg" }
   }
 
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {

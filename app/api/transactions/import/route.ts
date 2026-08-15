@@ -1,9 +1,12 @@
 // app/api/transactions/import/route.ts
-// CSV import (Autopilot Phase 1). Client already parsed/categorized/detected
-// recurring groups locally via lib/csvImport.ts's analyzeCsv() -- this route
-// only receives already-normalized data, persists every transaction to the
-// `transactions` table, and turns whichever recurring groups the user
-// confirmed in the Review & Import screen into real bills/income rows.
+// Bank statement import (Autopilot Phase 1, CSV; Phase D, PDF). The client
+// already parsed/categorized/detected recurring groups locally (CSV via
+// lib/csvImport.ts's analyzeCsv(), PDF via app/api/extract-statement +
+// analyzeTransactions()) -- this route only receives already-normalized
+// data, persists every transaction to the `transactions` table, and turns
+// whichever recurring groups the user confirmed in the Review & Import
+// screen into real bills/income rows. `source` records which path produced
+// the data (see the `source` param below) so it's never ambiguous later.
 //
 // Tier-gated server-side (not just the client "Import" button) because a
 // paid-tier feature that only checked client-side would be trivially
@@ -85,6 +88,10 @@ export async function POST(req: Request) {
   const rawGroups = Array.isArray((body as any).confirmedRecurringGroups)
     ? (body as any).confirmedRecurringGroups
     : []
+  // Defaults to "csv" so older clients (or any caller that omits it) keep
+  // today's behavior exactly. Anything else falls back to "csv" too rather
+  // than storing an arbitrary client-supplied string in a provenance field.
+  const source = (body as any).source === "pdf" ? "pdf" : "csv"
 
   if (rawTransactions.length > MAX_TRANSACTIONS) {
     return NextResponse.json(
@@ -118,7 +125,7 @@ export async function POST(req: Request) {
   // Admins act as the top (connected) tier, same convention as plaid/sync.
   const effectivePlan = profile?.is_admin ? "connected" : profile?.plan
   if (!canUseCsvImport(effectivePlan)) {
-    return NextResponse.json({ error: "CSV import is an Accelerate feature." }, { status: 403 })
+    return NextResponse.json({ error: "Bank statement import is an Accelerate feature." }, { status: 403 })
   }
 
   const importBatchId = randomUUID()
@@ -136,7 +143,7 @@ export async function POST(req: Request) {
     amount: t.amount,
     category: t.category ?? null,
     recurring_group_key: normalizeMerchantKey(t.description) || null,
-    source: "csv",
+    source,
   }))
   for (const batch of chunk(rows, 500)) {
     const { data, error } = await supabase
@@ -182,7 +189,7 @@ export async function POST(req: Request) {
             due_date: dueDate,
             frequency: g.frequency,
             category,
-            source: "csv",
+            source,
             updated_at: now,
           })
           .eq("id", existing.id)
@@ -196,7 +203,7 @@ export async function POST(req: Request) {
           frequency: g.frequency,
           category,
           status: "active",
-          source: "csv",
+          source,
           recurring_group_key: g.key,
         })
         if (!error) billsCreated++
@@ -227,7 +234,7 @@ export async function POST(req: Request) {
             frequency: g.frequency,
             income_type: incomeType,
             next_pay_date: nextPayDate,
-            source: "csv",
+            source,
             updated_at: now,
           })
           .eq("id", existing.id)
@@ -240,7 +247,7 @@ export async function POST(req: Request) {
           frequency: g.frequency,
           income_type: incomeType,
           next_pay_date: nextPayDate,
-          source: "csv",
+          source,
           recurring_group_key: g.key,
         })
         if (!error) incomeCreated++

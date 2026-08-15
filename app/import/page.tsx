@@ -2,13 +2,15 @@
 
 import { useEffect, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Upload, Loader2, AlertCircle, CheckCircle2, ArrowRight } from 'lucide-react'
+import { Loader2, AlertCircle, CheckCircle2, ArrowRight, FileText } from 'lucide-react'
 import { supabase } from '@/lib/supabase/client'
 import { isPremium } from '@/lib/permissions'
-import { analyzeCsv, type ImportAnalysis, type RecurringGroup } from '@/lib/csvImport'
+import { analyzeCsv, analyzeTransactions, type ImportAnalysis, type RecurringGroup } from '@/lib/csvImport'
+import { pdfAllPagesToJpegs, MAX_STATEMENT_PAGES } from '@/lib/pdfToImages'
 import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
 
 type Step = 'upload' | 'review' | 'done'
+type Source = 'csv' | 'pdf'
 
 type ImportResult = {
   transactionsImported: number
@@ -29,8 +31,11 @@ export default function ImportPage() {
 
   const [step, setStep] = useState<Step>('upload')
   const [busy, setBusy] = useState(false)
+  const [busyLabel, setBusyLabel] = useState('Reading file...')
   const [error, setError] = useState<string | null>(null)
   const [analysis, setAnalysis] = useState<ImportAnalysis | null>(null)
+  const [source, setSource] = useState<Source>('csv')
+  const [pageWarning, setPageWarning] = useState<string | null>(null)
   // group key -> user's include/kind choice (defaults to unchecked -- the
   // user opts recurring items IN rather than everything auto-adding).
   const [selections, setSelections] = useState<Record<string, { include: boolean; kind: 'income' | 'bill' }>>({})
@@ -60,13 +65,18 @@ export default function ImportPage() {
     checkPlan()
   }, [router])
 
-  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
-    e.target.value = '' // allow re-selecting the same file later
-    if (!file) return
+  function applyAnalysis(parsed: ImportAnalysis) {
+    setAnalysis(parsed)
+    const initialSelections: Record<string, { include: boolean; kind: 'income' | 'bill' }> = {}
+    for (const g of parsed.recurringGroups) {
+      initialSelections[g.key] = { include: false, kind: g.kind }
+    }
+    setSelections(initialSelections)
+    setStep('review')
+  }
 
-    setError(null)
-    setBusy(true)
+  async function handleCsvFile(file: File) {
+    setBusyLabel('Reading file...')
     try {
       const text = await file.text()
       const parsed = analyzeCsv(text)
@@ -76,16 +86,86 @@ export default function ImportPage() {
         )
         return
       }
-      setAnalysis(parsed)
-      const initialSelections: Record<string, { include: boolean; kind: 'income' | 'bill' }> = {}
-      for (const g of parsed.recurringGroups) {
-        initialSelections[g.key] = { include: false, kind: g.kind }
-      }
-      setSelections(initialSelections)
-      setStep('review')
+      setSource('csv')
+      applyAnalysis(parsed)
     } catch (err) {
       console.error('CSV parse error:', err)
       setError("Couldn't read that file. Please make sure it's a plain CSV export from your bank.")
+    }
+  }
+
+  // PDF path: render every page client-side (never sent anywhere until this
+  // point), send the page images to Claude for transaction extraction (the
+  // same SmartCapture-style pipeline used for bills/paystubs, extended to
+  // handle a whole multi-page statement instead of one document -- see
+  // app/api/extract-statement), then run the result through the exact same
+  // categorize/dedupe/recurring-detection pipeline the CSV path uses
+  // (lib/csvImport.ts's analyzeTransactions()) so a mortgage payment or a
+  // paycheck is identified identically either way.
+  async function handlePdfFile(file: File) {
+    setPageWarning(null)
+    try {
+      setBusyLabel('Reading statement pages...')
+      const { pages, totalPages, truncated } = await pdfAllPagesToJpegs(file)
+      if (pages.length === 0) {
+        setError("Couldn't find any pages in that PDF.")
+        return
+      }
+      if (truncated) {
+        setPageWarning(
+          `This statement has ${totalPages} pages -- only reading the first ${MAX_STATEMENT_PAGES}. Split it into shorter date ranges to import the rest.`
+        )
+      }
+
+      setBusyLabel(pages.length > 1 ? `Extracting transactions from ${pages.length} pages...` : 'Extracting transactions...')
+      const res = await fetch('/api/extract-statement', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pages }),
+      })
+      const json = await res.json().catch(() => null)
+      if (!res.ok || !json?.success) {
+        setError(json?.error || "Couldn't read that statement. Please try again.")
+        return
+      }
+
+      const rows = Array.isArray(json.transactions) ? json.transactions : []
+      if (rows.length === 0) {
+        setError(
+          "Couldn't find any transactions on that statement. Try a clearer scan, or a CSV export if your bank offers one."
+        )
+        return
+      }
+
+      const parsed = analyzeTransactions(rows)
+      setSource('pdf')
+      applyAnalysis(parsed)
+    } catch (err) {
+      console.error('PDF statement parse error:', err)
+      const isPdfError = err instanceof Error && err.message.startsWith('PDF render:')
+      setError(
+        isPdfError
+          ? "Couldn't read that PDF. Try a clearer scan, or a CSV export if your bank offers one."
+          : "Couldn't read that statement. Please check your connection and try again."
+      )
+    }
+  }
+
+  async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-selecting the same file later
+    if (!file) return
+
+    const isPdf = file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')
+
+    setError(null)
+    setBusy(true)
+    try {
+      if (isPdf) {
+        await handlePdfFile(file)
+      } else {
+        await handleCsvFile(file)
+      }
     } finally {
       setBusy(false)
     }
@@ -111,7 +191,7 @@ export default function ImportPage() {
       const res = await fetch('/api/transactions/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactions: analysis.transactions, confirmedRecurringGroups }),
+        body: JSON.stringify({ transactions: analysis.transactions, confirmedRecurringGroups, source }),
       })
       const json = await res.json().catch(() => null)
       if (!res.ok || !json?.ok) {
@@ -133,6 +213,8 @@ export default function ImportPage() {
     setSelections({})
     setResult(null)
     setError(null)
+    setPageWarning(null)
+    setSource('csv')
     setStep('upload')
   }
 
@@ -148,10 +230,10 @@ export default function ImportPage() {
     return (
       <div className="min-h-screen bg-[#020617] text-white py-12">
         <div className="max-w-2xl mx-auto px-6 text-center">
-          <h1 className="text-3xl font-bold mb-4">Import from a bank CSV</h1>
+          <h1 className="text-3xl font-bold mb-4">Import a bank statement</h1>
           <p className="text-gray-300 mb-8">
-            Upload a CSV export from your bank and we&apos;ll automatically fill in your transactions, bills, and
-            income -- no bank connection required. This is an Accelerate feature.
+            Upload a bank statement PDF (or a CSV export, if your bank offers one) and we&apos;ll automatically fill
+            in your transactions, bills, and income -- no bank connection required. This is an Accelerate feature.
           </p>
           <button
             onClick={() => router.push('/pricing')}
@@ -167,9 +249,10 @@ export default function ImportPage() {
   return (
     <div className="min-h-screen bg-[#020617] text-white py-12">
       <div className="max-w-4xl mx-auto px-6">
-        <h1 className="text-4xl font-bold mb-2">Import from a bank CSV</h1>
+        <h1 className="text-4xl font-bold mb-2">Import a bank statement</h1>
         <p className="text-gray-300 mb-8">
-          Export your recent transactions from your bank&apos;s website as a CSV, then upload it here.
+          Download a statement PDF from your bank&apos;s website or app -- most banks offer one -- and upload it
+          here. Have a CSV export instead? That works too.
         </p>
 
         {error && (
@@ -180,23 +263,35 @@ export default function ImportPage() {
 
         {step === 'upload' && (
           <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-8 text-center">
-            <input ref={fileRef} type="file" accept=".csv,text/csv" onChange={handleFile} className="hidden" />
+            <input
+              ref={fileRef}
+              type="file"
+              accept=".pdf,application/pdf,.csv,text/csv"
+              onChange={handleFile}
+              className="hidden"
+            />
             <button
               onClick={() => fileRef.current?.click()}
               disabled={busy}
               className="inline-flex items-center gap-2 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 px-6 rounded-lg transition disabled:opacity-60"
             >
-              {busy ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-              {busy ? 'Reading file...' : 'Choose CSV file'}
+              {busy ? <Loader2 size={18} className="animate-spin" /> : <FileText size={18} />}
+              {busy ? busyLabel : 'Choose statement PDF or CSV'}
             </button>
             <p className="mt-4 text-sm text-gray-500">
-              Nothing leaves your browser until you review and confirm the import below.
+              PDF pages are read in your browser and sent for extraction only when you upload; a CSV never leaves
+              your browser at all until you review and confirm the import below.
             </p>
           </div>
         )}
 
         {step === 'review' && analysis && (
           <div className="space-y-6">
+            {pageWarning && (
+              <div className="flex items-center gap-2 rounded-lg border border-amber-800 bg-amber-950/40 px-4 py-3 text-sm text-amber-300">
+                <AlertCircle size={16} /> {pageWarning}
+              </div>
+            )}
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
                 <p className="text-gray-400 text-sm">Transactions found</p>

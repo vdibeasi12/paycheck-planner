@@ -146,9 +146,10 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
       { label: "Auto-import debts, balances & APRs", free: false, starter: false, premium: false, connected: true },
       { label: "Auto income, bills & safe-to-spend", free: false, starter: false, premium: false, connected: true },
       { label: "Recurring-charge detector", free: false, starter: false, premium: false, connected: true },
-      // CSV import (Phase 1, Aug 15): works today with zero Plaid dependency,
-      // so it's available a tier earlier than the Plaid-powered rows above.
-      { label: "Import transactions from a bank CSV", free: false, starter: false, premium: true, connected: true },
+      // Bank statement import (Phase 1 CSV, Aug 15; PDF added same day):
+      // works today with zero Plaid dependency, so it's available a tier
+      // earlier than the Plaid-powered rows above.
+      { label: "Import a bank statement (PDF or CSV)", free: false, starter: false, premium: true, connected: true },
     ],
   },
   {

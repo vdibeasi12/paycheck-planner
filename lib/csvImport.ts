@@ -4,14 +4,20 @@
 // on Production approval or add per-item cost. See
 // /areas/paycheck-planner.md for the background -- Plaid denied Auth, and
 // rather than re-fight that, Autopilot gets a data-ingestion layer that
-// works today (CSV now, Smart Capture statement scanning later, Plaid
-// Transactions later still once there's revenue to justify it).
+// works today (CSV, and now PDF bank-statement import too -- see
+// app/api/extract-statement -- since that's the format banks actually hand
+// users; Plaid Transactions later still once there's revenue to justify it).
 //
-// Pure, deterministic, no network calls -- runs entirely client-side so a
-// user's raw bank export never has to leave their browser except as the
-// normalized rows they explicitly confirm in the "Review & Import" step
-// (see app/import/page.tsx). Every function here is unit-testable in
-// isolation.
+// The parsing step is source-specific (parseBankCsv() below for CSV text;
+// Claude reading statement pages for PDF), but everything after that --
+// categorization, dedupe, recurring detection -- is one shared,
+// deterministic, pure pipeline (analyzeTransactions()) so a mortgage
+// payment or a paycheck is identified the same way no matter which file
+// format it came from. Runs entirely client-side for CSV (a user's raw
+// bank export never leaves their browser except as the normalized rows
+// they explicitly confirm in "Review & Import" -- see app/import/page.tsx);
+// PDF necessarily round-trips through the server since the extraction step
+// needs Claude's vision model.
 
 import Papa from "papaparse"
 
@@ -255,13 +261,28 @@ export function detectRecurring(transactions: CategorizedTransaction[]): Recurri
 // 4) Orchestration
 // ---------------------------------------------------------------------------
 
-export function analyzeCsv(csvText: string): ImportAnalysis {
-  const { rows, skippedRows } = parseBankCsv(csvText)
+/**
+ * Categorize + dedupe + recurring-detect, given already-parsed transaction
+ * rows -- the shared back half of the pipeline, independent of how the rows
+ * were produced. CSV import gets its rows from parseBankCsv() below; PDF
+ * bank-statement import (app/api/extract-statement, app/import/page.tsx)
+ * gets its rows from Claude reading the statement pages. Either way, from
+ * this point on it's the exact same categorization/recurring-detection
+ * logic, so a mortgage/paycheck/subscription is identified identically
+ * regardless of which file format the user uploaded.
+ */
+export function analyzeTransactions(rows: ParsedTransaction[]): ImportAnalysis {
   const deduped = dedupeTransactions(rows)
   const transactions: CategorizedTransaction[] = deduped.map((t) => ({
     ...t,
     category: categorizeTransaction(t),
   }))
   const recurringGroups = detectRecurring(transactions)
-  return { transactions, recurringGroups, skippedRows }
+  return { transactions, recurringGroups, skippedRows: 0 }
+}
+
+export function analyzeCsv(csvText: string): ImportAnalysis {
+  const { rows, skippedRows } = parseBankCsv(csvText)
+  const analysis = analyzeTransactions(rows)
+  return { ...analysis, skippedRows }
 }
