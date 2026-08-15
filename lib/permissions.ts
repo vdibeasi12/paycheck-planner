@@ -41,3 +41,9 @@ export function getMaxDebts(plan: string): number {
 export function isPremium(plan: string): boolean {
   return plan === 'premium' || plan === 'connected'
 }
+
+// CSV bank-export import (Autopilot Phase 1, no Plaid dependency). Gated to
+// Accelerate-and-up, same tier boundary as isPremium.
+export function canUseCsvImport(plan: string): boolean {
+  return plan === 'premium' || plan === 'connected'
+}

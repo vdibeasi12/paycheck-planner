@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Plus, Trash2, Upload, Pencil, Check, X } from 'lucide-react'
+import { Plus, Trash2, Upload, Pencil, Check, X, FileSpreadsheet } from 'lucide-react'
 import SmartCapture from '../components/SmartCapture'
 import { useRouter } from 'next/navigation'
 import { isPremium } from '@/lib/permissions'
@@ -224,6 +224,15 @@ export default function BillsPage() {
                     <Upload size={20} /> Scan a bill photo
                   </button>
                 )}
+
+                {/* CSV import (Autopilot Phase 1) -- bulk-fill bills, income
+                    and transaction history from a bank export in one go. */}
+                <button
+                  onClick={() => router.push('/import')}
+                  className="w-full mt-3 border border-gray-700 text-gray-200 hover:bg-[#1a233a] font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
+                >
+                  <FileSpreadsheet size={20} /> Import from bank CSV
+                </button>
               </div>
             </div>
 
