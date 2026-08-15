@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation'
 import { isPremium } from '@/lib/permissions'
 import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
 import { monthlyFactor } from '@/lib/monthlyFactor'
+import { findBillDebtOverlaps } from '@/lib/billDebtOverlap'
 
 interface Bill {
   id: string
@@ -17,6 +18,11 @@ interface Bill {
   category: string | null
   frequency?: string | null
   created_at: string
+}
+
+interface DebtRef {
+  id: string
+  name: string
 }
 
 // A bill is treated as a subscription purely by category tag -- CSV import
@@ -43,6 +49,7 @@ export default function BillsPage() {
   const [editIsSubscription, setEditIsSubscription] = useState(false)
   const [editOriginalCategory, setEditOriginalCategory] = useState<string | null>(null)
   const [tab, setTab] = useState<'bills' | 'subscriptions'>('bills')
+  const [debts, setDebts] = useState<DebtRef[]>([])
   const router = useRouter()
 
   const subscriptionBills = useMemo(
@@ -69,6 +76,10 @@ export default function BillsPage() {
     try {
       const { data } = await supabase.from('bills').select('*')
       if (data) setBills(data)
+      // Only id/name are needed here -- this is purely for the duplicate-
+      // with-a-debt warning below, not for anything debt-specific.
+      const { data: debtsData } = await supabase.from('debts').select('id, name')
+      if (debtsData) setDebts(debtsData)
       const { data: auth } = await supabase.auth.getUser()
       if (auth.user) {
         const { data: profile } = await supabase
@@ -95,6 +106,22 @@ export default function BillsPage() {
     if (!name || !amount || !dueDay) {
       alert('Please fill in all fields')
       return
+    }
+
+    // QA fix (Aug 15 2026): a mortgage/auto/student loan tracked in Debts
+    // has a real payoff plan there -- adding it here too as a recurring
+    // bill double-counts that payment anywhere bills and debt payments get
+    // summed together (e.g. Safe-to-Spend). Warn before inserting rather
+    // than silently letting it happen; the user can still proceed if this
+    // genuinely isn't the same payment.
+    const overlap = findBillDebtOverlaps([{ name }], debts)[0]
+    if (overlap) {
+      const proceed = window.confirm(
+        `"${overlap.debt.name}" is already tracked as a debt with its own payoff plan. ` +
+          `If this bill is that same loan/mortgage payment, add it in Debts instead so it isn't counted twice.\n\n` +
+          `Click OK only if this is a genuinely different bill.`
+      )
+      if (!proceed) return
     }
 
     try {

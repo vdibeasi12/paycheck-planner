@@ -13,6 +13,8 @@ import DashboardCharts from "@/app/components/DashboardCharts"
 import AIInsightPanel from "@/app/components/AIInsightPanel"
 import { maybeSendWelcomeEmail } from "@/lib/sendWelcomeEmail"
 import { monthlyFactor } from "@/lib/monthlyFactor"
+import { findBillDebtOverlaps } from "@/lib/billDebtOverlap"
+import BillDebtOverlapWarning from "@/app/components/BillDebtOverlapWarning"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -79,13 +81,20 @@ export default async function DashboardPage() {
 
   const { data: billsData } = await supabase
     .from("bills")
-    .select("amount, frequency")
+    .select("id, name, amount, frequency")
     .eq("user_id", user.id)
   const bills = Array.isArray(billsData) ? billsData : []
   const monthlyBills = bills.reduce(
     (sum, b) => sum + (Number(b.amount) || 0) * monthlyFactor(b.frequency),
     0
   )
+
+  // QA fix (Aug 15 2026): flags (never blocks) likely duplicates between
+  // Bills and Debts -- e.g. a mortgage tracked as a debt that also got
+  // entered as a recurring bill. Bills and debt payments are summed
+  // separately everywhere (including Safe-to-Spend below), so an
+  // undetected duplicate here means that payment is silently counted twice.
+  const billDebtOverlaps = findBillDebtOverlaps(bills, debts)
 
   // Admins act as the top (connected) tier so they can use/test every feature.
   const effectivePlan = profile?.is_admin ? "connected" : plan
@@ -104,6 +113,7 @@ export default async function DashboardPage() {
       </div>
 
       <AchievementsStrip />
+      <BillDebtOverlapWarning overlaps={billDebtOverlaps} />
       <SafeToSpend monthlyIncome={monthlyIncome} monthlyBills={monthlyBills} monthlyDebt={monthlyPayments} />
       <SummaryCards netWorth={-totalDebt} totalDebt={totalDebt} monthlyPayments={monthlyPayments} percentPaid={0} />
       <DebtList debts={debts} />
