@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Plus, Trash2, Upload, Pencil, Check, X, FileSpreadsheet } from 'lucide-react'
+import { Plus, Trash2, Upload, Pencil, Check, X, FileSpreadsheet, Receipt, Repeat } from 'lucide-react'
 import SmartCapture from '../components/SmartCapture'
 import { useRouter } from 'next/navigation'
 import { isPremium } from '@/lib/permissions'
@@ -13,7 +13,38 @@ interface Bill {
   name: string
   amount: number
   due_date: number
+  category: string | null
+  frequency?: string | null
   created_at: string
+}
+
+// A bill is treated as a subscription purely by category tag -- CSV import
+// already auto-tags Netflix/Spotify/iCloud/etc. as "Subscriptions" (see
+// CATEGORY_RULES in lib/csvImport.ts); manually-added bills get the same tag
+// via the "This is a subscription" checkbox below. Everything else (or
+// uncategorized/legacy rows) renders under the Bills tab.
+const SUBSCRIPTION_CATEGORY = 'Subscriptions'
+
+// Mirrors the monthlyFactor() used on the dashboard and income page --
+// normalizes any billing cadence to a monthly-equivalent amount so the
+// recurring-cost summary below is comparable across weekly/biweekly/monthly
+// bills and subscriptions.
+function monthlyFactor(freq?: string | null): number {
+  switch ((freq || 'monthly').toLowerCase()) {
+    case 'weekly':
+      return 52 / 12
+    case 'biweekly':
+    case 'bi-weekly':
+      return 26 / 12
+    case 'quarterly':
+      return 1 / 3
+    case 'annual':
+    case 'annually':
+    case 'yearly':
+      return 1 / 12
+    default:
+      return 1
+  }
 }
 
 export default function BillsPage() {
@@ -22,6 +53,7 @@ export default function BillsPage() {
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
   const [dueDay, setDueDay] = useState('')
+  const [isSubscription, setIsSubscription] = useState(false)
   const [showCapture, setShowCapture] = useState(false)
   const [loading, setLoading] = useState(true)
   const [plan, setPlan] = useState('free')
@@ -29,7 +61,30 @@ export default function BillsPage() {
   const [editName, setEditName] = useState('')
   const [editAmount, setEditAmount] = useState('')
   const [editDueDay, setEditDueDay] = useState('')
+  const [editIsSubscription, setEditIsSubscription] = useState(false)
+  const [editOriginalCategory, setEditOriginalCategory] = useState<string | null>(null)
+  const [tab, setTab] = useState<'bills' | 'subscriptions'>('bills')
   const router = useRouter()
+
+  const subscriptionBills = useMemo(
+    () => bills.filter((b) => b.category === SUBSCRIPTION_CATEGORY),
+    [bills]
+  )
+  const regularBills = useMemo(
+    () => bills.filter((b) => b.category !== SUBSCRIPTION_CATEGORY),
+    [bills]
+  )
+  const visibleBills = tab === 'subscriptions' ? subscriptionBills : regularBills
+
+  const monthlyBillsTotal = regularBills.reduce(
+    (sum, b) => sum + Number(b.amount) * monthlyFactor(b.frequency),
+    0
+  )
+  const monthlySubscriptionsTotal = subscriptionBills.reduce(
+    (sum, b) => sum + Number(b.amount) * monthlyFactor(b.frequency),
+    0
+  )
+  const combinedMonthlyTotal = monthlyBillsTotal + monthlySubscriptionsTotal
 
   async function loadBills() {
     try {
@@ -76,6 +131,7 @@ export default function BillsPage() {
         amount: Number(amount),
         due_date: Number(dueDay),
         frequency: 'monthly',
+        category: isSubscription ? SUBSCRIPTION_CATEGORY : null,
       })
 
       if (error) throw error
@@ -83,6 +139,7 @@ export default function BillsPage() {
       setName('')
       setAmount('')
       setDueDay('')
+      setIsSubscription(false)
       loadBills()
     } catch (error) {
       console.error('Error adding bill:', error)
@@ -109,6 +166,8 @@ export default function BillsPage() {
     setEditName(bill.name ?? '')
     setEditAmount(String(bill.amount ?? ''))
     setEditDueDay(String(bill.due_date ?? ''))
+    setEditIsSubscription(bill.category === SUBSCRIPTION_CATEGORY)
+    setEditOriginalCategory(bill.category ?? null)
   }
 
   async function saveEdit(id: string) {
@@ -117,12 +176,21 @@ export default function BillsPage() {
       return
     }
     try {
+      // Flipping the checkbox moves a bill in/out of the Subscriptions tab.
+      // Leaving it as-is preserves whatever category it already had (e.g. a
+      // CSV-detected "Housing"/"Utilities" tag) instead of wiping it.
+      const category = editIsSubscription
+        ? SUBSCRIPTION_CATEGORY
+        : editOriginalCategory === SUBSCRIPTION_CATEGORY
+          ? null
+          : editOriginalCategory
       const { error } = await supabase
         .from('bills')
         .update({
           name: editName,
           amount: Number(editAmount),
           due_date: Number(editDueDay),
+          category,
         })
         .eq('id', id)
       if (error) throw error
@@ -149,8 +217,6 @@ export default function BillsPage() {
     }
   }
 
-  const totalBills = bills.reduce((sum, bill) => sum + bill.amount, 0)
-
   return (
     <div className="min-h-screen bg-[#020617] text-white py-12">
       <div className="max-w-6xl mx-auto px-6">
@@ -159,6 +225,33 @@ export default function BillsPage() {
         <p className="text-gray-300 mb-8">
           Track your monthly bills and automate payments
         </p>
+
+        {/* Recurring-detection summary. Combines both tabs so the total
+            reflects everything recurring, whether it's a subscription or a
+            regular bill. */}
+        {!loading && bills.length > 0 && (
+          <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <Repeat className="text-green-400 shrink-0" size={22} />
+              <div>
+                <p className="font-semibold">Recurring costs detected</p>
+                <p className="text-gray-400 text-sm">
+                  {subscriptionBills.length} subscription{subscriptionBills.length === 1 ? '' : 's'} and{' '}
+                  {regularBills.length} recurring bill{regularBills.length === 1 ? '' : 's'} &middot; potential
+                  monthly cost {formatMoney(combinedMonthlyTotal)}
+                </p>
+              </div>
+            </div>
+            {subscriptionBills.length > 0 && (
+              <button
+                onClick={() => setTab('subscriptions')}
+                className="text-sm text-green-400 hover:text-green-300 font-semibold whitespace-nowrap"
+              >
+                Review subscriptions &rarr;
+              </button>
+            )}
+          </div>
+        )}
 
         {/* Main Content */}
         <div className="grid lg:grid-cols-3 gap-6">
@@ -205,6 +298,16 @@ export default function BillsPage() {
                     />
                   </div>
 
+                  <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={isSubscription}
+                      onChange={(e) => setIsSubscription(e.target.checked)}
+                      className="rounded border-gray-700 bg-[#1a233a] text-green-500 focus:ring-green-500"
+                    />
+                    This is a subscription (Netflix, Spotify, etc.)
+                  </label>
+
                   <button
                     type="submit"
                     className="w-full bg-green-500 hover:bg-green-600 text-black font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
@@ -238,26 +341,59 @@ export default function BillsPage() {
 
             {/* Bills List */}
             <div className="lg:col-span-2">
+              {/* Tabs */}
+              <div className="flex gap-2 mb-6 border-b border-gray-700">
+                <button
+                  onClick={() => setTab('bills')}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold border-b-2 transition ${
+                    tab === 'bills'
+                      ? 'border-green-500 text-white'
+                      : 'border-transparent text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  <Receipt size={16} /> Bills
+                </button>
+                <button
+                  onClick={() => setTab('subscriptions')}
+                  className={`flex items-center gap-2 px-4 py-2 text-sm font-semibold border-b-2 transition ${
+                    tab === 'subscriptions'
+                      ? 'border-green-500 text-white'
+                      : 'border-transparent text-gray-400 hover:text-gray-200'
+                  }`}
+                >
+                  <Repeat size={16} /> Subscriptions
+                  {subscriptionBills.length > 0 && (
+                    <span className="bg-[#1a233a] text-gray-300 text-xs rounded-full px-2 py-0.5">
+                      {subscriptionBills.length}
+                    </span>
+                  )}
+                </button>
+              </div>
+
               {/* Summary */}
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm">Total Monthly Bills</p>
+                  <p className="text-gray-400 text-sm">
+                    {tab === 'subscriptions' ? 'Total Monthly Subscriptions' : 'Total Monthly Bills'}
+                  </p>
                   <p className="text-3xl font-bold text-green-400">
-                    {formatMoney(totalBills)}
+                    {formatMoney(tab === 'subscriptions' ? monthlySubscriptionsTotal : monthlyBillsTotal)}
                   </p>
                 </div>
                 <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
-                  <p className="text-gray-400 text-sm">Number of Bills</p>
-                  <p className="text-3xl font-bold text-blue-400">{bills.length}</p>
+                  <p className="text-gray-400 text-sm">
+                    {tab === 'subscriptions' ? 'Number of Subscriptions' : 'Number of Bills'}
+                  </p>
+                  <p className="text-3xl font-bold text-blue-400">{visibleBills.length}</p>
                 </div>
               </div>
 
               {/* Bills Table */}
               {loading ? (
                 <div className="text-center py-12 text-gray-400">Loading bills...</div>
-              ) : bills.length > 0 ? (
+              ) : visibleBills.length > 0 ? (
                 <div className="space-y-3">
-                  {bills
+                  {visibleBills
                     .sort((a, b) => a.due_date - b.due_date)
                     .map((bill) => (
                       <div
@@ -295,6 +431,15 @@ export default function BillsPage() {
                                 />
                               </div>
                             </div>
+                            <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                              <input
+                                type="checkbox"
+                                checked={editIsSubscription}
+                                onChange={(e) => setEditIsSubscription(e.target.checked)}
+                                className="rounded border-gray-700 bg-[#1a233a] text-green-500 focus:ring-green-500"
+                              />
+                              This is a subscription
+                            </label>
                             <div className="flex gap-2">
                               <button
                                 onClick={() => saveEdit(bill.id)}
@@ -315,7 +460,8 @@ export default function BillsPage() {
                             <div>
                               <h3 className="font-semibold text-lg">{bill.name}</h3>
                               <p className="text-gray-400 text-sm">
-                                Due on day {bill.due_date} of each month
+                                {bill.category === SUBSCRIPTION_CATEGORY ? 'Renews' : 'Due'} on day{' '}
+                                {bill.due_date} of each month
                               </p>
                             </div>
                             <div className="flex items-center gap-3">
@@ -346,8 +492,20 @@ export default function BillsPage() {
                 </div>
               ) : (
                 <div className="text-center py-12 text-gray-400">
-                  <p>No bills added yet</p>
-                  <p className="text-sm mt-2">Add a bill manually or upload a bill image</p>
+                  {tab === 'subscriptions' ? (
+                    <>
+                      <p>No subscriptions added yet</p>
+                      <p className="text-sm mt-2">
+                        Check &quot;This is a subscription&quot; when adding a bill, or import a bank
+                        CSV to auto-detect ones like Netflix and Spotify
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p>No bills added yet</p>
+                      <p className="text-sm mt-2">Add a bill manually or upload a bill image</p>
+                    </>
+                  )}
                 </div>
               )}
             </div>
