@@ -12,33 +12,7 @@ import { canUseCharts as planCanUseCharts, canUseSnowball as planCanUseSnowball,
 import DashboardCharts from "@/app/components/DashboardCharts"
 import AIInsightPanel from "@/app/components/AIInsightPanel"
 import { maybeSendWelcomeEmail } from "@/lib/sendWelcomeEmail"
-
-function monthlyFactor(freq?: string | null): number {
-  switch ((freq || "monthly").toLowerCase()) {
-    case "weekly":
-      return 52 / 12
-    case "biweekly":
-    case "bi-weekly":
-    case "every two weeks":
-      return 26 / 12
-    case "semimonthly":
-    case "semi-monthly":
-    case "twice a month":
-      return 2
-    case "quarterly":
-      return 1 / 3
-    case "annual":
-    case "annually":
-    case "yearly":
-      return 1 / 12
-    case "one-time":
-    case "one time":
-    case "once":
-      return 0
-    default:
-      return 1
-  }
-}
+import { monthlyFactor } from "@/lib/monthlyFactor"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -91,13 +65,17 @@ export default async function DashboardPage() {
 
   const { data: incomeData } = await supabase
     .from("income")
-    .select("amount, frequency")
+    .select("amount, frequency, income_type")
     .eq("user_id", user.id)
   const income = Array.isArray(incomeData) ? incomeData : []
-  const monthlyIncome = income.reduce(
-    (sum, i) => sum + (Number(i.amount) || 0) * monthlyFactor(i.frequency),
-    0
-  )
+  // "transfer" rows are money moving between the user's own accounts (e.g. a
+  // CSV-detected "Transfer from Chime Checking Account"), not real income --
+  // counting them here is what previously inflated the dashboard's income
+  // total (and therefore Safe-to-Spend) well past what the user actually
+  // earns. See app/income/page.tsx for where income_type is set.
+  const monthlyIncome = income
+    .filter((i) => i.income_type !== "transfer")
+    .reduce((sum, i) => sum + (Number(i.amount) || 0) * monthlyFactor(i.frequency), 0)
 
   const { data: billsData } = await supabase
     .from("bills")

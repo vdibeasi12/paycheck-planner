@@ -204,6 +204,13 @@ export async function POST(req: Request) {
       }
     } else {
       const nextPayDate = nextOccurrence(g.lastDate, g.frequency)
+      // Defense in depth: lib/csvImport.ts's detectRecurring() already
+      // excludes "Transfer"-categorized groups from ever reaching this
+      // route, but a client could in principle submit a hand-built
+      // confirmedRecurringGroups payload directly against this API. Tag it
+      // correctly either way so it's excluded from income totals
+      // (app/dashboard/page.tsx, app/income/page.tsx) rather than counted.
+      const incomeType = g.category === "Transfer" ? "transfer" : "other"
       const { data: existing } = await supabase
         .from("income")
         .select("id")
@@ -218,6 +225,7 @@ export async function POST(req: Request) {
             name,
             amount: g.amount,
             frequency: g.frequency,
+            income_type: incomeType,
             next_pay_date: nextPayDate,
             source: "csv",
             updated_at: now,
@@ -230,7 +238,7 @@ export async function POST(req: Request) {
           name,
           amount: g.amount,
           frequency: g.frequency,
-          income_type: "other",
+          income_type: incomeType,
           next_pay_date: nextPayDate,
           source: "csv",
           recurring_group_key: g.key,

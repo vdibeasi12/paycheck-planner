@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Plus, Trash2, Wallet, ChevronDown, ChevronUp, Pencil, Check, X } from 'lucide-react'
+import { Plus, Trash2, Wallet, ChevronDown, ChevronUp, Pencil, Check, X, ArrowLeftRight } from 'lucide-react'
 import SmartCapture from '@/components/SmartCapture'
 import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
+import { monthlyFactor } from '@/lib/monthlyFactor'
 
 interface IncomeDetails {
   grossPay: number | null
@@ -23,10 +24,19 @@ interface Income {
   name: string
   amount: number
   frequency: string
+  income_type: string | null
   created_at: string
   details: IncomeDetails | null
   next_pay_date: string | null
 }
+
+// A row tagged "transfer" is money moving between the user's own accounts
+// (most often CSV-detected, e.g. "Transfer from Chime Checking Account") --
+// it's excluded from income totals everywhere (here and on the dashboard)
+// instead of being counted as real income. See lib/csvImport.ts's
+// CATEGORY_RULES for the auto-detection and app/dashboard/page.tsx for the
+// matching total-income filter.
+const TRANSFER_TYPE = 'transfer'
 
 const FREQUENCIES = [
   { value: 'weekly', label: 'Weekly' },
@@ -50,23 +60,6 @@ const EMPTY_DETAILS = {
 
 type DetailsTab = 'taxes' | 'deductions'
 
-// Keep these in sync with the dashboard's monthlyFactor so the safe-to-spend
-// figure matches what users see here.
-function monthlyFactor(freq: string): number {
-  switch (freq) {
-    case 'weekly':
-      return 52 / 12
-    case 'biweekly':
-      return 26 / 12
-    case 'quarterly':
-      return 1 / 3
-    case 'annual':
-      return 1 / 12
-    default:
-      return 1 // monthly
-  }
-}
-
 export default function IncomePage() {
   const formatMoney = useFormatCurrency()
   const [items, setItems] = useState<Income[]>([])
@@ -74,6 +67,7 @@ export default function IncomePage() {
   const [amount, setAmount] = useState('')
   const [frequency, setFrequency] = useState('monthly')
   const [nextPayDate, setNextPayDate] = useState('')
+  const [isTransfer, setIsTransfer] = useState(false)
   const [loading, setLoading] = useState(true)
   const [showCapture, setShowCapture] = useState(false)
 
@@ -86,6 +80,7 @@ export default function IncomePage() {
   const [editAmount, setEditAmount] = useState('')
   const [editFrequency, setEditFrequency] = useState('monthly')
   const [editNextPayDate, setEditNextPayDate] = useState('')
+  const [editIsTransfer, setEditIsTransfer] = useState(false)
 
   async function loadIncome() {
     try {
@@ -138,6 +133,7 @@ export default function IncomePage() {
         name: source,
         amount: Number(amount),
         frequency,
+        income_type: isTransfer ? TRANSFER_TYPE : null,
         next_pay_date: nextPayDate || null,
         details: detailsPayload(),
       })
@@ -146,6 +142,7 @@ export default function IncomePage() {
       setAmount('')
       setFrequency('monthly')
       setNextPayDate('')
+      setIsTransfer(false)
       setShowDetails(false)
       setDetails(EMPTY_DETAILS)
       loadIncome()
@@ -198,6 +195,7 @@ export default function IncomePage() {
     setEditAmount(String(i.amount ?? ''))
     setEditFrequency(i.frequency ?? 'monthly')
     setEditNextPayDate(i.next_pay_date ?? '')
+    setEditIsTransfer(i.income_type === TRANSFER_TYPE)
   }
 
   async function saveEdit(id: string) {
@@ -212,6 +210,7 @@ export default function IncomePage() {
           name: editSource,
           amount: Number(editAmount),
           frequency: editFrequency,
+          income_type: editIsTransfer ? TRANSFER_TYPE : null,
           next_pay_date: editNextPayDate || null,
         })
         .eq('id', id)
@@ -235,7 +234,13 @@ export default function IncomePage() {
     }
   }
 
-  const monthlyTotal = items.reduce(
+  const realIncomeItems = items.filter((i) => i.income_type !== TRANSFER_TYPE)
+  const transferItems = items.filter((i) => i.income_type === TRANSFER_TYPE)
+  const monthlyTotal = realIncomeItems.reduce(
+    (sum, i) => sum + (Number(i.amount) || 0) * monthlyFactor(i.frequency),
+    0
+  )
+  const monthlyTransfersExcluded = transferItems.reduce(
     (sum, i) => sum + (Number(i.amount) || 0) * monthlyFactor(i.frequency),
     0
   )
@@ -303,6 +308,16 @@ export default function IncomePage() {
                     className="w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white"
                   />
                 </div>
+
+                <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={isTransfer}
+                    onChange={(e) => setIsTransfer(e.target.checked)}
+                    className="rounded border-gray-700 bg-[#1a233a] text-green-500 focus:ring-green-500"
+                  />
+                  This is a transfer between my own accounts (not income)
+                </label>
 
                 {/* Optional paycheck breakdown */}
                 <label className="flex items-center gap-2 text-sm text-gray-300 select-none cursor-pointer">
@@ -486,10 +501,16 @@ export default function IncomePage() {
                 <p className="text-3xl font-bold text-green-400">
                   {formatMoney(monthlyTotal)}
                 </p>
+                {transferItems.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    {transferItems.length} transfer{transferItems.length === 1 ? '' : 's'} excluded (
+                    {formatMoney(monthlyTransfersExcluded)}/mo)
+                  </p>
+                )}
               </div>
               <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
-                <p className="text-gray-400 text-sm">Sources</p>
-                <p className="text-3xl font-bold text-blue-400">{items.length}</p>
+                <p className="text-gray-400 text-sm">Income Sources</p>
+                <p className="text-3xl font-bold text-blue-400">{realIncomeItems.length}</p>
               </div>
             </div>
 
@@ -545,6 +566,15 @@ export default function IncomePage() {
                             className="w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white"
                           />
                         </div>
+                        <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editIsTransfer}
+                            onChange={(e) => setEditIsTransfer(e.target.checked)}
+                            className="rounded border-gray-700 bg-[#1a233a] text-green-500 focus:ring-green-500"
+                          />
+                          This is a transfer between my own accounts (not income)
+                        </label>
                         <div className="flex gap-2">
                           <button
                             onClick={() => saveEdit(i.id)}
@@ -564,13 +594,23 @@ export default function IncomePage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <h3 className="font-semibold text-lg flex items-center gap-2">
-                          <Wallet size={16} className="text-green-400" /> {i.name}
+                          {i.income_type === TRANSFER_TYPE ? (
+                            <ArrowLeftRight size={16} className="text-gray-500" />
+                          ) : (
+                            <Wallet size={16} className="text-green-400" />
+                          )}
+                          {i.name}
+                          {i.income_type === TRANSFER_TYPE && (
+                            <span className="text-xs font-normal text-gray-400 bg-[#1a233a] rounded-full px-2 py-0.5">
+                              Transfer &middot; not counted as income
+                            </span>
+                          )}
                         </h3>
                         <p className="text-gray-400 text-sm capitalize">{i.frequency}</p>
                       </div>
                       <div className="flex items-center gap-4">
                         <div className="text-right">
-                          <p className="text-2xl font-bold text-green-400">
+                          <p className={`text-2xl font-bold ${i.income_type === TRANSFER_TYPE ? 'text-gray-400' : 'text-green-400'}`}>
                             {formatMoney(Number(i.amount))}
                           </p>
                           <p className="text-xs text-gray-500">

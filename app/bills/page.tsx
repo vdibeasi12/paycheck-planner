@@ -7,6 +7,7 @@ import SmartCapture from '../components/SmartCapture'
 import { useRouter } from 'next/navigation'
 import { isPremium } from '@/lib/permissions'
 import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
+import { monthlyFactor } from '@/lib/monthlyFactor'
 
 interface Bill {
   id: string
@@ -24,28 +25,6 @@ interface Bill {
 // via the "This is a subscription" checkbox below. Everything else (or
 // uncategorized/legacy rows) renders under the Bills tab.
 const SUBSCRIPTION_CATEGORY = 'Subscriptions'
-
-// Mirrors the monthlyFactor() used on the dashboard and income page --
-// normalizes any billing cadence to a monthly-equivalent amount so the
-// recurring-cost summary below is comparable across weekly/biweekly/monthly
-// bills and subscriptions.
-function monthlyFactor(freq?: string | null): number {
-  switch ((freq || 'monthly').toLowerCase()) {
-    case 'weekly':
-      return 52 / 12
-    case 'biweekly':
-    case 'bi-weekly':
-      return 26 / 12
-    case 'quarterly':
-      return 1 / 3
-    case 'annual':
-    case 'annually':
-    case 'yearly':
-      return 1 / 12
-    default:
-      return 1
-  }
-}
 
 export default function BillsPage() {
   const formatMoney = useFormatCurrency()

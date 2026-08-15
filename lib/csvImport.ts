@@ -138,6 +138,16 @@ export function dedupeTransactions(rows: ParsedTransaction[]): ParsedTransaction
 // ---------------------------------------------------------------------------
 
 const CATEGORY_RULES: Array<{ re: RegExp; category: string }> = [
+  // Money moving between the user's OWN accounts (e.g. "Transfer from Chime
+  // Checking Account") is neither income nor a bill from the household's
+  // perspective. This must be checked before the generic Income/Other
+  // fallback below -- otherwise a recurring, positive-amount transfer gets
+  // miscategorized as "Income" and offered up in Review & Import as a
+  // confirmable paycheck (a real bug found in QA: a recurring $210.38
+  // "Transfer from Chime" got confirmed as income and inflated a user's
+  // dashboard income total by 26/12x). See detectRecurring() below, which
+  // excludes this category from recurring suggestions entirely.
+  { re: /\btransfer(s)? (from|to)\b|internal transfer|account transfer|\bxfer\b/i, category: "Transfer" },
   { re: /netflix|hulu|disney\+|spotify|apple\.com\/bill|hbo|paramount\+|peacock|youtube premium|icloud/i, category: "Subscriptions" },
   { re: /mortgage|rent payment|property mgmt/i, category: "Housing" },
   { re: /electric|power co|utility|water dept|gas company|pg&e|duke energy|comcast|xfinity|spectrum|internet/i, category: "Utilities" },
@@ -207,6 +217,10 @@ export function detectRecurring(transactions: CategorizedTransaction[]): Recurri
   for (const [key, group] of groups) {
     if (group.length < 2) continue
     const sorted = [...group].sort((a, b) => a.date.localeCompare(b.date))
+
+    // Never suggest an internal account transfer as a recurring bill/income
+    // -- it doesn't represent money entering or leaving the household.
+    if (sorted[sorted.length - 1].category === "Transfer") continue
 
     const amounts = sorted.map((t) => Math.abs(t.amount))
     const avgAmount = amounts.reduce((s, n) => s + n, 0) / amounts.length
