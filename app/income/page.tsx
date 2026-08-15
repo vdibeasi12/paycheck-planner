@@ -122,6 +122,30 @@ export default function IncomePage() {
       alert('Please enter a source and amount')
       return
     }
+    // QA fix (Aug 15 2026): "Add Income" always inserts a brand-new row --
+    // there's no equivalent of the CSV importer's recurring_group_key
+    // matching here. That's fine for genuinely separate income sources, but
+    // it silently double-counted income for at least one real account:
+    // SmartCapture-scanning (or manually re-entering) each new pay stub
+    // from the SAME job creates a SEPARATE recurring income source every
+    // time, since the net amount naturally differs check to check, and the
+    // dashboard then sums all of them as if they were different jobs. Warn
+    // before adding a second income source under a name that already
+    // exists, so someone reflecting a new pay stub updates the existing
+    // entry (pencil icon below) instead of stacking a duplicate on top of it.
+    const trimmedSource = source.trim()
+    const duplicate = items.find(
+      (i) => i.income_type !== TRANSFER_TYPE && i.name.trim().toLowerCase() === trimmedSource.toLowerCase()
+    )
+    if (duplicate) {
+      const proceed = window.confirm(
+        `You already have an income source named "${duplicate.name}" (${formatMoney(duplicate.amount)} ${duplicate.frequency}). ` +
+          `Adding this will count as ADDITIONAL income on top of it, not an update to it.\n\n` +
+          `If this is a new pay stub from the same job, click Cancel and use the edit (pencil) icon on the existing entry instead.\n\n` +
+          `Click OK only if this is really a separate income source.`
+      )
+      if (!proceed) return
+    }
     try {
       const { data: userAuth } = await supabase.auth.getUser()
       if (!userAuth.user) {
