@@ -34,6 +34,19 @@ const PROTECTED = [
 // longer force-walls a signed-in user into MFA setup just to look around.
 
 export async function middleware(request: NextRequest) {
+  const path = request.nextUrl.pathname
+
+  // Forwarded through to Server Components -- the root layout (app/layout.tsx)
+  // needs to know the current route (to suppress the sidebar/chrome padding
+  // on /mfa pages), and a Server Component otherwise has no way to read the
+  // pathname. QA fix, Aug 15 2026: without this, a not-yet-MFA-enrolled user
+  // sent to /mfa/setup saw the same off-center bug previously fixed for the
+  // /mfa challenge page, because the layout had no way to know it should
+  // suppress the sidebar padding there. Mutated in place (rather than a
+  // separate Headers snapshot) so it survives alongside the session-cookie
+  // refresh below, which mutates this same `request` object.
+  request.headers.set("x-pathname", path)
+
   // Start with a pass-through response we can attach refreshed cookies to.
   let response = NextResponse.next({ request: { headers: request.headers } })
 
@@ -79,7 +92,6 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const path = request.nextUrl.pathname
   const isProtected = PROTECTED.some(
     (p) => path === p || path.startsWith(p + "/")
   )

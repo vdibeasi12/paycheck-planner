@@ -66,13 +66,18 @@ export default function Sidebar() {
   const [mfaReminder, setMfaReminder] = useState(false)
 
   // The MFA gate pages are full-screen, blocking interstitials the user must
-  // complete before touching the rest of the app. No nav chrome and no
-  // onboarding modal should ever render on top of them.
-  const onMfaGate = (pathname || "").startsWith("/mfa")
+  // complete before touching the rest of the app -- no nav chrome or
+  // onboarding modal should ever render on top of them. This used to be
+  // enforced here via a pathname check, but that could disagree with the
+  // root layout's own (AAL-status-based) decision of whether to mount this
+  // component at all, which caused /mfa/setup to render off-center for
+  // not-yet-enrolled users (QA fix, Aug 15 2026). app/layout.tsx is now the
+  // single source of truth: it doesn't mount <Sidebar /> at all on /mfa
+  // routes (via the x-pathname header set in middleware.ts), so this
+  // component no longer needs its own pathname gate.
 
   // Show the Admin link only to admin accounts.
   useEffect(() => {
-    if (onMfaGate) return
     let active = true
     supabase.auth.getUser().then(async ({ data }) => {
       const user = data.user
@@ -110,7 +115,7 @@ export default function Sidebar() {
     return () => {
       active = false
     }
-  }, [onMfaGate])
+  }, [])
 
   const dismissMfaReminder = () => {
     try {
@@ -120,8 +125,6 @@ export default function Sidebar() {
     }
     setMfaReminder(false)
   }
-
-  if (onMfaGate) return null
 
   const p = pathname || ""
   const isActive = (href: string) => p === href || p.startsWith(href + "/")

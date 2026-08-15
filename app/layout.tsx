@@ -87,13 +87,27 @@ export default async function RootLayout({
   // them reserves `md:pl-64` on the content column below, which is exactly
   // why the /mfa card rendered off-center: it centers itself within a
   // content area that's already been shifted right for a sidebar the user
-  // can't see yet (Sidebar.tsx itself also gates on aal2 and renders
-  // nothing, but the padding was being applied regardless).
+  // can't see yet.
+  //
+  // The /mfa pages themselves are also excluded outright, regardless of AAL
+  // status: they're full-screen interstitials that should never show the app
+  // chrome, including for a "not_enrolled" user sent to /mfa/setup (that
+  // case isn't caught by the AAL check above, since aal2Status is only
+  // "needs_step_up" for users who already have a verified factor). The
+  // current pathname isn't otherwise available to a Server Component, so
+  // middleware.ts forwards it via an x-pathname request header (QA fix,
+  // Aug 15 2026 -- this used to be Sidebar.tsx's own job via a pathname
+  // check, which could disagree with this aal2-based decision and reproduce
+  // the same off-center bug on /mfa/setup for not-yet-enrolled users).
   let showAppChrome = false
 
   try {
     const { createClient } = await import("@/lib/supabase/server")
     const { checkAal2Status } = await import("@/lib/adminGuard")
+    const { headers } = await import("next/headers")
+    const pathname = (await headers()).get("x-pathname") || ""
+    const onMfaGate = pathname.startsWith("/mfa")
+
     const supabase = await createClient()
     const { data } = await supabase.auth.getUser()
     user = data?.user || null
@@ -108,7 +122,7 @@ export default async function RootLayout({
       currency = (prof?.display_currency as CurrencyCode) || undefined
 
       const aal2Status = await checkAal2Status(supabase)
-      showAppChrome = aal2Status !== "needs_step_up"
+      showAppChrome = aal2Status !== "needs_step_up" && !onMfaGate
     }
   } catch (error) {
     // Supabase not configured or error - continue without auth
