@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, serviceClient } from "@/lib/adminGuard";
+import { TIERS } from "@/lib/plans";
 
 export const dynamic = "force-dynamic";
 
@@ -14,15 +15,42 @@ export async function GET() {
 
   const sb = serviceClient();
 
-  const [signupsRes, subsRes, scoreCompletedRes, scoreUnlockedRes, bankRes, referralRes] =
-    await Promise.all([
-      sb.from("events").select("user_id").eq("event_name", "signup_completed"),
-      sb.from("events").select("user_id").eq("event_name", "subscription_started"),
-      sb.from("events").select("metadata").eq("event_name", "money_score_completed"),
-      sb.from("events").select("metadata").eq("event_name", "money_score_plan_unlocked"),
-      sb.from("events").select("id", { count: "exact", head: true }).eq("event_name", "bank_connected"),
-      sb.from("events").select("id", { count: "exact", head: true }).eq("event_name", "referral_completed"),
-    ]);
+  const [
+    signupsRes,
+    subsRes,
+    scoreCompletedRes,
+    scoreUnlockedRes,
+    bankRes,
+    referralRes,
+    profilesRes,
+    incomeRes,
+    completedReferralsRes,
+    subscriptionStatusRes,
+  ] = await Promise.all([
+    sb.from("events").select("user_id").eq("event_name", "signup_completed"),
+    sb.from("events").select("user_id").eq("event_name", "subscription_started"),
+    sb.from("events").select("metadata").eq("event_name", "money_score_completed"),
+    sb.from("events").select("metadata").eq("event_name", "money_score_plan_unlocked"),
+    sb.from("events").select("id", { count: "exact", head: true }).eq("event_name", "bank_connected"),
+    sb.from("events").select("id", { count: "exact", head: true }).eq("event_name", "referral_completed"),
+    sb.from("profiles").select("id, email, utm_source, utm_campaign, utm_content, plan, is_admin"),
+    sb.from("income").select("user_id"),
+    sb.from("referrals").select("referrer_id, referred_id").eq("status", "completed"),
+    sb.from("subscriptions").select("user_id, status"),
+  ]);
+
+  // Real "paid" state for the bySource/byCampaign breakdown below (QA fix,
+  // Aug 15 2026) -- same root cause as app/api/admin/users/route.ts's
+  // paidUsers/conversion fix: profiles.plan is hand-editable with no
+  // subscription behind it, so it alone isn't a reliable "paid" signal.
+  // Admin/internal accounts are also excluded from this whole breakdown --
+  // they're real rows in `profiles` but not real marketing-funnel signups.
+  const activeSubUserIds = new Set(
+    (subscriptionStatusRes.data || [])
+      .filter((s) => s.status === "active" || s.status === "trialing")
+      .map((s) => s.user_id)
+  );
+  const funnelProfiles = (profilesRes.data || []).filter((p) => !p.is_admin);
 
   // Signup -> paid: of everyone who signed up since event tracking went
   // live, how many have also started a subscription. A pre-existing account
@@ -49,6 +77,60 @@ export async function GET() {
   const ratePct = (num: number, den: number) =>
     den > 0 ? Math.round((num / den) * 1000) / 10 : null;
 
+  // Per-source Signups -> Activated -> Paid, all-time (not the last-30d
+  // window the visitors endpoint uses for top-of-funnel traffic -- these
+  // three columns are a true cohort, joined by user id, so the conversion
+  // rate is real; "visitors" gets merged in client-side as a directional
+  // top-of-funnel reference alongside it, not part of the same cohort).
+  // "Activated" = added at least one paycheck (lib/onboarding-sequence.ts's
+  // own Day-1 framing: everything else in the app starts from this step).
+  const activatedIds = new Set((incomeRes.data || []).map((r: any) => r.user_id).filter(Boolean));
+
+  const bySource: Record<string, { signups: number; activated: number; paid: number }> = {};
+  // Same idea, one level more granular -- keyed by campaign, or
+  // "campaign • content" when a specific video/ad id (utm_content) was
+  // tagged on the link. Only counts profiles that actually carry a
+  // campaign; untagged organic/direct traffic has no campaign to group by
+  // and stays out of this table (it's already covered by the source table).
+  const byCampaign: Record<string, { signups: number; activated: number; paid: number }> = {};
+  for (const p of funnelProfiles) {
+    const src = ((p.utm_source as string | null) || "").trim() || "direct";
+    if (!bySource[src]) bySource[src] = { signups: 0, activated: 0, paid: 0 };
+    bySource[src].signups++;
+    if (activatedIds.has(p.id)) bySource[src].activated++;
+    if (activeSubUserIds.has(p.id)) bySource[src].paid++;
+
+    const campaign = ((p.utm_campaign as string | null) || "").trim();
+    if (campaign) {
+      const content = ((p.utm_content as string | null) || "").trim();
+      const key = content ? `${campaign} • ${content}` : campaign;
+      if (!byCampaign[key]) byCampaign[key] = { signups: 0, activated: 0, paid: 0 };
+      byCampaign[key].signups++;
+      if (activatedIds.has(p.id)) byCampaign[key].activated++;
+      if (activeSubUserIds.has(p.id)) byCampaign[key].paid++;
+    }
+  }
+
+  // Top referrers + estimated revenue from referrals, both from the same
+  // completed-referrals query. Revenue is an estimate: it's each referred
+  // user's current plan list price (monthly), regardless of whether they're
+  // actually billed monthly or annually -- directional, like the funnel
+  // rates above, not a reconciled dollar figure off Stripe.
+  const profileById = new Map((profilesRes.data || []).map((p) => [p.id, p]));
+  const priceByTier = new Map(TIERS.map((t) => [t.id, t.priceMonthly]));
+
+  const referrerCounts = new Map<string, number>();
+  let referralRevenueMonthly = 0;
+  for (const r of completedReferralsRes.data || []) {
+    if (r.referrer_id) referrerCounts.set(r.referrer_id, (referrerCounts.get(r.referrer_id) || 0) + 1);
+    const referredPlan = profileById.get(r.referred_id)?.plan as string | undefined;
+    if (referredPlan) referralRevenueMonthly += priceByTier.get(referredPlan as any) || 0;
+  }
+  const topReferrers = Array.from(referrerCounts.entries())
+    .map(([id, count]) => ({ email: profileById.get(id)?.email || id, count }))
+    .sort((a, b) => b.count - a.count)
+    .slice(0, 5);
+
   return NextResponse.json({
     signupToPaid: {
       signups: signupIds.size,
@@ -62,5 +144,9 @@ export async function GET() {
     },
     bankConnectedTotal: bankRes.count || 0,
     referralsCompletedTotal: referralRes.count || 0,
+    bySource,
+    byCampaign,
+    topReferrers,
+    referralRevenueMonthly: Math.round(referralRevenueMonthly * 100) / 100,
   });
 }
