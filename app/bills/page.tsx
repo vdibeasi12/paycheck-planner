@@ -11,6 +11,7 @@ import { monthlyFactor } from '@/lib/monthlyFactor'
 import { findBillDebtOverlaps } from '@/lib/billDebtOverlap'
 import BillsVsDebtsHint from '../components/BillsVsDebtsHint'
 import { consumeCapturePrefill } from '@/lib/capturePrefill'
+import { checkAchievementsAndCelebrate } from '@/lib/checkAchievements'
 
 interface Bill {
   id: string
@@ -149,6 +150,10 @@ export default function BillsPage() {
       setDueDay('')
       setIsSubscription(false)
       loadBills()
+      // First bill added earns "bill_organizer" (and possibly "all_set" /
+      // "first_month_budgeted" if income + debts are already in place) --
+      // check right now instead of waiting for a later dashboard visit.
+      checkAchievementsAndCelebrate()
     } catch (error) {
       console.error('Error adding bill:', error)
       alert('Failed to add bill')

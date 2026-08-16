@@ -17,11 +17,14 @@ import {
 import { DEBT_TYPES } from '@/lib/debtTypes'
 import BillsVsDebtsHint from '../components/BillsVsDebtsHint'
 import { consumeCapturePrefill } from '@/lib/capturePrefill'
+import { checkAchievementsAndCelebrate } from '@/lib/checkAchievements'
+import { celebrate, popMilestone, crossedMilestone } from '@/lib/confetti'
 
 interface Debt {
   id: string
   name: string
   balance: number
+  original_balance: number | null
   interest_rate: number
   minimum_payment: number
   debt_type: string | null
@@ -89,7 +92,7 @@ export default function DebtsPage() {
     try {
       const { data } = await supabase
         .from('debts')
-        .select('id, name, balance, interest_rate, minimum_payment, debt_type, escrow_payment, created_at')
+        .select('id, name, balance, original_balance, interest_rate, minimum_payment, debt_type, escrow_payment, created_at')
         .order('balance', { ascending: true })
       if (data) setItems(data as Debt[])
     } catch (error) {
@@ -143,6 +146,9 @@ export default function DebtsPage() {
       setDebtType('')
       setEscrowPayment('')
       loadDebts()
+      // First debt added earns "debt_tracker" -- check right now instead of
+      // waiting for a later dashboard visit.
+      checkAchievementsAndCelebrate()
     } catch (error) {
       console.error('Error adding debt:', error)
       alert('Failed to add debt')
@@ -187,11 +193,24 @@ export default function DebtsPage() {
 
   async function saveEdit(id: string) {
     try {
+      const newBalance = Number(edit.balance) || 0
+      // Captured before the update so we can tell whether this save just
+      // paid the debt off or crossed a 25/50/75% checkpoint -- same
+      // before/after comparison GoalTracker.tsx already does for savings
+      // goals (see lib/confetti.ts's crossedMilestone), applied here for the
+      // first time. Every payoff/checkpoint fires, not just the first one
+      // ever (unlike the "debt_slayer" badge, which is a one-time award) --
+      // paying off your third credit card should feel just as good as your
+      // first.
+      const existing = items.find((d) => d.id === id)
+      const prevBalance = existing ? Number(existing.balance) : null
+      const original = existing?.original_balance != null ? Number(existing.original_balance) : null
+
       const { error } = await supabase
         .from('debts')
         .update({
           name: edit.name,
-          balance: Number(edit.balance) || 0,
+          balance: newBalance,
           interest_rate: edit.interest_rate === '' ? 0 : Number(edit.interest_rate),
           minimum_payment: edit.minimum_payment === '' ? 0 : Number(edit.minimum_payment),
           debt_type: edit.debt_type || null,
@@ -201,6 +220,19 @@ export default function DebtsPage() {
       if (error) throw error
       setEditingId(null)
       loadDebts()
+
+      if (prevBalance != null && prevBalance > 0 && newBalance <= 0) {
+        // Paid off entirely -- the big moment, every time it happens.
+        celebrate()
+        // Also re-check badges in the background for "debt_free" (every
+        // tracked debt now cleared), which is a separate, bigger milestone
+        // than any single payoff.
+        checkAchievementsAndCelebrate()
+      } else if (original && original > 0 && prevBalance != null) {
+        const before = Math.min(100, Math.max(0, ((original - prevBalance) / original) * 100))
+        const after = Math.min(100, Math.max(0, ((original - newBalance) / original) * 100))
+        if (crossedMilestone(before, after)) popMilestone()
+      }
     } catch (error) {
       console.error('Error updating debt:', error)
       alert('Failed to save changes')

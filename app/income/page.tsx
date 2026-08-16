@@ -7,6 +7,7 @@ import SmartCapture from '@/components/SmartCapture'
 import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
 import { monthlyFactor } from '@/lib/monthlyFactor'
 import { consumeCapturePrefill } from '@/lib/capturePrefill'
+import { checkAchievementsAndCelebrate } from '@/lib/checkAchievements'
 
 interface IncomeDetails {
   grossPay: number | null
@@ -172,6 +173,10 @@ export default function IncomePage() {
       setShowDetails(false)
       setDetails(EMPTY_DETAILS)
       loadIncome()
+      // First paycheck added earns "first_dollar" -- check right now so the
+      // celebration happens at this moment, not the next time some other
+      // page happens to run this same check.
+      checkAchievementsAndCelebrate()
     } catch (error) {
       console.error('Error adding income:', error)
       alert('Failed to add income')

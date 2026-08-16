@@ -29,3 +29,14 @@ export function popMilestone() {
   if (prefersReducedMotion()) return;
   confetti({ particleCount: 50, spread: 55, startVelocity: 35, origin: { y: 0.7 }, colors: brand });
 }
+
+/**
+ * Shared "did we just cross one of the 25/50/75 checkpoints" check, used
+ * anywhere progress toward a target is trackable (savings goals, debt
+ * payoff). Previously duplicated locally inside GoalTracker.tsx -- pulled
+ * out so debts/page.tsx can use the identical rule instead of redefining it.
+ */
+export function crossedMilestone(before: number, after: number): boolean {
+  for (const m of [25, 50, 75]) if (before < m && after >= m) return true;
+  return false;
+}

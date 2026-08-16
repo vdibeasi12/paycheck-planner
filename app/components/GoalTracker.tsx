@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
-import { celebrate, popMilestone } from "@/lib/confetti";
+import { celebrate, popMilestone, crossedMilestone } from "@/lib/confetti";
+import { checkAchievementsAndCelebrate } from "@/lib/checkAchievements";
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency";
 import { Plus, Target, Trophy, Trash2, Loader2 } from "lucide-react";
 
@@ -25,11 +26,6 @@ function pct(g: Goal) {
   const tgt = Number(g.target_amount || 0);
   if (tgt <= 0) return 0;
   return Math.min(100, Math.round((cur / tgt) * 100));
-}
-
-function crossedMilestone(before: number, after: number) {
-  for (const m of [25, 50, 75]) if (before < m && after >= m) return true;
-  return false;
 }
 
 export default function GoalTracker() {
@@ -92,6 +88,11 @@ export default function GoalTracker() {
       setDeadline("");
       setAdding(false);
       await load();
+      // First goal added earns "goal_getter" -- previously this only
+      // celebrated the next time the user happened to load the dashboard or
+      // Achievements page. Checking right here means the burst happens at
+      // the actual moment of the accomplishment.
+      checkAchievementsAndCelebrate();
     } finally {
       setBusy(false);
     }
