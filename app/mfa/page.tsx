@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { useSearchParams } from "next/navigation"
 import { safeRedirect } from "@/lib/safeRedirect"
+import { Loader2, Mail, ShieldPlus } from "lucide-react"
 
 function MfaChallenge() {
   const searchParams = useSearchParams()
@@ -14,8 +15,26 @@ function MfaChallenge() {
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
   const [ready, setReady] = useState(false)
-  const [emailMode, setEmailMode] = useState(false)
-  const [resendMsg, setResendMsg] = useState("")
+
+  // QA fix (Aug 16 2026): "I still want the MFA screen to show the
+  // authenticator and have an option to use email and get a code as a
+  // secondary option for both web and app." Previously this page silently
+  // POSTed to /api/mfa/email/send on every load and only switched into
+  // email mode if that happened to succeed -- there was never a visible
+  // choice, and a user with an authenticator-only factor never saw email
+  // mentioned at all. The backend (lib/mfaEmail.ts, /api/mfa/email/send,
+  // built when the user set this up via app/components/MfaSetup.tsx) was
+  // already there and already returns a clean { sent: false } when no email
+  // backup is on file for the account -- this page now just asks for it
+  // explicitly, on demand, and shows both states honestly instead of
+  // guessing silently. This is the same page whether it's opened in a
+  // browser or inside the Android app's WebView (see
+  // app/components/NativeInit.tsx), so one fix covers both.
+  const [mode, setMode] = useState<"app" | "email">("app")
+  const [sendingEmail, setSendingEmail] = useState(false)
+  const [emailStatus, setEmailStatus] = useState<{ kind: "sent" | "unavailable" | "error"; message: string } | null>(
+    null
+  )
 
   useEffect(() => {
     let active = true
@@ -45,25 +64,6 @@ function MfaChallenge() {
         if (active) {
           setFactorId(totp.id)
           setReady(true)
-        }
-
-        // If this factor was set up for email delivery, this quietly sends
-        // the code and flips the page into email mode. For a normal
-        // authenticator-app factor, the route is a no-op (sent: false) and
-        // the page keeps its original copy.
-        try {
-          const res = await fetch("/api/mfa/email/send", {
-            method: "POST",
-            headers: { "content-type": "application/json" },
-            body: JSON.stringify({ factorId: totp.id }),
-          })
-          const body = await res.json().catch(() => ({}))
-          if (active && res.ok && body?.sent) {
-            setEmailMode(true)
-          }
-        } catch {
-          // Network hiccup on the send-attempt -- fall back to the default
-          // authenticator-app copy rather than blocking the page.
         }
       } catch {
         if (active) setError("Could not start verification. Please try again.")
@@ -108,9 +108,11 @@ function MfaChallenge() {
     window.location.assign("/login")
   }
 
-  const resend = async () => {
-    if (!factorId) return
-    setResendMsg("")
+  async function requestEmailCode() {
+    if (!factorId || sendingEmail) return
+    setError("")
+    setEmailStatus(null)
+    setSendingEmail(true)
     try {
       const res = await fetch("/api/mfa/email/send", {
         method: "POST",
@@ -119,13 +121,34 @@ function MfaChallenge() {
       })
       const body = await res.json().catch(() => ({}))
       if (!res.ok) {
-        setResendMsg(body?.error || "Could not resend the code. Please try again.")
+        setEmailStatus({ kind: "error", message: body?.error || "Could not send the code. Please try again." })
         return
       }
-      setResendMsg("A new code is on its way to your inbox.")
+      if (body?.sent) {
+        setMode("email")
+        setCode("")
+        setEmailStatus({ kind: "sent", message: "We emailed a 6-digit code -- enter it below." })
+      } else {
+        // This account never set up email delivery for its authenticator
+        // factor (see app/components/MfaSetup.tsx's "Email me a code
+        // instead" enrollment option) -- say so plainly instead of leaving
+        // the button appearing to do nothing.
+        setEmailStatus({
+          kind: "unavailable",
+          message: "Email backup isn't set up for this account yet. Use your authenticator app for now -- you can add email backup from Settings afterward.",
+        })
+      }
     } catch {
-      setResendMsg("Could not resend the code. Please try again.")
+      setEmailStatus({ kind: "error", message: "Could not reach the server. Please check your connection and try again." })
+    } finally {
+      setSendingEmail(false)
     }
+  }
+
+  function useAuthenticatorInstead() {
+    setMode("app")
+    setCode("")
+    setEmailStatus(null)
   }
 
   return (
@@ -137,7 +160,7 @@ function MfaChallenge() {
 
         <h2 className="text-2xl font-bold mb-2">Two-factor verification</h2>
         <p className="text-gray-400 text-sm mb-6">
-          {emailMode
+          {mode === "email"
             ? "Enter the 6-digit code we emailed you to finish signing in."
             : "Enter the 6-digit code from your authenticator app to finish signing in."}
         </p>
@@ -168,14 +191,55 @@ function MfaChallenge() {
           </button>
         </form>
 
-        {emailMode && (
-          <div className="text-center mt-4">
-            <button onClick={resend} className="text-sm text-gray-400 hover:text-white transition">
-              Resend code
+        {/* The secondary option, always visible -- per the ask, this isn't
+            something the app silently decides for the user. */}
+        <div className="mt-4 text-center">
+          {mode === "app" ? (
+            <button
+              type="button"
+              onClick={requestEmailCode}
+              disabled={!ready || sendingEmail}
+              className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition disabled:opacity-60"
+            >
+              {sendingEmail ? <Loader2 size={14} className="animate-spin" /> : <Mail size={14} />}
+              {sendingEmail ? "Sending..." : "Don't have your authenticator? Email me a code instead"}
             </button>
-            {resendMsg && <p className="text-xs text-gray-500 mt-1">{resendMsg}</p>}
-          </div>
-        )}
+          ) : (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={requestEmailCode}
+                disabled={sendingEmail}
+                className="text-sm text-gray-400 hover:text-white transition disabled:opacity-60"
+              >
+                {sendingEmail ? "Sending..." : "Resend code"}
+              </button>
+              <div>
+                <button
+                  type="button"
+                  onClick={useAuthenticatorInstead}
+                  className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-white transition"
+                >
+                  <ShieldPlus size={14} /> Use my authenticator app instead
+                </button>
+              </div>
+            </div>
+          )}
+
+          {emailStatus && (
+            <p
+              className={`mt-2 text-xs ${
+                emailStatus.kind === "sent"
+                  ? "text-emerald-400"
+                  : emailStatus.kind === "unavailable"
+                  ? "text-amber-400"
+                  : "text-rose-400"
+              }`}
+            >
+              {emailStatus.message}
+            </p>
+          )}
+        </div>
 
         <div className="border-t border-gray-700 mt-6 pt-6 text-center text-sm">
           <button onClick={signOut} className="text-gray-400 hover:text-white transition">
@@ -199,4 +263,4 @@ export default function MfaPage() {
       <MfaChallenge />
     </Suspense>
   )
-}
+}
