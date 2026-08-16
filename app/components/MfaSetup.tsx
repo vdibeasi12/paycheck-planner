@@ -182,9 +182,22 @@ export default function MfaSetup({ onVerified }: { onVerified?: () => void } = {
               <span className="flex items-center gap-2 text-sm text-gray-200">
                 <ShieldCheck size={16} className="text-emerald-500" />
                 {f.friendly_name || "Authenticator app"}
-                <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                  Active
-                </span>
+                {/* QA fix (Aug 16 2026): this badge used to read "Active" for
+                    every row unconditionally, regardless of the factor's
+                    real status -- listFactors() returns unverified/abandoned
+                    enrollment attempts too, and this would have shown those
+                    as "Active" even though they can't be used to sign in and
+                    have no working code delivery behind them. Now it reflects
+                    the actual status Supabase reports. */}
+                {f.status === "verified" ? (
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
+                    Active
+                  </span>
+                ) : (
+                  <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">
+                    Not verified
+                  </span>
+                )}
               </span>
               <button
                 type="button"
@@ -304,7 +317,12 @@ export default function MfaSetup({ onVerified }: { onVerified?: () => void } = {
         <div className="mt-5">
           {error && <p className="mb-3 text-sm text-rose-600">{error}</p>}
           <p className="mb-2 text-xs font-medium uppercase tracking-wide text-gray-500">
-            {factors.length > 0 ? "Add another device" : "Choose how to receive your codes"}
+            {/* QA fix (Aug 16 2026): "Add another device" doesn't match what
+                these two buttons actually do -- they pick a verification
+                METHOD (authenticator app vs. emailed code), not a physical
+                device. Supabase's API calls each TOTP enrollment a "factor,"
+                but nothing about choosing "email" is about adding a device. */}
+            {factors.length > 0 ? "Add a backup verification method" : "Choose how to receive your codes"}
           </p>
           <div className="flex flex-wrap gap-2">
             <button
