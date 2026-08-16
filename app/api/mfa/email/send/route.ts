@@ -33,12 +33,33 @@ export async function POST(request: Request) {
     }
 
     const db = serviceClient()
-    const { data: row } = await db
+    let { data: row } = await db
       .from("mfa_email_secrets")
-      .select("secret_encrypted")
+      .select("factor_id, secret_encrypted")
       .eq("user_id", user.id)
       .eq("factor_id", factorId)
       .maybeSingle()
+
+    // QA fix (Aug 16 2026): the challenge screen (app/mfa/page.tsx) picks
+    // whichever verified TOTP factor happens to come back first from
+    // listFactors() as its default/"primary" factorId -- for an account
+    // with an authenticator factor AND a separately-enrolled email-backup
+    // factor (two distinct Supabase TOTP factors), that's often the
+    // authenticator one. Matching only on the exact factorId the client
+    // sent would then never find this user's email secret at all, even
+    // though they genuinely have email backup configured -- it would just
+    // always claim "not set up." Since a user only ever has one email
+    // backup in practice, fall back to any row on their account before
+    // giving up.
+    if (!row) {
+      const fallback = await db
+        .from("mfa_email_secrets")
+        .select("factor_id, secret_encrypted")
+        .eq("user_id", user.id)
+        .limit(1)
+        .maybeSingle()
+      row = fallback.data
+    }
 
     // Not an email-registered factor (e.g. a normal authenticator-app TOTP
     // factor) -- quietly no-op so the caller can fall back to the generic
@@ -70,7 +91,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: sendResult.error || "Could not send code" }, { status: 502 })
     }
 
-    return NextResponse.json({ sent: true })
+    // Hand back the factor this code actually belongs to -- it may differ
+    // from the factorId the client sent (see the fallback lookup above), and
+    // the client's subsequent challenge()/verify() call MUST target this
+    // exact factor, since the code is only valid for it.
+    return NextResponse.json({ sent: true, factorId: row.factor_id })
   } catch (err) {
     console.error("mfa email send error:", err)
     return NextResponse.json({ error: "Something went wrong" }, { status: 500 })

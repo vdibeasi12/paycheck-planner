@@ -11,6 +11,12 @@ function MfaChallenge() {
   const redirectTo = safeRedirect(searchParams.get("redirectTo"))
 
   const [factorId, setFactorId] = useState<string | null>(null)
+  // The factor selected at page load -- almost always the authenticator
+  // factor, since listFactors() prefers the first verified TOTP factor. Kept
+  // separate from `factorId` (below) so "Use my authenticator app instead"
+  // can always get back to the right one, even after requestEmailCode()
+  // retargets `factorId` at a different (email-backed) factor.
+  const [appFactorId, setAppFactorId] = useState<string | null>(null)
   const [code, setCode] = useState("")
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
@@ -63,6 +69,7 @@ function MfaChallenge() {
 
         if (active) {
           setFactorId(totp.id)
+          setAppFactorId(totp.id)
           setReady(true)
         }
       } catch {
@@ -125,6 +132,17 @@ function MfaChallenge() {
         return
       }
       if (body?.sent) {
+        // QA fix (Aug 16 2026): if this account has the email-backup secret
+        // stored under a DIFFERENT factor than the one this challenge screen
+        // defaulted to (e.g. an authenticator factor AND a separately
+        // -enrolled email-backup factor both exist), /api/mfa/email/send
+        // falls back to whichever email-backed factor it finds and hands
+        // back its real factorId here. The code that was just emailed is
+        // only valid against THAT factor, so verify() must target it too --
+        // otherwise the correct code would fail with a confusing error.
+        if (body.factorId && typeof body.factorId === "string" && body.factorId !== factorId) {
+          setFactorId(body.factorId)
+        }
         setMode("email")
         setCode("")
         setEmailStatus({ kind: "sent", message: "We emailed a 6-digit code -- enter it below." })
@@ -146,6 +164,9 @@ function MfaChallenge() {
   }
 
   function useAuthenticatorInstead() {
+    // Restore the original authenticator factorId -- requestEmailCode() may
+    // have retargeted `factorId` at a different (email-backed) factor above.
+    if (appFactorId) setFactorId(appFactorId)
     setMode("app")
     setCode("")
     setEmailStatus(null)
