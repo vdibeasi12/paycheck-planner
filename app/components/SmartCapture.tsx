@@ -1,8 +1,15 @@
 "use client"
 
 import { useRef, useState } from "react"
-import { Camera, Upload, Loader2, AlertCircle } from "lucide-react"
+import { useRouter } from "next/navigation"
+import { Camera, Upload, Loader2, AlertCircle, ArrowRight } from "lucide-react"
 import { pdfFirstPageToJpeg } from "@/lib/pdfToImages"
+import {
+  setCapturePrefill,
+  pathForCapturedType,
+  CAPTURED_TYPE_LABEL,
+  type CapturedDocType,
+} from "@/lib/capturePrefill"
 
 type DocType = "bill" | "debt" | "income"
 
@@ -37,6 +44,8 @@ type ExtractedFields<T extends DocType> = T extends "bill"
   ? DebtFields
   : IncomeFields
 
+const DOC_TYPE_LABEL: Record<DocType, string> = { bill: "Bill", debt: "Debt", income: "Income" }
+
 export default function SmartCapture<T extends DocType>({
   docType,
   onExtracted,
@@ -44,8 +53,19 @@ export default function SmartCapture<T extends DocType>({
   docType: T
   onExtracted: (fields: ExtractedFields<T>) => void
 }) {
+  const router = useRouter()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  // QA fix (Aug 15 2026): "make sure the app reads the imported docs and
+  // places it in the correct location -- if Netflix is uploaded into Debt
+  // it should populate in Bills, if a credit card statement is uploaded in
+  // Bills it should move to Debt." app/api/extract-document now always
+  // classifies the document for itself before extracting -- this holds the
+  // outcome when that classification disagrees with the page the user
+  // scanned from, so they can jump to the right page with the fields
+  // already filled in (lib/capturePrefill.ts) instead of losing the scan.
+  const [mismatch, setMismatch] = useState<{ detectedType: CapturedDocType; fields: unknown } | null>(null)
+  const [isStatement, setIsStatement] = useState(false)
 
   const cameraRef = useRef<HTMLInputElement>(null)
   const uploadRef = useRef<HTMLInputElement>(null)
@@ -64,12 +84,20 @@ export default function SmartCapture<T extends DocType>({
     })
   }
 
+  function goToCorrectPage() {
+    if (!mismatch) return
+    setCapturePrefill(mismatch.detectedType, mismatch.fields)
+    router.push(pathForCapturedType(mismatch.detectedType))
+  }
+
   async function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
     e.target.value = "" // allow re-selecting the same file later
     if (!file) return
 
     setError(null)
+    setMismatch(null)
+    setIsStatement(false)
     setBusy(true)
     try {
       const isPdf = file.type === "application/pdf" || file.name.toLowerCase().endsWith(".pdf")
@@ -85,6 +113,23 @@ export default function SmartCapture<T extends DocType>({
 
       if (!res.ok || !json?.success) {
         setError(json?.error || "Couldn't read that file. Please try again or enter details manually.")
+        return
+      }
+
+      const detectedType: string = json.detectedType
+
+      if (detectedType === "statement") {
+        setIsStatement(true)
+        return
+      }
+      if (detectedType === "unknown") {
+        setError("Couldn't tell what kind of document that is. Please enter the details manually.")
+        return
+      }
+      if (detectedType !== docType) {
+        // Recognized, just not what this page expects -- offer the jump
+        // instead of forcing it through the wrong schema.
+        setMismatch({ detectedType: detectedType as CapturedDocType, fields: json.fields })
         return
       }
 
@@ -112,7 +157,7 @@ export default function SmartCapture<T extends DocType>({
           className="flex items-center justify-center gap-2 rounded-xl bg-green-500 px-4 py-2.5 text-sm font-semibold text-black transition hover:bg-green-600 disabled:opacity-60"
         >
           {busy ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
-          {busy ? "Scanningâ€¦" : "Take photo"}
+          {busy ? "Scanning…" : "Take photo"}
         </button>
         <button
           type="button"
@@ -153,6 +198,37 @@ export default function SmartCapture<T extends DocType>({
         <p className="mt-2 flex items-center gap-1.5 text-sm text-rose-400">
           <AlertCircle size={14} /> {error}
         </p>
+      )}
+
+      {mismatch && (
+        <div className="mt-3 rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm text-blue-100">
+          <p>
+            That looks like <span className="font-semibold">{CAPTURED_TYPE_LABEL[mismatch.detectedType]}</span>, not{" "}
+            {DOC_TYPE_LABEL[docType]}. We kept what we found -- add it in the right place instead?
+          </p>
+          <button
+            type="button"
+            onClick={goToCorrectPage}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-blue-500 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-blue-600"
+          >
+            Go to {CAPTURED_TYPE_LABEL[mismatch.detectedType]} <ArrowRight size={14} />
+          </button>
+        </div>
+      )}
+
+      {isStatement && (
+        <div className="mt-3 rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 text-sm text-blue-100">
+          <p>
+            That looks like a full bank statement with multiple transactions, not a single {DOC_TYPE_LABEL[docType].toLowerCase()}.
+          </p>
+          <button
+            type="button"
+            onClick={() => router.push("/import")}
+            className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-blue-500 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-blue-600"
+          >
+            Import bank statement instead <ArrowRight size={14} />
+          </button>
+        </div>
       )}
     </div>
   )

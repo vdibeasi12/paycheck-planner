@@ -16,6 +16,7 @@ import {
 } from '@/lib/payoffSimulate'
 import { DEBT_TYPES } from '@/lib/debtTypes'
 import BillsVsDebtsHint from '../components/BillsVsDebtsHint'
+import { consumeCapturePrefill } from '@/lib/capturePrefill'
 
 interface Debt {
   id: string
@@ -160,6 +161,17 @@ export default function DebtsPage() {
     if (fields.minimum_payment != null) setMinPayment(String(fields.minimum_payment))
     setShowCapture(false)
   }
+
+  // Picks up a scan that started on a different page (e.g. someone scanned
+  // a credit card statement from the Bills page) -- SmartCapture there
+  // detected it was really a Debt and sent the user here with the fields
+  // already extracted, via lib/capturePrefill.ts, rather than making them
+  // re-enter everything or re-scan.
+  useEffect(() => {
+    const prefill = consumeCapturePrefill('debt')
+    if (prefill) handleExtractedDebt(prefill)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function startEdit(d: Debt) {
     setEditingId(d.id)

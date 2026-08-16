@@ -11,41 +11,79 @@ const ALLOWED_MEDIA_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "i
 // reach the API call, protecting cost and latency).
 const MAX_BASE64_LENGTH = 11_000_000
 
-const BILL_INSTRUCTIONS = `Look at this photo of a bill or invoice. Extract these fields as JSON only, no other text:
-{
-  "name": string or null,        // vendor/company name, e.g. "Commonwealth Edison"
-  "amount": number or null,      // the amount due, digits only, no currency symbol
-  "dueDate": string or null      // the due date in YYYY-MM-DD format if visible, else null
-}
-If a field isn't visible or you aren't confident, use null for that field rather than guessing. Respond with ONLY the JSON object, no markdown fences, no commentary.`
+const DETECTED_TYPES = new Set(["bill", "debt", "income", "statement", "unknown"])
 
-const DEBT_INSTRUCTIONS = `Look at this photo of a credit card or loan statement. Extract these fields as JSON only, no other text:
-{
-  "name": string or null,             // creditor/lender name, e.g. "Chase Sapphire"
-  "balance": number or null,          // current balance owed, digits only
-  "interest_rate": number or null,    // APR as a percent, e.g. 22.99 (not 0.2299)
-  "minimum_payment": number or null   // minimum payment due, digits only
+const HINT_LABEL: Record<string, string> = {
+  bill: "a bill",
+  debt: "a debt/credit statement",
+  income: "a paycheck stub",
 }
-If a field isn't visible or you aren't confident, use null for that field rather than guessing. Respond with ONLY the JSON object, no markdown fences, no commentary.`
 
-const INCOME_INSTRUCTIONS = `Look at this photo of a paycheck stub or direct deposit notice. Extract these fields as JSON only, no other text:
+// QA fix (Aug 15 2026): "make sure the app reads the imported docs and
+// places it in the correct location -- if Netflix is uploaded into Debt it
+// should populate in Bills, if a credit card statement is uploaded in
+// Bills it should move to Debt... OCR needs to understand what is being
+// captured." Previously this endpoint trusted docType (which page/button
+// the user clicked) completely and picked its extraction schema from that
+// alone -- a Netflix receipt scanned from the Debts page got run through
+// the DEBT schema (balance/APR/minimum payment), which doesn't exist on a
+// subscription receipt, so it silently came back mostly null. There was no
+// way for the model to say "this isn't what you think it is."
+//
+// Now the model always classifies the document FOR ITSELF first, using
+// docType only as a hint/prior (the label doesn't override what's actually
+// printed on the page), and extracts whichever schema matches what it
+// actually found. The caller (SmartCapture.tsx) compares detectedType
+// against the docType it asked for: a match fills the current page's form
+// exactly as before; a mismatch routes the user to the correct page with
+// the fields pre-filled there instead (lib/capturePrefill.ts). A detected
+// "statement" (a full transaction history, not one bill/debt/paycheck)
+// points the user at the dedicated multi-page importer (app/import)
+// instead of trying to force it through the single-document schema.
+function buildInstructions(docTypeHint: string): string {
+  const hintLabel = HINT_LABEL[docTypeHint] || "a financial document"
+  return `Look at this photo or document. The user selected "${docTypeHint}" when uploading (expecting ${hintLabel}), but decide for yourself what kind of document this actually is, based only on what's printed on it -- the user's label is a hint, not the answer, and people scan the wrong page by mistake.
+
+Choose exactly one detectedType:
+- "bill": a recurring or one-time invoice/bill with an amount due and usually a due date -- utilities, phone, internet, insurance, rent, a subscription receipt (Netflix, Spotify, etc.). No interest rate and no running balance.
+- "debt": a credit card or loan statement -- shows a balance owed, an APR/interest rate, and a minimum payment due.
+- "income": a paycheck stub or direct deposit notice showing gross/net pay from an employer.
+- "statement": a bank or card statement listing many individual transactions (a transaction history spanning a date range), rather than a single bill amount, a single balance, or a single paycheck.
+- "unknown": you genuinely cannot tell which of the above this is.
+
+Respond with ONLY this JSON object, no other text:
 {
-  "name": string or null,        // employer/company name, e.g. "Acme Corp"
-  "amount": number or null,      // the NET pay amount for this one paycheck (take-home, after deductions), digits only. If only gross pay is visible, use that instead and do not guess a net figure.
-  "frequency": string or null,   // one of exactly: "weekly", "biweekly", "monthly", "quarterly", "annual" -- infer from the pay period start/end dates shown (e.g. a 14-day span is "biweekly"). Use null if the pay period isn't shown or doesn't clearly match one of these.
+  "detectedType": "bill" | "debt" | "income" | "statement" | "unknown",
+  "fields": <see below, or null if detectedType is "statement" or "unknown">
+}
+
+If detectedType is "bill", fields is:
+{ "name": string or null, "amount": number or null, "dueDate": string in YYYY-MM-DD format or null }
+
+If detectedType is "debt", fields is:
+{ "name": string or null, "balance": number or null, "interest_rate": number or null (APR as a percent, e.g. 22.99, not 0.2299), "minimum_payment": number or null }
+
+If detectedType is "income", fields is:
+{
+  "name": string or null,
+  "amount": number or null,
+  "frequency": one of exactly "weekly" | "biweekly" | "monthly" | "quarterly" | "annual", or null if the pay period isn't clearly one of these,
   "details": {
-    "grossPay": number or null,          // gross pay before any deductions
-    "federalTax": number or null,        // federal income tax withheld
-    "stateTax": number or null,          // state income tax withheld
-    "socialSecurity": number or null,    // Social Security / FICA withheld
-    "medicare": number or null,          // Medicare withheld
-    "retirement401k": number or null,    // 401(k) / retirement plan contribution
-    "healthInsurance": number or null,   // health/dental/vision insurance premium
-    "otherDeductions": number or null,   // sum of any other deductions not covered above
-    "netPay": number or null             // net/take-home pay, should match "amount" above when both are visible
+    "grossPay": number or null,
+    "federalTax": number or null,
+    "stateTax": number or null,
+    "socialSecurity": number or null,
+    "medicare": number or null,
+    "retirement401k": number or null,
+    "healthInsurance": number or null,
+    "otherDeductions": number or null,
+    "netPay": number or null
   }
 }
-Only include a value in "details" if it is actually printed on the stub -- use null for anything not shown, and never estimate or infer a deduction amount that isn't visible. If the whole details breakdown isn't visible at all, return every field in "details" as null rather than omitting the object. Respond with ONLY the JSON object, no markdown fences, no commentary.`
+"amount" should be the NET pay for one paycheck (take-home, after deductions); if only gross pay is visible, use that instead and do not guess a net figure. Only include a "details" value that is actually printed -- use null for anything not shown, and never estimate or infer a deduction that isn't visible.
+
+For any field: if it isn't visible or you aren't confident, use null rather than guessing. Respond with ONLY the JSON object, no markdown fences, no commentary.`
+}
 
 export async function POST(req: Request) {
   try {
@@ -99,8 +137,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "Photo scan isn't configured yet." }, { status: 500 })
     }
 
-    const instructions =
-      docType === "bill" ? BILL_INSTRUCTIONS : docType === "debt" ? DEBT_INSTRUCTIONS : INCOME_INSTRUCTIONS
+    const instructions = buildInstructions(docType)
 
     const res = await fetch(ANTHROPIC_URL, {
       method: "POST",
@@ -111,7 +148,7 @@ export async function POST(req: Request) {
       },
       body: JSON.stringify({
         model: MODEL,
-        max_tokens: 300,
+        max_tokens: 500,
         temperature: 0,
         messages: [
           {
@@ -143,12 +180,12 @@ export async function POST(req: Request) {
           .trim()
       : ""
 
-    let fields: Record<string, unknown> | null = null
+    let parsed: Record<string, unknown> | null = null
     try {
       // Model is instructed to return raw JSON, but strip fences defensively
       // in case it wraps the response anyway.
       const cleaned = text.replace(/^```json\s*|^```\s*|```$/gm, "").trim()
-      fields = JSON.parse(cleaned)
+      parsed = JSON.parse(cleaned)
     } catch (parseErr) {
       console.error("extract-document: failed to parse model output:", text)
       return NextResponse.json(
@@ -157,7 +194,20 @@ export async function POST(req: Request) {
       )
     }
 
-    return NextResponse.json({ success: true, fields })
+    const detectedType = typeof parsed?.detectedType === "string" ? parsed.detectedType : null
+    if (!detectedType || !DETECTED_TYPES.has(detectedType)) {
+      console.error("extract-document: model returned an invalid detectedType:", parsed)
+      return NextResponse.json(
+        { success: false, error: "Couldn't read the details clearly. Please enter them manually." },
+        { status: 502 }
+      )
+    }
+
+    // fields is null (by design) for "statement" and "unknown" -- there's
+    // nothing to prefill for either, the client shows guidance instead.
+    const fields = detectedType === "statement" || detectedType === "unknown" ? null : parsed?.fields ?? null
+
+    return NextResponse.json({ success: true, detectedType, requestedType: docType, fields })
   } catch (err) {
     console.error("extract-document error:", err)
     return NextResponse.json({ success: false, error: "Something went wrong reading that photo." }, { status: 500 })

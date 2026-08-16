@@ -6,6 +6,7 @@ import { Plus, Trash2, Wallet, ChevronDown, ChevronUp, Pencil, Check, X, ArrowLe
 import SmartCapture from '@/components/SmartCapture'
 import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
 import { monthlyFactor } from '@/lib/monthlyFactor'
+import { consumeCapturePrefill } from '@/lib/capturePrefill'
 
 interface IncomeDetails {
   grossPay: number | null
@@ -213,6 +214,17 @@ export default function IncomePage() {
 
     setShowCapture(false)
   }
+
+  // Picks up a scan that started on a different page (e.g. someone scanned
+  // a paystub from the Bills or Debts page) -- SmartCapture there detected
+  // it was really Income and sent the user here with the fields already
+  // extracted, via lib/capturePrefill.ts, rather than making them re-enter
+  // everything or re-scan.
+  useEffect(() => {
+    const prefill = consumeCapturePrefill('income')
+    if (prefill) handleExtractedIncome(prefill)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function startEdit(i: Income) {
     setEditingId(i.id)

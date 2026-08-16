@@ -10,6 +10,7 @@ import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
 import { monthlyFactor } from '@/lib/monthlyFactor'
 import { findBillDebtOverlaps } from '@/lib/billDebtOverlap'
 import BillsVsDebtsHint from '../components/BillsVsDebtsHint'
+import { consumeCapturePrefill } from '@/lib/capturePrefill'
 
 interface Bill {
   id: string
@@ -167,6 +168,17 @@ export default function BillsPage() {
     }
     setShowCapture(false)
   }
+
+  // Picks up a scan that started on a different page (e.g. someone scanned
+  // a Netflix receipt from the Debts page) -- SmartCapture there detected
+  // it was really a Bill and sent the user here with the fields already
+  // extracted, via lib/capturePrefill.ts, rather than making them re-enter
+  // everything or re-scan.
+  useEffect(() => {
+    const prefill = consumeCapturePrefill('bill')
+    if (prefill) handleExtractedBill(prefill)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function startEdit(bill: Bill) {
     setEditingId(bill.id)
