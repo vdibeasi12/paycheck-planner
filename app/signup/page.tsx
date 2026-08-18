@@ -4,7 +4,7 @@ import { useState } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { isNativeApp } from "@/lib/platform"
+import { isNativeApp, useIsIOSApp } from "@/lib/platform"
 import { useLocale } from "@/lib/i18n/LocaleProvider"
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
@@ -18,6 +18,14 @@ export default function SignupPage() {
   const [agreed, setAgreed] = useState(false)
   const [error, setError] = useState("")
   const [loading, setLoading] = useState(false)
+  // App Store Guideline 4.8: an app that offers third-party/social login
+  // must also offer Sign in with Apple as an equivalent option. Rather than
+  // build that (Apple Developer Services ID + Supabase provider config),
+  // the Google button is simply not shown on iOS -- email/password still
+  // works there. Default-deny like the purchase-UI gates elsewhere in
+  // lib/platform.ts: `ios` is null until mounted, so the button only shows
+  // once the platform is confirmed non-iOS, never as a pre-mount flash.
+  const ios = useIsIOSApp()
 
   // Fire-and-forget: captures the email for abandoned-signup recovery
   // (Task #22) the moment someone finishes typing it, before they ever
@@ -156,24 +164,28 @@ export default function SignupPage() {
           </div>
         )}
 
-        <button
-          type="button"
-          onClick={handleGoogleSignup}
-          disabled={loading || !agreed}
-          className="w-full border border-gray-700 bg-[#1a233a] hover:bg-[#2a3f5f] rounded-lg py-3 px-4 flex items-center justify-center gap-3 transition disabled:opacity-50">
-          <img
-            src="https://www.svgrepo.com/show/475656/google-color.svg"
-            alt="Google"
-            className="w-5 h-5"
-          />
-          <span className="text-white font-medium">{t("signup.continueWithGoogle")}</span>
-        </button>
+        {ios === false && (
+          <>
+            <button
+              type="button"
+              onClick={handleGoogleSignup}
+              disabled={loading || !agreed}
+              className="w-full border border-gray-700 bg-[#1a233a] hover:bg-[#2a3f5f] rounded-lg py-3 px-4 flex items-center justify-center gap-3 transition disabled:opacity-50">
+              <img
+                src="https://www.svgrepo.com/show/475656/google-color.svg"
+                alt="Google"
+                className="w-5 h-5"
+              />
+              <span className="text-white font-medium">{t("signup.continueWithGoogle")}</span>
+            </button>
 
-        <div className="flex items-center gap-4 my-6">
-          <div className="flex-1 h-px bg-gray-700"></div>
-          <span className="text-gray-500 text-sm">{t("signup.or")}</span>
-          <div className="flex-1 h-px bg-gray-700"></div>
-        </div>
+            <div className="flex items-center gap-4 my-6">
+              <div className="flex-1 h-px bg-gray-700"></div>
+              <span className="text-gray-500 text-sm">{t("signup.or")}</span>
+              <div className="flex-1 h-px bg-gray-700"></div>
+            </div>
+          </>
+        )}
 
         <form onSubmit={handleSignup} className="space-y-4">
           <input
