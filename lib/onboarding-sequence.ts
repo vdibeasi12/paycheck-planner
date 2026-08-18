@@ -96,14 +96,14 @@ export const SEQUENCE: OnboardingStep[] = [
   {
     step: 3,
     dayOffset: 7,
-    subject: "Your Money Score -- one minute, no spreadsheets",
+    subject: "The Money Quiz -- one minute, no spreadsheets",
     preview: "A quick snapshot of where your finances actually stand.",
     bodyHtml: (unsubUrl) =>
       wrap(
         '<h2 style="color:#ffffff;margin-top:0;">Where do you actually stand?</h2>' +
-          '<p style="color:#9ca3af;">A week in, this is a good moment to check your Money Score -- a quick, ' +
+          '<p style="color:#9ca3af;">A week in, this is a good moment to take the Money Quiz -- a quick, ' +
           "free snapshot across savings, debt, and spending that shows you exactly where to focus next.</p>" +
-          cta("Get your Money Score", APP_URL + "/money-score"),
+          cta("Take the Money Quiz", APP_URL + "/money-score"),
         unsubUrl
       ),
   },

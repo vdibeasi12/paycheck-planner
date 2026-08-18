@@ -62,7 +62,7 @@ export async function GET() {
   let signupToPaid = 0;
   for (const id of paidIds) if (signupIds.has(id)) signupToPaid++;
 
-  // Money Score: completed -> plan unlocked, matched by share slug (both
+  // Money Quiz: completed -> plan unlocked, matched by share slug (both
   // events carry it in metadata; there's no user_id to join on since the
   // quiz itself is anonymous).
   const completedSlugs = new Set(

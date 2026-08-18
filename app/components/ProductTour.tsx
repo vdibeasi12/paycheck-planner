@@ -9,7 +9,7 @@ type TourStep = { element?: string; title: string; description: string }
 
 // Order matches the sidebar's top-to-bottom order exactly (Dashboard,
 // Getting Started, Calendar, Debts, Payoff Plan, Bills, Income, Goals,
-// Achievements, Insights, Analytics, Money Score, University, Financial Hub,
+// Achievements, Insights, Analytics, Money Quiz, University, Financial Hub,
 // AI Chat, Account, Feedback, Sign out) so the highlight walks straight down
 // the nav instead of jumping around. Admin is intentionally excluded -- it's
 // only shown to admin accounts and has no data-tour attribute.
@@ -25,8 +25,8 @@ const STEPS: TourStep[] = [
   { element: '[data-tour="nav-goals"]', title: "Set your goals", description: "Create savings targets and other financial goals to work toward." },
   { element: '[data-tour="nav-achievements"]', title: "Achievements", description: "Milestones you unlock as you build better money habits." },
   { element: '[data-tour="nav-insights"]', title: "Insights", description: "A closer look at your spending and progress trends." },
-  { element: '[data-tour="nav-analytics"]', title: "Analytics", description: "Deeper charts and breakdowns of your finances over time." },
-  { element: '[data-tour="nav-money-score"]', title: "Your Money Score", description: "A quick read on your financial health, with next steps to improve it." },
+  { element: '[data-tour="nav-analytics"]', title: "Analytics", description: "Deeper charts and breakdowns of your finances, plus your Financial Health Score." },
+  { element: '[data-tour="nav-money-score"]', title: "The Money Quiz", description: "A free 2-minute quiz on your money habits -- get an instant, shareable score." },
   { element: '[data-tour="nav-university"]', title: "Paycheck Planner University", description: "Short lessons on budgeting, paychecks, debt payoff, saving, credit, and financial freedom. Finish a course to unlock the next one." },
   { element: '[data-tour="nav-blog"]', title: "Financial Hub", description: "Articles, free calculators, and the 30-Day Challenge live here." },
   { element: '[data-tour="nav-ai-chat"]', title: "AI insights", description: "Ask questions about your numbers in plain English. Included with Accelerate and Autopilot." },

@@ -64,7 +64,7 @@ export default function MoneyScoreResultClient({
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
   const tweetText = encodeURIComponent(
-    `I scored ${score}/100 on the Paycheck Planner Money Score. What's yours?`
+    `I scored ${score}/100 on the Paycheck Planner Money Quiz. What's yours?`
   );
 
   async function handleUnlock(e: FormEvent) {
@@ -114,7 +114,7 @@ export default function MoneyScoreResultClient({
       <div className="max-w-2xl mx-auto">
         <div className="bg-[#0f172a] border border-gray-800 rounded-2xl shadow-2xl shadow-black/40 p-8 text-center">
           <p className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-2">
-            Your Money Score
+            Your Quiz Score
           </p>
           <div
             className="mx-auto mb-4 flex h-40 w-40 items-center justify-center rounded-full border-8"

@@ -77,8 +77,8 @@ const EVENT_LABELS: Record<string, string> = {
   subscription_started: "Subscriptions started",
   subscription_canceled: "Subscriptions canceled",
   bank_connected: "Banks connected (Autopilot)",
-  money_score_completed: "Money Score quizzes completed",
-  money_score_plan_unlocked: "Money Score plans unlocked",
+  money_score_completed: "Money Quiz completed",
+  money_score_plan_unlocked: "Money Quiz plans unlocked",
   lead_magnet_subscribed: "Lead magnet signups",
   referral_completed: "Referrals completed",
   referral_click: "Referral link clicks",
@@ -696,7 +696,7 @@ export default function AdminPage() {
                 </p>
               </div>
               <div className="rounded-xl border border-gray-800 px-3 py-2">
-                <p className="text-xs text-gray-500">Money Score &rarr; plan unlocked</p>
+                <p className="text-xs text-gray-500">Money Quiz &rarr; plan unlocked</p>
                 <p className="mt-1 text-lg font-semibold text-white">
                   {funnels.moneyScoreToUnlock.ratePct === null ? (
                     <span className="text-sm font-normal text-gray-500">Not enough data yet</span>

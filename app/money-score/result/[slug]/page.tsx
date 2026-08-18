@@ -50,11 +50,11 @@ export async function generateMetadata({
 
   const score = data?.score ?? null;
   const title =
-    score !== null ? `My Money Score is ${score}/100` : "What's Your Money Score?";
+    score !== null ? `My Money Quiz score is ${score}/100` : "The Money Quiz";
   const description =
     score !== null
-      ? "I just found out my Money Score. Take the free 2-minute quiz and find out yours."
-      : "Take the free 2-minute quiz and find out your Money Score.";
+      ? "I just took the Money Quiz. Take the free 2-minute quiz and find out your score."
+      : "Take the free 2-minute quiz and find out your Money Quiz score.";
 
   return {
     title,

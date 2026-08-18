@@ -62,7 +62,7 @@ export default function MoneyScoreQuizClient() {
               Free 2-Minute Quiz
             </p>
             <h1 className="text-3xl font-bold text-white mb-4">
-              {`What's Your Money Score?`}
+              {`The Money Quiz`}
             </h1>
             <p className="text-gray-400 mb-8">
               {`Answer ${MONEY_SCORE_QUESTIONS.length} quick questions about your budgeting, savings, debt, and spending. Get an instant score out of 100 and see exactly where to focus first.`}
@@ -121,7 +121,7 @@ export default function MoneyScoreQuizClient() {
           <div className="py-16 text-center">
             <div className="animate-spin h-10 w-10 border-4 border-emerald-500 border-t-transparent rounded-full mx-auto mb-4" />
             <p className="text-gray-400 font-medium">
-              {"Calculating your Money Score…"}
+              {"Calculating your Quiz Score…"}
             </p>
           </div>
         )}

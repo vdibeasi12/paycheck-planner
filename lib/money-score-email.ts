@@ -1,6 +1,6 @@
 // lib/money-score-email.ts
 // Builds the personalized improvement plan email sent right after someone
-// unlocks their Money Score result with their email (app/api/money-score/unlock).
+// unlocks their Money Quiz result with their email (app/api/money-score/unlock).
 // Styling mirrors the existing branded email templates (lib/email-sequence.ts,
 // lib/challenge-email.ts): dark card, emerald CTA, muted footer.
 
@@ -39,7 +39,7 @@ function wrap(inner: string): string {
     inner +
     '<p style="margin-top:28px;font-size:12px;color:#6b7280;border-top:1px solid #1f2937;padding-top:16px;">' +
     "You're getting this because you requested your personalized improvement plan after taking " +
-    "the Paycheck Planner Money Score quiz." +
+    "the Paycheck Planner Money Quiz." +
     "</p></div>"
   )
 }
@@ -84,10 +84,10 @@ export function buildMoneyScorePlanEmail(
     })
     .join("")
 
-  const subject = "Your " + score + "/100 Money Score -- here's your improvement plan"
+  const subject = "Your " + score + "/100 Money Quiz score -- here's your improvement plan"
 
   const html = wrap(
-    '<h2 style="color:#ffffff;margin-top:0;">Your Money Score: ' + score + "/100</h2>" +
+    '<h2 style="color:#ffffff;margin-top:0;">Your Money Quiz score: ' + score + "/100</h2>" +
       '<p style="color:#9ca3af;">You scored in the &ldquo;' +
       band.label +
       '&rdquo; range. Here are the ' +
