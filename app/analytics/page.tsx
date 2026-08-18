@@ -16,6 +16,7 @@ import {
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import { debtTypeLabel } from "@/lib/debtTypes"
 import { simulate, monthLabel, type Debt as SimDebt } from "@/lib/payoffSimulate"
+import FinancialHealthScore from "@/app/components/FinancialHealthScore"
 
 interface AnalyticsDebt {
   id: string
@@ -289,6 +290,8 @@ export default function Analytics() {
           <p className="mt-1 text-xs text-gray-500">weighted by balance</p>
         </div>
       </div>
+
+      <FinancialHealthScore debts={debts} ready={ready} />
 
       {/* What's really costing you -- ranked by monthly interest, not balance. */}
       <div className="mb-10 rounded bg-gray-900 p-6">
