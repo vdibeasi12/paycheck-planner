@@ -2,18 +2,18 @@
 
 import { Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import { supabase } from "@/lib/supabase/client"
 import MfaSetup from "@/components/MfaSetup"
 import { safeRedirect } from "@/lib/safeRedirect"
+import { hardSignOut } from "@/lib/signOut"
 
 function MfaSetupRequired() {
   const searchParams = useSearchParams()
   const redirectTo = safeRedirect(searchParams.get("redirectTo"))
 
-  const signOut = async () => {
-    await supabase.auth.signOut()
-    window.location.assign("/login")
-  }
+  // See lib/signOut.ts / app/auth/signout/route.ts (Aug 18 2026 fix) for why
+  // this goes through a server-side route instead of calling
+  // supabase.auth.signOut() + window.location.assign directly here.
+  const signOut = () => hardSignOut()
 
   return (
     <div className="min-h-screen bg-[#020617] text-white flex items-center justify-center px-6 py-12">

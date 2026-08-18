@@ -33,6 +33,7 @@ import ProductTour from "./ProductTour"
 import LocaleCurrencySelector from "./LocaleCurrencySelector"
 import { useLocale } from "@/lib/i18n/LocaleProvider"
 import { supabase } from "@/lib/supabase/client"
+import { hardSignOut } from "@/lib/signOut"
 
 const LINKS = [
   { href: "/dashboard", labelKey: "nav.dashboard", Icon: LayoutDashboard },
@@ -129,10 +130,10 @@ export default function Sidebar() {
   const p = pathname || ""
   const isActive = (href: string) => p === href || p.startsWith(href + "/")
 
-  const signOut = async () => {
-    await supabase.auth.signOut()
-    window.location.href = "/"
-  }
+  // See lib/signOut.ts / app/auth/signout/route.ts (Aug 18 2026 fix) for why
+  // this goes through a server-side route instead of calling
+  // supabase.auth.signOut() + window.location.href directly here.
+  const signOut = () => hardSignOut()
 
   const openFeedback = (onNavigate?: () => void) => {
     onNavigate?.()

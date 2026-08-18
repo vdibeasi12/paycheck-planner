@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { useSearchParams } from "next/navigation"
 import { safeRedirect } from "@/lib/safeRedirect"
+import { hardSignOut } from "@/lib/signOut"
 import { Loader2, Mail, ShieldPlus } from "lucide-react"
 
 function MfaChallenge() {
@@ -110,10 +111,10 @@ function MfaChallenge() {
     }
   }
 
-  const signOut = async () => {
-    await supabase.auth.signOut()
-    window.location.assign("/login")
-  }
+  // See lib/signOut.ts / app/auth/signout/route.ts (Aug 18 2026 fix) for why
+  // this goes through a server-side route instead of calling
+  // supabase.auth.signOut() + window.location.assign directly here.
+  const signOut = () => hardSignOut()
 
   async function requestEmailCode() {
     if (!factorId || sendingEmail) return
@@ -152,8 +153,14 @@ function MfaChallenge() {
         // instead" enrollment option) -- say so plainly instead of leaving
         // the button appearing to do nothing.
         setEmailStatus({
+          // QA fix (Aug 16 2026): this pointed people to "Settings," which
+          // doesn't exist anywhere in the app -- the nav item is "Account"
+          // and the page itself is titled "Account & security"
+          // (app/account/page.tsx). Vince hit exactly this: went looking for
+          // "Settings," couldn't find it, and only found the real page on
+          // his own. Naming it correctly here avoids that hunt.
           kind: "unavailable",
-          message: "Email backup isn't set up for this account yet. Use your authenticator app for now -- you can add email backup from Settings afterward.",
+          message: "Email backup isn't set up for this account yet. Use your authenticator app for now -- you can add email backup from the Account & security page afterward.",
         })
       }
     } catch {

@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { withTimeout } from "@/lib/withTimeout";
-import { useRouter } from "next/navigation";
+import { hardSignOut } from "@/lib/signOut";
 import MfaSetup from "@/components/MfaSetup";
 import BiometricLockToggle from "@/components/BiometricLockToggle";
 import NotificationPreferences from "@/components/NotificationPreferences";
@@ -15,7 +15,6 @@ import SectionErrorBoundary from "@/components/SectionErrorBoundary";
 import { KeyRound, LogOut, Loader2, Eye, EyeOff } from "lucide-react";
 
 export default function AccountPage() {
-  const router = useRouter();
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [msg, setMsg] = useState<{ kind: "ok" | "err"; text: string } | null>(null);
@@ -72,9 +71,17 @@ export default function AccountPage() {
     }
   }
 
-  async function signOut() {
-    await supabase.auth.signOut();
-    router.push("/login");
+  // Bug fix (Aug 18 2026): this used to be `await supabase.auth.signOut();
+  // router.push("/login")`. router.push() is a soft, client-side-only
+  // navigation -- Next.js's App Router does not re-run the root layout
+  // (app/layout.tsx) on it, so the already-mounted Sidebar (rendered back
+  // when the user really was logged in) stayed on screen, fully
+  // interactive, regardless of whether sign-out itself succeeded. This was
+  // very likely the exact mechanism behind the "sign out doesn't sign out"
+  // report. See lib/signOut.ts / app/auth/signout/route.ts for the fix: a
+  // real top-level POST navigation, which always re-runs the root layout.
+  function signOut() {
+    hardSignOut();
   }
 
   return (

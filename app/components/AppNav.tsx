@@ -4,7 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Menu, X } from "lucide-react"
-import { supabase } from "@/lib/supabase/client"
+import { hardSignOut } from "@/lib/signOut"
 
 // Primary in-app destinations for a logged-in user.
 const LINKS = [
@@ -21,10 +21,10 @@ export default function AppNav({ loggedIn }: { loggedIn: boolean }) {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
 
-  const signOut = async () => {
-    await supabase.auth.signOut()
-    window.location.href = "/"
-  }
+  // See lib/signOut.ts / app/auth/signout/route.ts (Aug 18 2026 fix) for why
+  // this goes through a server-side route instead of calling
+  // supabase.auth.signOut() + window.location.href directly here.
+  const signOut = () => hardSignOut()
 
   const p = pathname || ""
   const isActive = (href: string) => p === href || p.startsWith(href + "/")

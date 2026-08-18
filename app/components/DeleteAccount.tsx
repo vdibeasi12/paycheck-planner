@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { withTimeout } from "@/lib/withTimeout";
+import { hardSignOut } from "@/lib/signOut";
 import { AlertTriangle, Loader2, Trash2 } from "lucide-react";
 
 // userEmail: pass the already-fetched account email (see
@@ -55,19 +56,17 @@ export default function DeleteAccount({ userEmail }: { userEmail?: string } = {}
         return;
       }
 
-      // Account is gone server-side. Clear the local session (best-effort),
-      // then do a HARD navigation so the server-rendered root layout re-runs
-      // and drops the authenticated sidebar/chrome. A soft router.replace()
-      // would leave the layout cached "user" in place and keep the sidebar
-      // visible over the logged-out page. window.location.replace also avoids
-      // leaving a back-button entry to the now-deleted account page.
-      try {
-        await supabase.auth.signOut();
-      } catch {
-        // Session tokens are already invalid now that the account is gone;
-        // ignore and leave anyway.
-      }
-      window.location.replace("/?deleted=1");
+      // Account is gone server-side. Route through the same server-side
+      // sign-out used everywhere else (lib/signOut.ts / Aug 18 2026 fix) so
+      // session-cookie teardown and the redirect happen atomically in one
+      // response, then land on "/?deleted=1" instead of the default
+      // "/login" -- still a real top-level POST navigation, so the
+      // server-rendered root layout always re-runs and drops the
+      // authenticated sidebar/chrome. A soft router.replace() would leave
+      // the layout's cached "user" in place and keep the sidebar visible
+      // over the logged-out page; this also avoids leaving a back-button
+      // entry to the now-deleted account page.
+      hardSignOut("/?deleted=1");
     } catch {
       setErr("Could not delete your account. Please try again.");
       setBusy(false);
