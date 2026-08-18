@@ -89,3 +89,16 @@ export function trackCta(cta: string, path?: string) {
     path: path ?? (typeof window !== "undefined" ? window.location.pathname : undefined),
   })
 }
+
+// A visit carrying ?ref=<code> -- counted once per new/changed ref (see
+// AttributionCapture.tsx, which already dedupes first-touch vs a changed
+// referral code the same way). This is the top of the referral funnel:
+// click -> signup (app/auth/callback/route.ts's creditReferralIfPresent) ->
+// activated -> paid, same shape as the source/campaign funnels.
+export function trackReferralClick(ref: string) {
+  send({
+    eventName: "referral_click",
+    visitorId: getVisitorId(),
+    ref,
+  })
+}

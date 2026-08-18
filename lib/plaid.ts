@@ -211,14 +211,14 @@ export async function syncLiabilitiesForItem(
   return { accounts: accounts.length, liabilities: rows.length, debts: debtCount }
 }
 
-export async function syncBalancesForItem(
+// Shared upsert logic for both balance-sync modes below. `accounts` should
+// already be filtered to depository (checking/savings) accounts.
+async function applyBalanceSync(
   sb: any,
   userId: string,
-  accessToken: string,
-  itemId: string
+  itemId: string,
+  accounts: any[]
 ): Promise<{ accounts: number; assets: number }> {
-  const bal = await plaid.accountsBalanceGet({ access_token: accessToken })
-  const accounts = bal.data.accounts.filter((a: any) => a.type === "depository")
   const now = new Date().toISOString()
 
   let assetCount = 0
@@ -278,4 +278,42 @@ export async function syncBalancesForItem(
     .eq("item_id", itemId)
 
   return { accounts: accounts.length, assets: assetCount }
+}
+
+// Paid, real-time balance pull (/accounts/balance/get -- billed per call).
+// Reserved for low-frequency, high-value moments only: the initial bank
+// connection (exchange/route.ts) and the user's own manual "Refresh from
+// bank" click (sync/route.ts). Never call this from an automated/scheduled
+// job -- see syncCachedBalancesForItem below for that.
+export async function syncBalancesForItem(
+  sb: any,
+  userId: string,
+  accessToken: string,
+  itemId: string
+): Promise<{ accounts: number; assets: number }> {
+  const bal = await plaid.accountsBalanceGet({ access_token: accessToken })
+  const accounts = bal.data.accounts.filter((a: any) => a.type === "depository")
+  return applyBalanceSync(sb, userId, itemId, accounts)
+}
+
+// Free, cached balance pull (/accounts/get -- no per-call charge). Plaid
+// refreshes this cache in the background roughly daily for Items that carry
+// a "regularly updating" product (Liabilities, Transactions, Investments) --
+// which covers every credit card/loan/mortgage this app already syncs --
+// but NOT for Auth-only items (plain checking/savings), where the cache can
+// go stale between refreshes. That's the deliberate tradeoff: this is what
+// the daily bank-balance-refresh cron uses, so the automated refresh costs
+// nothing per user per day. Checking/savings balances stay accurate as of
+// the last connection or manual "Refresh from bank" click (which uses the
+// paid, real-time syncBalancesForItem above) rather than guaranteed same-day
+// fresh from this cron alone.
+export async function syncCachedBalancesForItem(
+  sb: any,
+  userId: string,
+  accessToken: string,
+  itemId: string
+): Promise<{ accounts: number; assets: number }> {
+  const res = await plaid.accountsGet({ access_token: accessToken })
+  const accounts = res.data.accounts.filter((a: any) => a.type === "depository")
+  return applyBalanceSync(sb, userId, itemId, accounts)
 }

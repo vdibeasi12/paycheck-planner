@@ -31,6 +31,7 @@ type UserRow = {
   utm_source: string | null;
   utm_medium: string | null;
   utm_campaign: string | null;
+  utm_content: string | null;
   sub_tier: string | null;
   sub_status: string | null;
   sub_plan_type: string | null;
@@ -80,6 +81,7 @@ const EVENT_LABELS: Record<string, string> = {
   money_score_plan_unlocked: "Money Score plans unlocked",
   lead_magnet_subscribed: "Lead magnet signups",
   referral_completed: "Referrals completed",
+  referral_click: "Referral link clicks",
 };
 
 const PLAN_LABELS: Record<string, string> = {
@@ -115,6 +117,10 @@ export default function AdminPage() {
     moneyScoreToUnlock: { completed: number; unlocked: number; ratePct: number | null };
     bankConnectedTotal: number;
     referralsCompletedTotal: number;
+    bySource: Record<string, { signups: number; activated: number; paid: number }>;
+    byCampaign: Record<string, { signups: number; activated: number; paid: number }>;
+    topReferrers: { email: string; count: number }[];
+    referralRevenueMonthly: number;
   } | null>(null);
   const [visitors, setVisitors] = useState<{
     uniqueVisitors: { today: number; last7: number; last30: number };
@@ -360,6 +366,46 @@ export default function AdminPage() {
     entries.sort((a, b) => b[1] - a[1]);
     return entries;
   }, [visitors]);
+
+  // Visitors -> Signups -> Activated -> Paid, per traffic source. Visitors is
+  // last-30-days (from the same page_view-derived bySource the "Visitors by
+  // source" card above uses); signups/activated/paid are all-time cohort
+  // counts from app/api/admin/funnels, joined by the same source key
+  // AttributionCapture assigns everywhere else (utm_source, or "direct").
+  // The two halves aren't the same time window -- that's called out in the
+  // table caption rather than implied as a single clean ratio.
+  const sourceFunnel = useMemo(() => {
+    const keys = new Set([
+      ...Object.keys(visitors?.bySource ?? {}),
+      ...Object.keys(funnels?.bySource ?? {}),
+    ]);
+    const rows = Array.from(keys).map((src) => {
+      const v = visitors?.bySource?.[src] ?? 0;
+      const f = funnels?.bySource?.[src] ?? { signups: 0, activated: 0, paid: 0 };
+      const conversionPct = f.signups > 0 ? Math.round((f.paid / f.signups) * 1000) / 10 : null;
+      return { source: src, visitors: v, signups: f.signups, activated: f.activated, paid: f.paid, conversionPct };
+    });
+    rows.sort((a, b) => b.paid - a.paid || b.signups - a.signups || b.visitors - a.visitors);
+    return rows;
+  }, [visitors, funnels]);
+
+  // Same shape one level more granular -- by campaign, or "campaign •
+  // content" when a video/ad id was tagged (utm_content). This is what
+  // answers "which specific video converted" rather than just "which
+  // platform" -- e.g. youtube • debt_payoff • video_047. Top 10 by paid,
+  // then signups, so the table stays readable as campaign count grows.
+  const campaignFunnel = useMemo(() => {
+    const entries = Object.entries(funnels?.byCampaign ?? {});
+    const rows = entries.map(([campaign, f]) => ({
+      campaign,
+      signups: f.signups,
+      activated: f.activated,
+      paid: f.paid,
+      conversionPct: f.signups > 0 ? Math.round((f.paid / f.signups) * 1000) / 10 : null,
+    }));
+    rows.sort((a, b) => b.paid - a.paid || b.signups - a.signups);
+    return rows.slice(0, 10);
+  }, [funnels]);
 
   if (status === "loading")
     return (
@@ -672,6 +718,122 @@ export default function AdminPage() {
                 <p className="text-xs text-gray-500">Referrals completed, all-time</p>
                 <p className="mt-1 text-lg font-semibold text-white">{funnels.referralsCompletedTotal}</p>
               </div>
+              <div className="rounded-xl border border-gray-800 px-3 py-2">
+                <p className="text-xs text-gray-500">Est. revenue from referrals (monthly)</p>
+                <p className="mt-1 text-lg font-semibold text-white">
+                  ${funnels.referralRevenueMonthly.toFixed(2)}
+                </p>
+              </div>
+            </div>
+
+            {funnels.topReferrers.length > 0 && (
+              <div className="mt-4 border-t border-gray-800 pt-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-gray-500">
+                  Top referrers
+                </p>
+                <ul className="mt-2 space-y-1.5 text-sm">
+                  {funnels.topReferrers.map((r) => (
+                    <li key={r.email} className="flex items-center justify-between text-gray-300">
+                      <span className="truncate">{r.email}</span>
+                      <span className="text-gray-400">{r.count} completed</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+
+        {sourceFunnel.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-gray-700 bg-[#0f172a] p-5 shadow-sm">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={16} className="text-emerald-500" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+                Conversion by source
+              </h2>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Visitors is last 30 days (top-of-funnel traffic); Signups/Activated/Paid are
+              all-time, joined by the same source. "Activated" means the account added its first
+              paycheck. Conversion is Paid &divide; Signups.
+            </p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-[560px] text-left text-sm">
+                <thead className="border-b border-gray-800 text-xs uppercase tracking-wide text-gray-500">
+                  <tr>
+                    <th className="py-2 pr-4">Source</th>
+                    <th className="py-2 pr-4">Visitors (30d)</th>
+                    <th className="py-2 pr-4">Signups</th>
+                    <th className="py-2 pr-4">Activated</th>
+                    <th className="py-2 pr-4">Paid</th>
+                    <th className="py-2 pr-4">Conversion</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {sourceFunnel.map((row) => (
+                    <tr key={row.source}>
+                      <td className="py-2 pr-4 capitalize text-gray-200">{row.source}</td>
+                      <td className="py-2 pr-4 text-gray-300">{row.visitors}</td>
+                      <td className="py-2 pr-4 text-gray-300">{row.signups}</td>
+                      <td className="py-2 pr-4 text-gray-300">{row.activated}</td>
+                      <td className="py-2 pr-4 text-gray-300">{row.paid}</td>
+                      <td className="py-2 pr-4 font-semibold text-white">
+                        {row.conversionPct === null ? (
+                          <span className="font-normal text-gray-500">--</span>
+                        ) : (
+                          `${row.conversionPct}%`
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {campaignFunnel.length > 0 && (
+          <div className="mt-4 rounded-2xl border border-gray-700 bg-[#0f172a] p-5 shadow-sm">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={16} className="text-emerald-500" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+                Top campaigns
+              </h2>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Only signups tagged with a utm_campaign link show up here -- this is where a
+              specific video or ad (utm_content) shows up as its own row, e.g.
+              "debt_payoff • video_047". Top 10 by paid, all-time.
+            </p>
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-[560px] text-left text-sm">
+                <thead className="border-b border-gray-800 text-xs uppercase tracking-wide text-gray-500">
+                  <tr>
+                    <th className="py-2 pr-4">Campaign</th>
+                    <th className="py-2 pr-4">Signups</th>
+                    <th className="py-2 pr-4">Activated</th>
+                    <th className="py-2 pr-4">Paid</th>
+                    <th className="py-2 pr-4">Conversion</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-800">
+                  {campaignFunnel.map((row) => (
+                    <tr key={row.campaign}>
+                      <td className="py-2 pr-4 text-gray-200">{row.campaign}</td>
+                      <td className="py-2 pr-4 text-gray-300">{row.signups}</td>
+                      <td className="py-2 pr-4 text-gray-300">{row.activated}</td>
+                      <td className="py-2 pr-4 text-gray-300">{row.paid}</td>
+                      <td className="py-2 pr-4 font-semibold text-white">
+                        {row.conversionPct === null ? (
+                          <span className="font-normal text-gray-500">--</span>
+                        ) : (
+                          `${row.conversionPct}%`
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}
@@ -744,6 +906,7 @@ export default function AdminPage() {
                       <span className="mt-0.5 block text-xs capitalize text-blue-400">
                         {u.utm_source}
                         {u.utm_campaign ? ` • ${u.utm_campaign}` : ""}
+                        {u.utm_content ? ` • ${u.utm_content}` : ""}
                       </span>
                     )}
                   </td>

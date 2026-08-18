@@ -36,6 +36,7 @@ async function attachAttributionIfFreshSignup(
       source?: string
       medium?: string
       campaign?: string | null
+      content?: string | null
       referrer?: string | null
       ref?: string | null
     }
@@ -47,6 +48,7 @@ async function attachAttributionIfFreshSignup(
           utm_source: attr.source || null,
           utm_medium: attr.medium || null,
           utm_campaign: attr.campaign || null,
+          utm_content: attr.content || null,
           signup_referrer: attr.referrer || null,
         })
         .eq("id", user.id)

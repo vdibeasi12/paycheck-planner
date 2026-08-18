@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { syncBalancesForItem } from "@/lib/plaid"
+import { syncCachedBalancesForItem } from "@/lib/plaid"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -13,10 +13,16 @@ function adminDb() {
 
 // GET: daily cron. Refreshes checking/savings balances for every connected
 // Plaid item across all users, mirroring each into `assets`. Not scoped to a
-// specific `product` tag -- syncBalancesForItem already filters to
+// specific `product` tag -- syncCachedBalancesForItem already filters to
 // depository accounts internally and is a safe no-op for items that don't
 // have any (e.g. a credit-card-only item), so this covers every item
 // regardless of which products it was connected with.
+//
+// Deliberately uses the FREE cached balance pull (/accounts/get), not the
+// paid real-time one (/accounts/balance/get) -- this runs once a day across
+// every connected item for every user, so a per-call charge here would scale
+// with total users x days, not with actual usage. See syncCachedBalancesForItem
+// in lib/plaid.ts for the accuracy tradeoff this makes.
 export async function GET(req: Request) {
   const secret = process.env.CRON_SECRET
   const auth = req.headers.get("authorization") || ""
@@ -37,7 +43,7 @@ export async function GET(req: Request) {
   const totals = { items: 0, accounts: 0, assets: 0, errors: 0 }
   for (const it of items ?? []) {
     try {
-      const r = await syncBalancesForItem(db, it.user_id, it.access_token, it.item_id)
+      const r = await syncCachedBalancesForItem(db, it.user_id, it.access_token, it.item_id)
       totals.items += 1
       totals.accounts += r.accounts
       totals.assets += r.assets

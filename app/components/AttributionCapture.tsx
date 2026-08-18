@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect } from "react"
+import { trackReferralClick } from "@/lib/trackClient"
 
 const COOKIE_NAME = "pp_attr"
 const COOKIE_DAYS = 30
@@ -57,6 +58,7 @@ export default function AttributionCapture() {
             const existing = JSON.parse(existingRaw)
             if (existing.ref !== ref) {
               setCookie(COOKIE_NAME, JSON.stringify({ ...existing, ref }), COOKIE_DAYS)
+              trackReferralClick(ref)
             }
           } catch {
             // Malformed existing cookie -- fall through, first-touch stays locked.
@@ -68,6 +70,7 @@ export default function AttributionCapture() {
       const utmSource = params.get("utm_source")
       const utmMedium = params.get("utm_medium")
       const utmCampaign = params.get("utm_campaign")
+      const utmContent = params.get("utm_content")
 
       let source = utmSource
       if (!source && document.referrer) {
@@ -88,11 +91,13 @@ export default function AttributionCapture() {
         source,
         medium,
         campaign: utmCampaign || null,
+        content: utmContent || null,
         referrer: document.referrer || null,
         ref: ref || null,
       }
 
       setCookie(COOKIE_NAME, JSON.stringify(attribution), COOKIE_DAYS)
+      if (ref) trackReferralClick(ref)
     } catch {
       // Attribution is a nice-to-have -- never let it throw in the app shell.
     }

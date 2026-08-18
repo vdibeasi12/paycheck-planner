@@ -22,7 +22,7 @@ export const dynamic = "force-dynamic"
 //   - never blocks or throws on the caller: any failure returns 204 so a
 //     tracking hiccup can't show up as a console error on a real visitor's
 //     browser.
-const ALLOWED_EVENTS = new Set(["page_view", "cta_clicked"])
+const ALLOWED_EVENTS = new Set(["page_view", "cta_clicked", "referral_click"])
 
 function cap(s: unknown, max: number): string | null {
   if (typeof s !== "string") return null
@@ -80,6 +80,8 @@ export async function POST(req: Request) {
       metadata.source = cap(body.source, 100)
       metadata.medium = cap(body.medium, 100)
       metadata.campaign = cap(body.campaign, 100)
+    } else if (eventName === "referral_click") {
+      metadata.ref = cap(body.ref, 100)
     } else {
       metadata.cta = cap(body.cta, 100)
     }
