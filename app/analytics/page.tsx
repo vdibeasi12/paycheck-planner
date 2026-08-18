@@ -4,25 +4,35 @@ import { useState, useEffect, useMemo } from "react"
 import Link from "next/link"
 import { supabase } from "@/lib/supabase/client"
 import { canUseAdvancedAnalytics } from "@/lib/permissions"
-import { Lock } from "lucide-react"
+import { Lock, Flame, TrendingUp, Clock, AlertTriangle } from "lucide-react"
 import {
-  PieChart,
-  Pie,
-  Cell,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
   Tooltip,
   ResponsiveContainer,
 } from "recharts"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import { debtTypeLabel } from "@/lib/debtTypes"
+import { simulate, monthLabel, type Debt as SimDebt } from "@/lib/payoffSimulate"
 
 interface AnalyticsDebt {
   id: string
   name: string
   balance: number
+  original_balance: number | null
   interest_rate: number
   minimum_payment: number
   debt_type: string | null
   escrow_payment: number | null
+}
+
+const tooltipStyle = {
+  background: "#0b1220",
+  border: "1px solid #1f2937",
+  borderRadius: 8,
+  color: "#fff",
 }
 
 export default function Analytics() {
@@ -62,9 +72,20 @@ export default function Analytics() {
     // couldn't show minimum payments, debt type, or escrow, and the pie
     // chart rendered raw unformatted numbers. Now pulls everything the
     // Debts page tracks so this page can show the same level of detail.
+    //
+    // Aug 18 2026: added original_balance -- the balance-by-debt pie chart
+    // was a near-exact duplicate of the one already on the Dashboard, and
+    // everything below it (balance-by-type, the debt table) was really
+    // just the Debts page reformatted. Nothing on this page answered a
+    // question the Dashboard or Payoff Plan didn't already answer.
+    // original_balance unlocks "how much have you actually paid down,"
+    // which neither of those pages compute (Dashboard's percent-paid stat
+    // is hardcoded to 0 -- worth a separate fix, flagged to Vince).
     const { data } = await supabase
       .from("debts")
-      .select("id, name, balance, interest_rate, minimum_payment, debt_type, escrow_payment")
+      .select(
+        "id, name, balance, original_balance, interest_rate, minimum_payment, debt_type, escrow_payment"
+      )
 
     if (!data) return
     setDebts(data as AnalyticsDebt[])
@@ -94,6 +115,77 @@ export default function Analytics() {
     return weighted / totalDebt
   }, [activeDebts, totalDebt])
 
+  // What each debt is actually costing you *this month* in pure interest --
+  // balance x monthly rate. Ranking by this (not balance) is the point: a
+  // smaller, high-APR debt can cost more per month than a much larger,
+  // low-APR one, and that's easy to miss when every other view on the site
+  // sorts by balance.
+  const costRanking = useMemo(() => {
+    return activeDebts
+      .map((d) => ({
+        id: d.id,
+        name: d.name,
+        monthlyInterest: (Number(d.balance) || 0) * (Number(d.interest_rate) || 0) / 100 / 12,
+      }))
+      .sort((a, b) => b.monthlyInterest - a.monthlyInterest)
+  }, [activeDebts])
+
+  const totalMonthlyInterest = useMemo(
+    () => costRanking.reduce((sum, d) => sum + d.monthlyInterest, 0),
+    [costRanking]
+  )
+
+  // Progress since each debt was first added. original_balance is set once,
+  // on creation, and never overwritten by later edits or bank syncs -- see
+  // lib/plaid.ts / app/debts/page.tsx -- so this is a real "how far have you
+  // come," not just today's balance re-labeled. Debts from before this field
+  // existed have original_balance = null and are left out rather than shown
+  // as 0% progress.
+  const progressDebts = useMemo(() => {
+    return activeDebts
+      .filter((d) => d.original_balance != null && Number(d.original_balance) > 0)
+      .map((d) => {
+        const original = Number(d.original_balance) || 0
+        const current = Number(d.balance) || 0
+        const paidDown = original - current
+        const percent = original > 0 ? (paidDown / original) * 100 : 0
+        return { id: d.id, name: d.name, original, current, paidDown, percent }
+      })
+  }, [activeDebts])
+
+  const progressTotals = useMemo(() => {
+    const original = progressDebts.reduce((sum, d) => sum + d.original, 0)
+    const paidDown = progressDebts.reduce((sum, d) => sum + d.paidDown, 0)
+    return {
+      original,
+      paidDown,
+      percent: original > 0 ? (paidDown / original) * 100 : 0,
+    }
+  }, [progressDebts])
+
+  // "If you never change anything" baseline -- minimum payments only, no
+  // extra, no snowball/avalanche redirect. The Payoff Plan page is
+  // deliberately interactive (you pick a strategy and an extra payment
+  // there), so it never shows this fixed reference point on its own. Same
+  // simulation engine as the Payoff Plan, so the numbers can't drift apart.
+  const start = useMemo(() => new Date(), [])
+  const minimumOnlySim = useMemo(() => {
+    if (activeDebts.length === 0) return null
+    const simDebts: SimDebt[] = activeDebts.map((d) => ({
+      id: d.id,
+      name: d.name,
+      balance: Number(d.balance) || 0,
+      interest_rate: Number(d.interest_rate) || 0,
+      minimum_payment: Number(d.minimum_payment) || 0,
+      debt_type: d.debt_type,
+      escrow_payment: d.escrow_payment,
+    }))
+    return simulate(simDebts, "avalanche", 0, start, "balance", false)
+  }, [activeDebts, start])
+
+  const minimumOnlyLabel =
+    minimumOnlySim && minimumOnlySim.months > 0 ? monthLabel(start, minimumOnlySim.months - 1) : "-"
+
   const byType = useMemo(() => {
     const groups = new Map<string, { balance: number; count: number }>()
     activeDebts.forEach((d) => {
@@ -113,10 +205,20 @@ export default function Analytics() {
     [activeDebts]
   )
 
+  const monthlyInterestById = useMemo(() => {
+    const m = new Map<string, number>()
+    costRanking.forEach((c) => m.set(c.id, c.monthlyInterest))
+    return m
+  }, [costRanking])
+
+  const progressById = useMemo(() => {
+    const m = new Map<string, number>()
+    progressDebts.forEach((p) => m.set(p.id, p.percent))
+    return m
+  }, [progressDebts])
+
   const effectivePlan = isAdmin ? "connected" : plan
   const allowed = canUseAdvancedAnalytics(effectivePlan)
-
-  const COLORS = ["#2563eb", "#22c55e", "#f59e0b", "#ef4444", "#8b5cf6", "#14b8a6"]
 
   if (!ready) {
     return (
@@ -154,7 +256,7 @@ export default function Analytics() {
     <div className="min-h-screen bg-[#020617] p-10 text-white">
       <h1 className="mb-2 text-3xl font-bold">Debt Analytics</h1>
       <p className="mb-8 text-sm text-gray-400">
-        A closer look at what you owe, debt by debt.{" "}
+        What your debt is actually costing you, and how far you've come.{" "}
         <Link href="/amortization" className="text-blue-400 hover:text-blue-300">
           See your payoff timeline &rarr;
         </Link>
@@ -172,8 +274,13 @@ export default function Analytics() {
         </div>
 
         <div className="rounded bg-gray-900 p-6 min-w-0">
-          <p className="text-gray-400">Number of Debts</p>
-          <p className="text-2xl font-bold truncate">{activeDebts.length}</p>
+          <p className="text-gray-400">Monthly Interest Cost</p>
+          <p className="text-2xl font-bold truncate">{formatMoney(totalMonthlyInterest)}</p>
+          <p className="mt-1 text-xs text-gray-500">
+            {totalMonthlyPayments > 0
+              ? `${((totalMonthlyInterest / totalMonthlyPayments) * 100).toFixed(0)}% of every payment`
+              : "of every payment"}
+          </p>
         </div>
 
         <div className="rounded bg-gray-900 p-6 min-w-0">
@@ -183,35 +290,147 @@ export default function Analytics() {
         </div>
       </div>
 
-      <div className="mb-10 h-[400px] rounded bg-gray-900 p-8">
-        {activeDebts.length > 0 ? (
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={activeDebts}
-                dataKey="balance"
-                nameKey="name"
-                outerRadius={140}
-                label={({ percent }) => `${((percent || 0) * 100).toFixed(0)}%`}
-              >
-                {activeDebts.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                formatter={(value: unknown, _name: unknown, item: any) => [
-                  formatMoney(Number(value) || 0),
-                  item?.payload?.name || "Balance",
-                ]}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+      {/* What's really costing you -- ranked by monthly interest, not balance. */}
+      <div className="mb-10 rounded bg-gray-900 p-6">
+        <div className="mb-1 flex items-center gap-2">
+          <Flame size={18} className="text-amber-400" />
+          <h2 className="text-lg font-semibold">What's actually costing you</h2>
+        </div>
+        <p className="mb-4 text-sm text-gray-400">
+          Ranked by interest charged per month, not by balance -- a smaller, high-rate
+          debt can cost more than a bigger, cheaper one.
+        </p>
+        {costRanking.length > 0 ? (
+          <div style={{ width: "100%", height: Math.max(160, costRanking.length * 46) }}>
+            <ResponsiveContainer>
+              <BarChart data={costRanking} layout="vertical" margin={{ left: 8, right: 24 }}>
+                <XAxis
+                  type="number"
+                  tick={{ fill: "#94a3b8", fontSize: 12 }}
+                  tickFormatter={(v) => formatMoney(Math.round(Number(v)))}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  tick={{ fill: "#94a3b8", fontSize: 12 }}
+                  width={110}
+                />
+                <Tooltip
+                  formatter={(v: unknown) => [formatMoney(Number(v) || 0), "Interest / month"]}
+                  contentStyle={tooltipStyle}
+                />
+                <Bar dataKey="monthlyInterest" fill="#f59e0b" radius={[0, 4, 4, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
         ) : (
-          <div className="flex h-full items-center justify-center text-gray-400">
-            Add debts to see your analytics.
+          <div className="flex h-24 items-center justify-center text-gray-400">
+            Add debts to see what's costing you the most.
           </div>
         )}
       </div>
+
+      {/* If you only paid minimums -- the fixed baseline the interactive
+          Payoff Plan page never shows on its own. */}
+      {minimumOnlySim && (
+        <div className="mb-10 rounded bg-gray-900 p-6">
+          <div className="mb-1 flex items-center gap-2">
+            <Clock size={18} className="text-blue-400" />
+            <h2 className="text-lg font-semibold">If you only ever pay the minimum</h2>
+          </div>
+          {minimumOnlySim.nonAmortizing ? (
+            <div className="mt-3 flex items-start gap-3 rounded-lg border border-red-500/40 bg-red-500/10 p-4">
+              <AlertTriangle size={20} className="mt-0.5 shrink-0 text-red-400" />
+              <p className="text-sm text-red-200">
+                Your current minimum payments don't even cover a month's interest --
+                at this pace your balances would never go down.{" "}
+                <Link href="/amortization" className="underline hover:text-red-100">
+                  See what an extra payment would change &rarr;
+                </Link>
+              </p>
+            </div>
+          ) : (
+            <>
+              <p className="mb-4 text-sm text-gray-400">
+                No extra payments, no snowball or avalanche -- just the minimums, on
+                schedule.
+              </p>
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div className="rounded bg-gray-950/50 p-4">
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Total interest paid</p>
+                  <p className="mt-1 text-xl font-bold text-red-300">
+                    {formatMoney(minimumOnlySim.totalInterest)}
+                  </p>
+                </div>
+                <div className="rounded bg-gray-950/50 p-4">
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Total paid (principal + interest)</p>
+                  <p className="mt-1 text-xl font-bold">{formatMoney(minimumOnlySim.totalPaid)}</p>
+                </div>
+                <div className="rounded bg-gray-950/50 p-4">
+                  <p className="text-xs uppercase tracking-wide text-gray-500">Debt-free</p>
+                  <p className="mt-1 text-xl font-bold">
+                    {minimumOnlySim.capped ? "50+ years" : minimumOnlyLabel}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-4 text-sm text-gray-400">
+                Putting even a little extra toward one debt at a time changes this a
+                lot.{" "}
+                <Link href="/amortization" className="text-blue-400 hover:text-blue-300">
+                  Try an extra payment on your Payoff Plan &rarr;
+                </Link>
+              </p>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* Progress since you started -- original_balance vs today. */}
+      {progressDebts.length > 0 && (
+        <div className="mb-10 rounded bg-gray-900 p-6">
+          <div className="mb-1 flex items-center gap-2">
+            <TrendingUp size={18} className="text-emerald-400" />
+            <h2 className="text-lg font-semibold">Progress since you started</h2>
+          </div>
+          <p className="mb-4 text-sm text-gray-400">
+            {formatMoney(progressTotals.paidDown)} paid down out of{" "}
+            {formatMoney(progressTotals.original)} tracked since these debts were added
+            (
+            {progressTotals.percent.toFixed(0)}%).
+          </p>
+          <div className="space-y-4">
+            {progressDebts.map((p) => {
+              const pct = Math.max(0, Math.min(100, p.percent))
+              const grew = p.paidDown < 0
+              return (
+                <div key={p.id}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span className="text-gray-300">{p.name}</span>
+                    <span className={grew ? "text-red-300" : "text-emerald-300"}>
+                      {grew
+                        ? `${formatMoney(Math.abs(p.paidDown))} added (${p.percent.toFixed(0)}%)`
+                        : `${formatMoney(p.paidDown)} paid down (${p.percent.toFixed(0)}%)`}
+                    </span>
+                  </div>
+                  <div className="h-2 w-full overflow-hidden rounded-full bg-gray-800">
+                    <div
+                      className={`h-full rounded-full ${grew ? "bg-red-400" : "bg-emerald-400"}`}
+                      style={{ width: `${grew ? 100 : pct}%` }}
+                    />
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+          {activeDebts.length > progressDebts.length && (
+            <p className="mt-4 text-xs text-gray-500">
+              {activeDebts.length - progressDebts.length} debt
+              {activeDebts.length - progressDebts.length === 1 ? "" : "s"} added before
+              this tracking existed and {activeDebts.length - progressDebts.length === 1 ? "isn't" : "aren't"} included above.
+            </p>
+          )}
+        </div>
+      )}
 
       {byType.length > 1 && (
         <div className="mb-10 rounded bg-gray-900 p-6">
@@ -238,15 +457,16 @@ export default function Analytics() {
         <div className="rounded bg-gray-900 p-6">
           <h2 className="mb-4 text-lg font-semibold">Every debt, side by side</h2>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-gray-800 text-left text-gray-400">
                   <th className="pb-2 pr-4 font-medium">Name</th>
                   <th className="pb-2 pr-4 font-medium">Type</th>
                   <th className="pb-2 pr-4 font-medium">Balance</th>
-                  <th className="pb-2 pr-4 font-medium">% of total</th>
                   <th className="pb-2 pr-4 font-medium">APR</th>
-                  <th className="pb-2 font-medium">Monthly payment</th>
+                  <th className="pb-2 pr-4 font-medium">Interest / mo</th>
+                  <th className="pb-2 pr-4 font-medium">Monthly payment</th>
+                  <th className="pb-2 font-medium">Paid down</th>
                 </tr>
               </thead>
               <tbody>
@@ -255,17 +475,20 @@ export default function Analytics() {
                     <td className="py-2 pr-4 font-semibold">{d.name}</td>
                     <td className="py-2 pr-4 text-gray-300">{debtTypeLabel(d.debt_type)}</td>
                     <td className="py-2 pr-4">{formatMoney(Number(d.balance) || 0)}</td>
-                    <td className="py-2 pr-4 text-gray-400">
-                      {totalDebt > 0 ? (((Number(d.balance) || 0) / totalDebt) * 100).toFixed(0) : 0}%
-                    </td>
                     <td className="py-2 pr-4">{(Number(d.interest_rate) || 0).toFixed(2)}%</td>
-                    <td className="py-2">
+                    <td className="py-2 pr-4 text-amber-300">
+                      {formatMoney(monthlyInterestById.get(d.id) || 0)}
+                    </td>
+                    <td className="py-2 pr-4">
                       {formatMoney(Number(d.minimum_payment) || 0)}
                       {Number(d.escrow_payment) > 0 && (
                         <span className="ml-1 text-xs text-gray-500">
                           (incl. {formatMoney(Number(d.escrow_payment))} escrow)
                         </span>
                       )}
+                    </td>
+                    <td className="py-2 text-gray-300">
+                      {progressById.has(d.id) ? `${(progressById.get(d.id) || 0).toFixed(0)}%` : "—"}
                     </td>
                   </tr>
                 ))}
