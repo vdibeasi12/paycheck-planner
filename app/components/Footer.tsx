@@ -67,6 +67,21 @@ export default function Footer() {
                 <p><Link href="/pricing" className="hover:text-white transition">Pricing</Link></p>
                 <p><Link href="/blog" className="hover:text-white transition">Blog</Link></p>
                 <p><Link href="/ai-chat" className="hover:text-white transition">AI Chat</Link></p>
+                {/* Aug 18 2026: these marketing/content pages were only ever
+                    reachable via sitemap.xml, with no link from the homepage,
+                    nav, or footer. Search Console flagged all of them
+                    "Discovered - currently not indexed" -- Google found the
+                    URLs but had no internal-link signal telling it they were
+                    worth crawling. Linking them from the footer (rendered on
+                    every page) gives them real internal PageRank instead of
+                    relying on the sitemap alone. */}
+                <p><Link href="/calculators" className="hover:text-white transition">Calculators</Link></p>
+                <p><Link href="/money-score" className="hover:text-white transition">Money Score</Link></p>
+                <p><Link href="/budget-by-salary" className="hover:text-white transition">Budget by Salary</Link></p>
+                <p><Link href="/debt-payoff-plans" className="hover:text-white transition">Debt Payoff Plans</Link></p>
+                <p><Link href="/challenge" className="hover:text-white transition">30-Day Challenge</Link></p>
+                <p><Link href="/worksheet" className="hover:text-white transition">Free Worksheet</Link></p>
+                <p><Link href="/university" className="hover:text-white transition">University</Link></p>
               </div>
             </div>
 
