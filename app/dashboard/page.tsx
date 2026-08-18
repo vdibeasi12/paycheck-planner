@@ -65,6 +65,34 @@ export default async function DashboardPage() {
   const totalDebt = debts.reduce((sum, d) => sum + (Number(d.balance) || 0), 0)
   const monthlyPayments = debts.reduce((sum, d) => sum + (Number(d.minimum_payment) || 0), 0)
 
+  // QA fix (Aug 18 2026): "Debt Progress" below was hardcoded to 0 -- it
+  // never actually computed anything. original_balance is set once when a
+  // debt is created (and never overwritten by later edits or bank syncs,
+  // see app/debts/page.tsx / lib/plaid.ts), so today's balance vs that
+  // starting point is real progress. Only debts that have original_balance
+  // tracked are counted, on both sides of the ratio -- older debts from
+  // before this field existed are left out entirely rather than silently
+  // treated as 0% progress, which would understate this number for anyone
+  // with a mix of old and new debts. Uses every debt, not just ones still
+  // owed, so a fully paid-off debt (balance 0) correctly contributes 100%
+  // and this hits 100% once you're debt-free, matching the card's own
+  // hint text. Clamped to 0-100% for this single glanceable stat -- see
+  // /analytics for the fuller per-debt picture, including a debt whose
+  // balance grew.
+  const debtsWithOriginal = debts.filter(
+    (d) => d.original_balance != null && Number(d.original_balance) > 0
+  )
+  const originalDebtTotal = debtsWithOriginal.reduce(
+    (sum, d) => sum + (Number(d.original_balance) || 0),
+    0
+  )
+  const paidDownTotal = debtsWithOriginal.reduce(
+    (sum, d) => sum + ((Number(d.original_balance) || 0) - (Number(d.balance) || 0)),
+    0
+  )
+  const percentPaid =
+    originalDebtTotal > 0 ? Math.max(0, Math.min(100, (paidDownTotal / originalDebtTotal) * 100)) : 0
+
   const { data: incomeData } = await supabase
     .from("income")
     .select("amount, frequency, income_type")
@@ -115,7 +143,7 @@ export default async function DashboardPage() {
       <AchievementsStrip />
       <BillDebtOverlapWarning overlaps={billDebtOverlaps} />
       <SafeToSpend monthlyIncome={monthlyIncome} monthlyBills={monthlyBills} monthlyDebt={monthlyPayments} />
-      <SummaryCards netWorth={-totalDebt} totalDebt={totalDebt} monthlyPayments={monthlyPayments} percentPaid={0} />
+      <SummaryCards netWorth={-totalDebt} totalDebt={totalDebt} monthlyPayments={monthlyPayments} percentPaid={percentPaid} />
       <DebtList debts={debts} />
 
       {/* CHARTS */}
