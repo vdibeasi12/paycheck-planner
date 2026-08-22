@@ -28,15 +28,12 @@
     "currency": "Currency"
   },
   "home": {
-    "heroBadge": "AI-powered debt payoff",
     "heroPrefix": "Plan Every Paycheck. ",
     "heroHighlight": "Eliminate Debt",
     "heroSuffix": " Faster.",
     "heroSubtitle": "Take control of your financial future with AI-powered debt elimination strategies, real-time paycheck planning, and personalized financial insights.",
     "ctaStartFree": "Start Free",
     "ctaViewPlans": "View Plans",
-    "statPayoffValue": "24–36",
-    "statPayoffUnit": "mo",
     "statPayoffTitle": "Average Debt Payoff Time",
     "statPayoffDesc": "Users see results in as little as 24-36 months",
     "statAiTitle": "AI-Powered Strategy",

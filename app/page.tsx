@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, Sparkles, Brain, Zap } from 'lucide-react'
+import { CheckCircle2, TrendingDown, Brain, Zap } from 'lucide-react'
 import MemberMilestone from './components/MemberMilestone'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { trackCta } from '@/lib/trackClient'
@@ -110,57 +110,56 @@ export default function HomePage() {
   return (
     <main className="min-h-screen bg-[#020617] text-white">
       {/* Hero Section */}
-      <section className="relative max-w-4xl mx-auto px-6 py-20 md:py-28 text-center overflow-hidden">
-        <div
-          className="absolute inset-x-0 -top-24 h-72 bg-[radial-gradient(ellipse_60%_100%_at_50%_0%,rgba(34,197,94,0.14),transparent)]"
-          aria-hidden="true"
-        />
-        <span className="relative inline-flex items-center gap-2 text-sm font-medium text-green-400 bg-green-500/10 border border-green-500/25 px-4 py-1.5 rounded-full mb-6">
-          <Sparkles size={14} />
-          {t('home.heroBadge')}
-        </span>
-        <h1 className="relative text-5xl md:text-7xl font-bold mb-6 leading-tight tracking-tight">
-          {t('home.heroPrefix')}
-          <span className="bg-gradient-to-r from-green-500 via-green-400 to-emerald-300 bg-clip-text text-transparent">
-            {t('home.heroHighlight')}{t('home.heroSuffix')}
-          </span>
-        </h1>
-        <p className="relative text-xl text-gray-300 mb-8 leading-relaxed max-w-2xl mx-auto">
-          {t('home.heroSubtitle')}
-        </p>
-        <div className="relative flex flex-wrap gap-4 justify-center">
-          <Link
-            href="/signup"
-            onClick={() => trackCta('get_started_hero')}
-            className="bg-green-500 hover:bg-green-600 text-black font-semibold px-8 py-3 rounded-full text-lg transition"
-          >
-            {t('home.ctaStartFree')}
-          </Link>
-          <Link
-            href="/pricing"
-            onClick={() => trackCta('view_plans_hero')}
-            className="border border-gray-700 text-white hover:border-green-500 font-semibold px-8 py-3 rounded-full text-lg transition"
-          >
-            {t('home.ctaViewPlans')}
-          </Link>
-        </div>
-        <div className="relative mt-12 flex flex-wrap items-baseline justify-center gap-x-8 gap-y-4">
+      <section className="max-w-6xl mx-auto px-6 py-20">
+        <div className="grid md:grid-cols-2 gap-12 items-center">
           <div>
-            <div className="text-4xl font-semibold tabular-nums">
-              {t('home.statPayoffValue')}
-              <span className="text-xl text-green-400 ml-1">{t('home.statPayoffUnit')}</span>
+            <h1 className="text-5xl md:text-6xl font-bold mb-6 leading-tight">
+              {t('home.heroPrefix')}<span className="text-green-500">{t('home.heroHighlight')}</span>{t('home.heroSuffix')}
+            </h1>
+            <p className="text-xl text-gray-300 mb-8 leading-relaxed">
+              {t('home.heroSubtitle')}
+            </p>
+            <div className="flex gap-4">
+              <Link
+                href="/signup"
+                onClick={() => trackCta('get_started_hero')}
+                className="bg-green-500 hover:bg-green-600 text-black font-semibold px-8 py-3 rounded-lg text-lg transition"
+              >
+                {t('home.ctaStartFree')}
+              </Link>
+              <Link
+                href="/pricing"
+                onClick={() => trackCta('view_plans_hero')}
+                className="border border-green-500 text-green-500 hover:bg-green-500/10 font-semibold px-8 py-3 rounded-lg text-lg transition"
+              >
+                {t('home.ctaViewPlans')}
+              </Link>
             </div>
-            <div className="text-sm text-gray-400 mt-1">{t('home.statPayoffTitle')}</div>
           </div>
-          <div className="flex flex-wrap justify-center gap-3">
-            <span className="inline-flex items-center gap-1.5 text-sm text-gray-300 border border-gray-700 bg-[#0f172a]/60 px-3 py-2 rounded-full">
-              <Brain size={14} className="text-green-400" />
-              {t('home.statAiTitle')}
-            </span>
-            <span className="inline-flex items-center gap-1.5 text-sm text-gray-300 border border-gray-700 bg-[#0f172a]/60 px-3 py-2 rounded-full">
-              <Zap size={14} className="text-green-400" />
-              {t('home.statInsightsTitle')}
-            </span>
+          <div className="bg-gradient-to-br from-green-500/10 to-blue-500/10 rounded-2xl p-8 border border-gray-700">
+            <div className="space-y-6">
+              <div className="flex gap-4">
+                <TrendingDown className="text-green-500 flex-shrink-0 mt-1" size={24} />
+                <div>
+                  <h3 className="font-semibold text-lg">{t('home.statPayoffTitle')}</h3>
+                  <p className="text-gray-300">{t('home.statPayoffDesc')}</p>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <Brain className="text-blue-500 flex-shrink-0 mt-1" size={24} />
+                <div>
+                  <h3 className="font-semibold text-lg">{t('home.statAiTitle')}</h3>
+                  <p className="text-gray-300">{t('home.statAiDesc')}</p>
+                </div>
+              </div>
+              <div className="flex gap-4">
+                <Zap className="text-yellow-500 flex-shrink-0 mt-1" size={24} />
+                <div>
+                  <h3 className="font-semibold text-lg">{t('home.statInsightsTitle')}</h3>
+                  <p className="text-gray-300">{t('home.statInsightsDesc')}</p>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </section>
