@@ -77,6 +77,7 @@ export default function Footer() {
                     relying on the sitemap alone. */}
                 <p><Link href="/calculators" className="hover:text-white transition">Calculators</Link></p>
                 <p><Link href="/money-score" className="hover:text-white transition">Money Quiz</Link></p>
+                <p><Link href="/compare" className="hover:text-white transition">Compare Apps</Link></p>
                 <p><Link href="/budget-by-salary" className="hover:text-white transition">Budget by Salary</Link></p>
                 <p><Link href="/debt-payoff-plans" className="hover:text-white transition">Debt Payoff Plans</Link></p>
                 <p><Link href="/challenge" className="hover:text-white transition">30-Day Challenge</Link></p>
@@ -139,4 +140,4 @@ export default function Footer() {
       </div>
     </footer>
   )
-}
+}
