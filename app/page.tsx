@@ -181,6 +181,28 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Money Quiz banner -- the low-commitment entry point for someone who
+          isn't ready to sign up yet (e.g. arriving from a YouTube video):
+          answer 10 questions, get a score, no account required. */}
+      <section className="max-w-5xl mx-auto px-6 py-16">
+        <div className="rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-emerald-500/10 to-transparent p-10 md:p-12 flex flex-col md:flex-row items-center justify-between gap-8">
+          <div className="text-center md:text-left">
+            <p className="text-sm font-semibold text-emerald-400 uppercase tracking-wide mb-2">
+              {t('home.moneyQuizEyebrow')}
+            </p>
+            <h2 className="text-3xl font-bold mb-3">{t('home.moneyQuizTitle')}</h2>
+            <p className="text-gray-300 max-w-xl">{t('home.moneyQuizDesc')}</p>
+          </div>
+          <Link
+            href="/money-score"
+            onClick={() => trackCta('money_quiz_banner')}
+            className="shrink-0 bg-emerald-500 hover:bg-emerald-400 text-black font-semibold px-8 py-4 rounded-lg text-lg transition whitespace-nowrap"
+          >
+            {t('home.moneyQuizCta')}
+          </Link>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="bg-gradient-to-r from-green-500/10 to-blue-500/10 border-y border-gray-700 py-20">
         <div className="max-w-4xl mx-auto px-6 text-center">

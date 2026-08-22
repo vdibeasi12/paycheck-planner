@@ -55,6 +55,10 @@ export async function generateMetadata({
     score !== null
       ? "I just took the Money Quiz. Take the free 2-minute quiz and find out your score."
       : "Take the free 2-minute quiz and find out your Money Quiz score.";
+  // Dynamic per-score card (app/api/money-score/share-image/[slug]/route.tsx)
+  // -- this is what makes the link actually worth sharing: a plain-text
+  // preview gets scrolled past, a big colored "82/100" card gets a reaction.
+  const imageUrl = `https://paycheckplanner.ai/api/money-score/share-image/${slug}`;
 
   return {
     title,
@@ -67,11 +71,13 @@ export async function generateMetadata({
       description,
       url: `https://paycheckplanner.ai/money-score/result/${slug}`,
       type: "website",
+      images: [{ url: imageUrl, width: 1200, height: 630, alt: title }],
     },
     twitter: {
-      card: "summary",
+      card: "summary_large_image",
       title,
       description,
+      images: [imageUrl],
     },
   };
 }

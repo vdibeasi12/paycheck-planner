@@ -198,6 +198,16 @@ export default function MoneyScoreResultClient({
             >
               Share on Facebook
             </a>
+            {/* Platforms like Instagram Stories/TikTok don't unfurl link
+                previews at all -- a downloadable score card is the only way
+                to actually share the result there. */}
+            <a
+              href={`/api/money-score/share-image/${slug}`}
+              download={`money-quiz-score-${score}.png`}
+              className="px-4 py-2 rounded-lg border border-gray-700 text-gray-300 text-sm font-medium hover:bg-white/5"
+            >
+              Download image
+            </a>
           </div>
 
           <div className="border-t border-gray-800 pt-8">
