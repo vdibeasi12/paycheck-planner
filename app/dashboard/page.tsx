@@ -8,6 +8,7 @@ import PaywallOverlay from "@/app/components/PaywallOverlay"
 import InfoHint from "@/app/components/InfoHint"
 import SafeToSpend from "@/app/components/SafeToSpend"
 import AchievementsStrip from "@/app/components/AchievementsStrip"
+import ReferralCard from "@/app/components/ReferralCard"
 import { canUseCharts as planCanUseCharts, canUseSnowball as planCanUseSnowball, canUseAI as planCanUseAI } from "@/lib/permissions"
 import DashboardCharts from "@/app/components/DashboardCharts"
 import AIInsightPanel from "@/app/components/AIInsightPanel"
@@ -144,6 +145,7 @@ export default async function DashboardPage() {
       <BillDebtOverlapWarning overlaps={billDebtOverlaps} />
       <SafeToSpend monthlyIncome={monthlyIncome} monthlyBills={monthlyBills} monthlyDebt={monthlyPayments} />
       <SummaryCards netWorth={-totalDebt} totalDebt={totalDebt} monthlyPayments={monthlyPayments} percentPaid={percentPaid} />
+      <ReferralCard userId={user.id} />
       <DebtList debts={debts} />
 
       {/* CHARTS */}
@@ -216,4 +218,4 @@ export default async function DashboardPage() {
 
     </div>
   )
-}
+}

@@ -22,13 +22,33 @@ function escapeHtml(s: string): string {
     .replace(/"/g, "&quot;")
 }
 
-function welcomeHtml(name: string): string {
+function welcomeHtml(name: string, referralCode: string | null): string {
   const appUrl =
     process.env.NEXT_PUBLIC_APP_URL ||
     process.env.NEXT_PUBLIC_SITE_URL ||
     "https://paycheckplanner.ai"
   const logo = appUrl + "/logo.png"
   const safeName = escapeHtml(name) || "there"
+  const referralLink = referralCode ? `${appUrl}/signup?ref=${referralCode}` : null
+
+  // Referral block is only rendered when a code was actually looked up
+  // (best-effort -- see maybeSendWelcomeEmail). Placed after the feature
+  // grid so the email leads with "here's what you get" before asking for
+  // anything, same ordering as the rest of the onboarding flow.
+  const referralSection = referralLink
+    ? `
+      <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;background:#0b1220;">
+        <tr><td style="padding:0 28px 34px;">
+          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;background:#0e3b2e;border:1px solid #10b981;border-radius:12px;">
+            <tr><td style="padding:22px 24px;text-align:center;">
+              <div style="font-size:15px;font-weight:bold;color:#ffffff;margin-bottom:6px;">Give a friend a free month of Momentum</div>
+              <div style="font-size:13px;line-height:1.55;color:#a7f3d0;margin-bottom:14px;">The moment they finish setting up, you both get a free month. Share your link:</div>
+              <a href="${referralLink}" style="display:inline-block;background:#10b981;color:#04210f;text-decoration:none;font-weight:bold;font-size:14px;padding:10px 22px;border-radius:8px;word-break:break-all;">${referralLink}</a>
+            </td></tr>
+          </table>
+        </td></tr>
+      </table>`
+    : ""
 
   const feature = (accent: string, title: string, body: string): string => `
             <td valign="top" width="50%" style="padding:8px;">
@@ -77,6 +97,7 @@ function welcomeHtml(name: string): string {
           <p style="margin:0;font-size:14px;font-weight:bold;color:#34d399;">- The Paycheck Planner Team</p>
         </td></tr>
       </table>
+      ${referralSection}
 
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:separate;">
         <tr><td style="background:#ffffff;border:1px solid #e2e8f0;border-top:none;border-radius:0 0 16px 16px;padding:22px 28px;text-align:center;">
@@ -119,24 +140,25 @@ export async function maybeSendWelcomeEmail(userId: string): Promise<void> {
     .update({ welcome_email_sent: true })
     .eq("id", userId)
     .eq("welcome_email_sent", false)
-    .select("email, full_name")
+    .select("email, full_name, referral_code")
 
   if (error || !claimed || claimed.length === 0) return
 
   const to = claimed[0].email
   if (!to) return
   const name = (claimed[0].full_name as string) || ""
+  const referralCode = (claimed[0].referral_code as string) || null
 
   try {
     const r = await resend.emails.send({
       from,
       to,
       subject: "Welcome to Paycheck Planner - let's plan your first paycheck!",
-      html: welcomeHtml(name),
+      html: welcomeHtml(name, referralCode),
     })
     if (r && (r as any).error) throw new Error((r as any).error.message || "send error")
   } catch (e) {
     await db.from("profiles").update({ welcome_email_sent: false }).eq("id", userId)
     console.error("welcome email send failed:", e)
   }
-}
+}

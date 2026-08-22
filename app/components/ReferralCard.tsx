@@ -8,15 +8,14 @@ import { Gift, Loader2, Check, Copy } from "lucide-react"
 type State = {
   code: string
   plan: string
-  rewardGranted: boolean
+  subscriptionStatus: string | null
+  rewardExpiresAt: string | null
   completedCount: number
 } | null
 
-const GOAL = 3
-
-// userId: pass the already-fetched account id (see app/account/page.tsx) to
-// skip this component's own supabase.auth.getUser() call. Falls back to
-// fetching it itself when used standalone without the prop.
+// userId: pass the already-fetched account id (see app/account/page.tsx and
+// app/dashboard/page.tsx) to skip this component's own supabase.auth.getUser()
+// call. Falls back to fetching it itself when used standalone without the prop.
 export default function ReferralCard({ userId }: { userId?: string } = {}) {
   const [state, setState] = useState<State>(null)
   const [failed, setFailed] = useState(false)
@@ -38,7 +37,7 @@ export default function ReferralCard({ userId }: { userId?: string } = {}) {
         const { data: profile } = await withTimeout(
           supabase
             .from("profiles")
-            .select("referral_code, plan, referral_reward_granted")
+            .select("referral_code, plan, subscription_status, referral_reward_expires_at")
             .eq("id", id)
             .single(),
           8000,
@@ -59,7 +58,8 @@ export default function ReferralCard({ userId }: { userId?: string } = {}) {
         setState({
           code: profile.referral_code,
           plan: profile.plan,
-          rewardGranted: !!profile.referral_reward_granted,
+          subscriptionStatus: profile.subscription_status,
+          rewardExpiresAt: profile.referral_reward_expires_at,
           completedCount: count || 0,
         })
       } catch {
@@ -91,8 +91,18 @@ export default function ReferralCard({ userId }: { userId?: string } = {}) {
   }
 
   const link = `${window.location.origin}/signup?ref=${state.code}`
-  const remaining = Math.max(0, GOAL - state.completedCount)
-  const pct = Math.min(100, Math.round((state.completedCount / GOAL) * 100))
+
+  const now = Date.now()
+  const expiresAt = state.rewardExpiresAt ? new Date(state.rewardExpiresAt).getTime() : null
+  const rewardActive = expiresAt !== null && expiresAt > now
+  // A real, actively-paying subscriber -- referring more friends is still
+  // great for us, but there's no free-month framing to show someone who's
+  // already paying for the plan.
+  const isRealSubscriber = state.subscriptionStatus === "active"
+
+  const daysLeft = rewardActive
+    ? Math.max(1, Math.ceil(((expiresAt as number) - now) / (24 * 60 * 60 * 1000)))
+    : 0
 
   const copy = async () => {
     try {
@@ -112,8 +122,8 @@ export default function ReferralCard({ userId }: { userId?: string } = {}) {
         <h2 className="text-lg font-semibold text-white">Refer & Earn</h2>
       </div>
       <p className="mt-1 text-sm text-gray-400">
-        Give a friend a free month of Momentum when they finish setting up. Get your own
-        Momentum upgrade after 3 friends complete onboarding.
+        Give a friend a free month of Momentum. The moment they finish setting up their
+        account, you both get a free month -- no limit on how many times.
       </p>
 
       <div className="mt-4 flex gap-2">
@@ -133,25 +143,27 @@ export default function ReferralCard({ userId }: { userId?: string } = {}) {
         </button>
       </div>
 
-      {state.rewardGranted || state.plan !== "free" ? (
+      {isRealSubscriber ? (
+        <p className="mt-4 text-sm text-gray-400">
+          You're already on a paid plan -- thanks for spreading the word! Friends you refer
+          still get their free month.
+        </p>
+      ) : rewardActive ? (
         <p className="mt-4 flex items-center gap-2 text-sm font-medium text-emerald-400">
-          <Check size={16} /> Reward unlocked -- thanks for spreading the word.
+          <Check size={16} /> Free Momentum active -- {daysLeft} day{daysLeft === 1 ? "" : "s"}{" "}
+          left. Refer another friend to add another month.
         </p>
       ) : (
-        <div className="mt-4">
-          <div className="mb-1.5 flex justify-between text-xs text-gray-400">
-            <span>
-              {state.completedCount} of {GOAL} friends joined
-            </span>
-            <span>{remaining === 0 ? "Unlocking..." : `${remaining} more to go`}</span>
-          </div>
-          <div className="h-2 overflow-hidden rounded-full bg-gray-800">
-            <div
-              className="h-full bg-emerald-500 transition-all"
-              style={{ width: `${pct}%` }}
-            />
-          </div>
-        </div>
+        <p className="mt-4 text-sm text-gray-400">
+          Share your link to unlock a free month of Momentum.
+        </p>
+      )}
+
+      {state.completedCount > 0 && (
+        <p className="mt-2 text-xs text-gray-500">
+          {state.completedCount} friend{state.completedCount === 1 ? "" : "s"} joined using
+          your link so far.
+        </p>
       )}
     </div>
   )

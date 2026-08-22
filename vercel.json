@@ -43,6 +43,10 @@
                   {
                       "path":  "/api/cron/abandoned-signup-recovery",
                       "schedule":  "0 21 * * *"
+                  },
+                  {
+                      "path":  "/api/cron/referral-reward-expiry",
+                      "schedule":  "0 22 * * *"
                   }
               ]
 }
