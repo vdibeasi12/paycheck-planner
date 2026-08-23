@@ -144,7 +144,7 @@ export default function HomePage() {
       <section className="relative z-10 max-w-7xl mx-auto px-6 py-28 md:py-32">
         <div className="grid md:grid-cols-2 gap-16 items-center">
           <div>
-            <h1 className="text-4xl md:text-[60px] font-extrabold mb-6 leading-[1.08] tracking-tight max-w-[700px]">
+            <h1 className="text-4xl md:text-[64px] font-extrabold mb-6 leading-[1.05] tracking-tight max-w-[700px]">
               {t('home.heroPrefix')}<br />
               <span className="text-green-500">{t('home.heroHighlight')}</span>{t('home.heroSuffix')}
             </h1>
@@ -176,38 +176,76 @@ export default function HomePage() {
               on-track indicator, and the numbers that matter (Available,
               progress %) pulled up to their own visual weight instead of
               matching the supporting rows. */}
-          <div className="bg-[#0f172a] border border-gray-700 rounded-[20px] p-8 shadow-[0_8px_24px_rgba(0,0,0,0.25)]">
-            <div className="flex items-center justify-between mb-2">
+          <div className="bg-[#0f172a] border border-gray-700 rounded-[20px] overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.25)]">
+            {/* Header band -- Aug 2026 "make it look like a real app, not a
+                marketing card" pass: a distinct toolbar-style strip instead of
+                the label just sitting in the card's own padding, so the eye
+                reads "app chrome" before it reads "content." */}
+            <div
+              className="flex items-center justify-between px-8 py-5 border-b border-white/5"
+              style={{ background: 'linear-gradient(135deg, rgba(34,197,94,0.14), transparent 75%)' }}
+            >
               <div className="text-xs font-bold uppercase tracking-wider text-gray-400">{t('home.dashLabel')}</div>
               <div className="inline-flex items-center gap-1.5 rounded-full bg-green-500/10 border border-green-500/30 px-2.5 py-1 text-[11px] font-semibold text-green-400">
                 <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
                 {t('home.dashOnTrack')}
               </div>
             </div>
-            <div className="text-[44px] leading-none font-extrabold mb-1">$2,450.00</div>
-            <div className="text-sm text-gray-400 mb-7">{nextPaycheckLabel}</div>
 
-            <div className="flex justify-between items-center text-[15px] text-gray-300 py-2.5 border-b border-white/5">
-              <span className="flex items-center gap-2.5"><Receipt size={15} className="text-gray-500" />{t('home.dashBills')}</span><span>$1,180</span>
-            </div>
-            <div className="flex justify-between items-center text-[15px] text-gray-300 py-2.5 border-b border-white/5">
-              <span className="flex items-center gap-2.5"><TrendingDown size={15} className="text-gray-500" />{t('home.dashDebtPayment')}</span><span>$450</span>
-            </div>
-            <div className="flex justify-between items-center text-[15px] text-gray-300 py-2.5 border-b border-white/5">
-              <span className="flex items-center gap-2.5"><PiggyBank size={15} className="text-gray-500" />{t('home.dashSavings')}</span><span>$250</span>
-            </div>
+            <div className="px-8 pt-6 pb-8">
+              <div className="text-[44px] leading-none font-extrabold mb-1 tabular-nums">$2,450.00</div>
+              <div className="text-sm text-gray-400 mb-7">{nextPaycheckLabel}</div>
 
-            <div className="flex justify-between items-end pt-5">
-              <span className="text-xs font-bold uppercase tracking-wider text-gray-400">{t('home.dashAvailable')}</span>
-              <span className="text-3xl font-extrabold text-green-400">$570</span>
-            </div>
+              <div className="flex justify-between items-center text-[15px] text-gray-300 py-3 border-b border-white/5">
+                <span className="flex items-center gap-3">
+                  <span className="w-7 h-7 rounded-md bg-blue-500/10 flex items-center justify-center shrink-0">
+                    <Receipt size={13} className="text-blue-400" />
+                  </span>
+                  {t('home.dashBills')}
+                </span>
+                <span className="tabular-nums">$1,180</span>
+              </div>
+              <div className="flex justify-between items-center text-[15px] text-gray-300 py-3 border-b border-white/5">
+                <span className="flex items-center gap-3">
+                  <span className="w-7 h-7 rounded-md bg-green-500/10 flex items-center justify-center shrink-0">
+                    <TrendingDown size={13} className="text-green-400" />
+                  </span>
+                  {t('home.dashDebtPayment')}
+                </span>
+                <span className="tabular-nums">$450</span>
+              </div>
+              <div className="flex justify-between items-center text-[15px] text-gray-300 py-3 border-b border-white/5">
+                <span className="flex items-center gap-3">
+                  <span className="w-7 h-7 rounded-md bg-emerald-500/10 flex items-center justify-center shrink-0">
+                    <PiggyBank size={13} className="text-emerald-400" />
+                  </span>
+                  {t('home.dashSavings')}
+                </span>
+                <span className="tabular-nums">$250</span>
+              </div>
 
-            <div className="flex justify-between items-baseline mt-6 mb-2">
-              <span className="text-xs font-bold uppercase tracking-wider text-gray-400">{t('home.dashProgressLabel')}</span>
-              <span className="text-4xl font-extrabold">68%</span>
-            </div>
-            <div className="bg-white/10 rounded-full h-2.5 overflow-hidden">
-              <div className="bg-gradient-to-r from-green-500 to-green-400 h-full rounded-full" style={{ width: '68%' }} />
+              {/* Available + a circular progress ring for the debt-free % --
+                  echoes the Money Score gauge further down the page so the
+                  two "here's your number" moments share one visual language
+                  instead of a number card here and a totally different bar
+                  chart there. */}
+              <div className="flex items-center justify-between gap-6 pt-6 mt-1">
+                <div>
+                  <div className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">{t('home.dashAvailable')}</div>
+                  <div className="text-3xl font-extrabold text-green-400 tabular-nums">$570</div>
+                </div>
+                <div className="flex flex-col items-center gap-1 shrink-0">
+                  <div
+                    className="w-[72px] h-[72px] rounded-full flex items-center justify-center"
+                    style={{ background: 'conic-gradient(#22c55e 0% 68%, rgba(255,255,255,0.08) 68% 100%)' }}
+                  >
+                    <div className="w-[56px] h-[56px] rounded-full bg-[#0f172a] flex items-center justify-center text-base font-extrabold tabular-nums">
+                      68%
+                    </div>
+                  </div>
+                  <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500 text-center leading-tight mt-0.5">{t('home.dashProgressLabel')}</div>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -219,7 +257,8 @@ export default function HomePage() {
           hover states... keep them clean" -- not giant colorful cards). */}
       <section className="relative z-10 max-w-7xl mx-auto px-6 pb-24 md:pb-28">
         <div className="grid md:grid-cols-3 gap-7">
-          <div className="border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8 transition hover:border-green-500/30 hover:-translate-y-0.5">
+          <div className="relative overflow-hidden border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8 pt-9 transition hover:border-green-500/30 hover:-translate-y-0.5">
+            <div className="absolute top-0 left-0 right-0 h-[3px] bg-green-500" />
             <div className="w-10 h-10 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-5">
               <Wallet size={18} className="text-green-400" />
             </div>
@@ -227,19 +266,21 @@ export default function HomePage() {
             <h3 className="text-2xl font-bold mb-2">{t('home.statPayoffTitle')}</h3>
             <p className="text-gray-400 text-[15px] leading-relaxed">{t('home.statPayoffDesc')}</p>
           </div>
-          <div className="border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8 transition hover:border-green-500/30 hover:-translate-y-0.5">
-            <div className="w-10 h-10 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-5">
-              <TrendingDown size={18} className="text-green-400" />
+          <div className="relative overflow-hidden border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8 pt-9 transition hover:border-blue-500/30 hover:-translate-y-0.5">
+            <div className="absolute top-0 left-0 right-0 h-[3px] bg-blue-500" />
+            <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-5">
+              <TrendingDown size={18} className="text-blue-400" />
             </div>
-            <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-2">{t('home.valuePayoffEyebrow')}</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-blue-400 mb-2">{t('home.valuePayoffEyebrow')}</div>
             <h3 className="text-2xl font-bold mb-2">{t('home.statAiTitle')}</h3>
             <p className="text-gray-400 text-[15px] leading-relaxed">{t('home.statAiDesc')}</p>
           </div>
-          <div className="border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8 transition hover:border-green-500/30 hover:-translate-y-0.5">
-            <div className="w-10 h-10 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-5">
-              <LineChart size={18} className="text-green-400" />
+          <div className="relative overflow-hidden border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8 pt-9 transition hover:border-emerald-500/30 hover:-translate-y-0.5">
+            <div className="absolute top-0 left-0 right-0 h-[3px] bg-emerald-500" />
+            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-5">
+              <LineChart size={18} className="text-emerald-400" />
             </div>
-            <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-2">{t('home.valueSeeEyebrow')}</div>
+            <div className="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-2">{t('home.valueSeeEyebrow')}</div>
             <h3 className="text-2xl font-bold mb-2">{t('home.statInsightsTitle')}</h3>
             <p className="text-gray-400 text-[15px] leading-relaxed">{t('home.statInsightsDesc')}</p>
           </div>
@@ -257,7 +298,7 @@ export default function HomePage() {
         <div className="rounded-[20px] border border-white/10 p-10 md:p-14 grid md:grid-cols-[1fr_auto] gap-12 items-center"
              style={{ background: 'linear-gradient(135deg, rgba(34,197,94,0.12), transparent 60%)' }}>
           <div>
-            <h2 className="text-3xl md:text-[42px] font-extrabold mb-4 leading-tight">{t('home.moneyScoreHeading')}</h2>
+            <h2 className="text-3xl md:text-[46px] font-extrabold mb-4 leading-tight">{t('home.moneyScoreHeading')}</h2>
             <p className="text-gray-300 text-[17px] leading-relaxed max-w-[480px] mb-7">{t('home.moneyScoreDesc')}</p>
             <Link
               href="/money-score"
@@ -268,13 +309,14 @@ export default function HomePage() {
             </Link>
           </div>
           <div className="flex flex-col gap-7 shrink-0 mx-auto w-full max-w-[280px]">
-            <div className="flex flex-col items-center gap-3">
+            <div className="relative flex flex-col items-center gap-3">
+              <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[220px] h-[220px] rounded-full bg-green-500/20 blur-[50px]" aria-hidden="true" />
               <div
-                className="w-[176px] h-[176px] rounded-full flex items-center justify-center"
+                className="relative w-[200px] h-[200px] rounded-full flex items-center justify-center"
                 style={{ background: 'conic-gradient(#22c55e 0% 78%, rgba(255,255,255,0.08) 78% 100%)' }}
               >
-                <div className="w-[138px] h-[138px] rounded-full bg-[#020617] flex flex-col items-center justify-center">
-                  <div className="text-[52px] leading-none font-extrabold">78</div>
+                <div className="w-[158px] h-[158px] rounded-full bg-[#020617] flex flex-col items-center justify-center">
+                  <div className="text-[60px] leading-none font-extrabold tabular-nums">78</div>
                   <div className="text-[11px] text-gray-400 uppercase tracking-wide mt-1.5">{t('home.moneyScoreLabel')}</div>
                 </div>
               </div>
@@ -319,7 +361,7 @@ export default function HomePage() {
       <section id="how-it-works" className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-32">
         <div className="text-center max-w-xl mx-auto mb-16">
           <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-3">{t('home.howItWorksEyebrow')}</div>
-          <h2 className="text-3xl md:text-[42px] font-extrabold leading-tight">{t('home.howItWorksHeading')}</h2>
+          <h2 className="text-3xl md:text-[46px] font-extrabold leading-tight">{t('home.howItWorksHeading')}</h2>
         </div>
         {/* Aug 2026 visual pass: a hairline connector behind the step numbers
             ties the three steps into one flow on desktop -- subtle, not a
@@ -344,7 +386,7 @@ export default function HomePage() {
           old flat 6-card feature grid as the primary "show, don't tell" beat.
           The six smaller feature cards still exist further down. */}
       <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-32">
-        <h2 className="text-3xl md:text-[42px] font-extrabold text-center mb-20">{t('home.showcaseHeading')}</h2>
+        <h2 className="text-3xl md:text-[46px] font-extrabold text-center mb-20">{t('home.showcaseHeading')}</h2>
 
         <div className="grid md:grid-cols-2 gap-16 items-center">
           <div>
@@ -352,7 +394,8 @@ export default function HomePage() {
             <h3 className="text-2xl md:text-[32px] font-extrabold mb-4">{t('home.showcase1Title')}</h3>
             <p className="text-gray-300 text-[17px] leading-relaxed max-w-[420px]">{t('home.showcase1Desc')}</p>
           </div>
-          <div className="bg-[#0f172a] border border-gray-700 rounded-2xl p-8 shadow-[0_6px_20px_rgba(0,0,0,0.18)]">
+          <div className="relative overflow-hidden bg-[#0f172a] border border-gray-700 rounded-2xl p-8 pt-9 shadow-[0_6px_20px_rgba(0,0,0,0.18)]">
+            <div className="absolute top-0 left-0 right-0 h-[3px] bg-green-500" />
             <div className="grid grid-cols-7 gap-2 mb-5">
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
                 <div
@@ -377,7 +420,8 @@ export default function HomePage() {
             <h3 className="text-2xl md:text-[32px] font-extrabold mb-4">{t('home.showcase2Title')}</h3>
             <p className="text-gray-300 text-[17px] leading-relaxed max-w-[420px]">{t('home.showcase2Desc')}</p>
           </div>
-          <div className="md:order-1 bg-[#0f172a] border border-gray-700 rounded-2xl p-8 shadow-[0_6px_20px_rgba(0,0,0,0.18)]">
+          <div className="relative overflow-hidden md:order-1 bg-[#0f172a] border border-gray-700 rounded-2xl p-8 pt-9 shadow-[0_6px_20px_rgba(0,0,0,0.18)]">
+            <div className="absolute top-0 left-0 right-0 h-[3px] bg-blue-500" />
             <div className="flex gap-5 text-xs text-gray-400 mb-4">
               <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" />Avalanche</span>
               <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />Snowball</span>
@@ -390,7 +434,7 @@ export default function HomePage() {
                 weight here, not the factual line above it -- Vince's Aug 23
                 2026 feedback: "you're selling answers, not data." */}
             <div className="text-xs text-gray-400 mt-5">Avalanche strategy debt-free date</div>
-            <div className="text-2xl font-extrabold mt-0.5">March 2029</div>
+            <div className="text-2xl font-extrabold mt-0.5 tabular-nums">March 2029</div>
             <div className="text-base font-bold text-green-400 mt-1.5">7 months sooner than Snowball</div>
           </div>
         </div>
@@ -401,7 +445,8 @@ export default function HomePage() {
             <h3 className="text-2xl md:text-[32px] font-extrabold mb-4">{t('home.showcase3Title')}</h3>
             <p className="text-gray-300 text-[17px] leading-relaxed max-w-[420px]">{t('home.showcase3Desc')}</p>
           </div>
-          <div className="bg-[#0f172a] border border-gray-700 rounded-2xl p-8 shadow-[0_6px_20px_rgba(0,0,0,0.18)]">
+          <div className="relative overflow-hidden bg-[#0f172a] border border-gray-700 rounded-2xl p-8 pt-9 shadow-[0_6px_20px_rgba(0,0,0,0.18)]">
+            <div className="absolute top-0 left-0 right-0 h-[3px] bg-emerald-500" />
             <div className="flex items-center gap-6">
               <div
                 className="w-[100px] h-[100px] rounded-full flex items-center justify-center shrink-0"
@@ -425,7 +470,7 @@ export default function HomePage() {
 
       {/* Features Grid -- kept, demoted below the showcase per the redesign */}
       <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-32">
-        <h2 className="text-3xl md:text-[42px] font-extrabold text-center mb-3">{t('home.featuresHeading')}</h2>
+        <h2 className="text-3xl md:text-[46px] font-extrabold text-center mb-3">{t('home.featuresHeading')}</h2>
         <p className="text-center text-gray-400 text-lg mb-14">{t('home.featuresSubheading')}</p>
         {/* Aug 2026 visual pass: intentionally smaller/quieter than the product
             showcase above -- supporting capabilities, not the primary pitch. */}
