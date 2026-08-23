@@ -57,42 +57,49 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Footer Links Grid - Centered */}
-          <div className="grid grid-cols-3 gap-16 mb-12">
+          {/* Footer Links Grid -- reorganized into 5 focused groups (Aug 23
+              2026) instead of one long "Product" column with everything
+              crammed in. Same links, same SEO/internal-linking value (see
+              Aug 18 2026 note below on why these are linked from the footer
+              at all) -- just grouped so the footer reads as intentional. */}
+          <div className="grid grid-cols-2 gap-x-8 gap-y-10 mb-12 md:grid-cols-5 md:gap-16">
             {/* Product */}
             <div className="text-center">
               <h3 className="font-bold text-lg mb-4 text-white">Product</h3>
               <div className="space-y-2 text-gray-400 text-sm">
                 <p><Link href="/features" className="hover:text-white transition">Features</Link></p>
                 <p><Link href="/pricing" className="hover:text-white transition">Pricing</Link></p>
-                <p><Link href="/blog" className="hover:text-white transition">Blog</Link></p>
                 <p><Link href="/ai-chat" className="hover:text-white transition">AI Chat</Link></p>
-                {/* Aug 18 2026: these marketing/content pages were only ever
-                    reachable via sitemap.xml, with no link from the homepage,
-                    nav, or footer. Search Console flagged all of them
-                    "Discovered - currently not indexed" -- Google found the
-                    URLs but had no internal-link signal telling it they were
-                    worth crawling. Linking them from the footer (rendered on
-                    every page) gives them real internal PageRank instead of
-                    relying on the sitemap alone. */}
                 <p><Link href="/calculators" className="hover:text-white transition">Calculators</Link></p>
-                <p><Link href="/money-score" className="hover:text-white transition">Money Quiz</Link></p>
-                <p><Link href="/compare" className="hover:text-white transition">Compare Apps</Link></p>
-                <p><Link href="/budget-by-salary" className="hover:text-white transition">Budget by Salary</Link></p>
-                <p><Link href="/debt-payoff-plans" className="hover:text-white transition">Debt Payoff Plans</Link></p>
-                <p><Link href="/challenge" className="hover:text-white transition">30-Day Challenge</Link></p>
-                <p><Link href="/worksheet" className="hover:text-white transition">Free Worksheet</Link></p>
-                <p><Link href="/university" className="hover:text-white transition">University</Link></p>
               </div>
             </div>
 
-            {/* Legal */}
+            {/* Tools -- Aug 18 2026: these marketing/content pages were only
+                ever reachable via sitemap.xml, with no link from the
+                homepage, nav, or footer. Search Console flagged all of them
+                "Discovered - currently not indexed" -- Google found the URLs
+                but had no internal-link signal telling it they were worth
+                crawling. Linking them from the footer (rendered on every
+                page) gives them real internal PageRank instead of relying on
+                the sitemap alone. */}
             <div className="text-center">
-              <h3 className="font-bold text-lg mb-4 text-white">Legal</h3>
+              <h3 className="font-bold text-lg mb-4 text-white">Tools</h3>
               <div className="space-y-2 text-gray-400 text-sm">
-                <p><Link href="/terms" className="hover:text-white transition">Terms of Service</Link></p>
-                <p><Link href="/privacy" className="hover:text-white transition">Privacy Policy</Link></p>
-                <p><Link href="/disclaimer" className="hover:text-white transition">Disclaimer</Link></p>
+                <p><Link href="/money-score" className="hover:text-white transition">Money Score</Link></p>
+                <p><Link href="/budget-by-salary" className="hover:text-white transition">Budget by Salary</Link></p>
+                <p><Link href="/debt-payoff-plans" className="hover:text-white transition">Debt Payoff Plans</Link></p>
+                <p><Link href="/challenge" className="hover:text-white transition">30-Day Challenge</Link></p>
+              </div>
+            </div>
+
+            {/* Resources */}
+            <div className="text-center">
+              <h3 className="font-bold text-lg mb-4 text-white">Resources</h3>
+              <div className="space-y-2 text-gray-400 text-sm">
+                <p><Link href="/worksheet" className="hover:text-white transition">Free Worksheet</Link></p>
+                <p><Link href="/university" className="hover:text-white transition">University</Link></p>
+                <p><Link href="/blog" className="hover:text-white transition">Blog</Link></p>
+                <p><Link href="/compare" className="hover:text-white transition">Compare Apps</Link></p>
               </div>
             </div>
 
@@ -105,33 +112,48 @@ export default function Footer() {
                 <p><Link href="/support" className="hover:text-white transition">Support</Link></p>
               </div>
             </div>
+
+            {/* Legal */}
+            <div className="text-center">
+              <h3 className="font-bold text-lg mb-4 text-white">Legal</h3>
+              <div className="space-y-2 text-gray-400 text-sm">
+                <p><Link href="/privacy" className="hover:text-white transition">Privacy Policy</Link></p>
+                <p><Link href="/terms" className="hover:text-white transition">Terms of Service</Link></p>
+                <p><Link href="/disclaimer" className="hover:text-white transition">Disclaimer</Link></p>
+              </div>
+            </div>
           </div>
 
           {/* Divider */}
           <div className="border-t border-gray-800 pt-8">
-            {/* Disclaimers & Legal Section */}
+            {/* Disclaimers & Legal Section -- kept in full (this is real
+                trust-building copy for a finance app) but toned down
+                visually per Vince's Aug 23 2026 feedback: dropped the bold
+                "Legal Disclaimer:" / "Important Notice:" / "Data Security:"
+                lead-ins down to a muted, non-bold label so this whole block
+                recedes instead of competing with the footer nav above it. */}
             <div className="space-y-4 mb-8">
-              <div className="text-gray-500 text-xs space-y-4">
+              <div className="text-gray-600 text-[11px] leading-relaxed space-y-3">
                 <p>
-                  <strong>Legal Disclaimer:</strong> Paycheck Planner is an independent financial management platform and is not affiliated with, endorsed by, or associated with any bank, lender, or third-party financial institution. We provide educational content and planning tools, not financial advice.
+                  <span className="text-gray-500 font-medium">Legal Disclaimer.</span> Paycheck Planner is an independent financial management platform and is not affiliated with, endorsed by, or associated with any bank, lender, or third-party financial institution. We provide educational content and planning tools, not financial advice.
                 </p>
 
                 <p>
-                  <strong>Important Notice:</strong> Paycheck Planner does not provide financial, legal, or investment advice. Our tools are for informational and planning purposes only. Always consult with a licensed financial advisor before making major financial decisions. Past performance does not guarantee future results. All financial projections are estimates based on provided inputs and may not reflect actual outcomes.
+                  <span className="text-gray-500 font-medium">Important Notice.</span> Paycheck Planner does not provide financial, legal, or investment advice. Our tools are for informational and planning purposes only. Always consult with a licensed financial advisor before making major financial decisions. Past performance does not guarantee future results. All financial projections are estimates based on provided inputs and may not reflect actual outcomes.
                 </p>
 
                 <p>
-                  <strong>Data Security:</strong> Your financial data is protected with encryption in transit and at rest along with access controls. No online service is completely secure, and your information is never shared without your consent except as described in our Privacy Policy.
+                  <span className="text-gray-500 font-medium">Data Security.</span> Your financial data is protected with encryption in transit and at rest along with access controls. No online service is completely secure, and your information is never shared without your consent except as described in our Privacy Policy.
                 </p>
               </div>
 
               {/* Copyright & Legal Ownership */}
-              <div className="border-t border-gray-700 pt-6 text-gray-600 text-xs space-y-2 text-center">
+              <div className="border-t border-gray-800 pt-6 text-gray-600 text-[11px] space-y-2 text-center">
                 <p>
                   &copy; {new Date().getFullYear()} Paycheck Planner. All rights reserved.
                 </p>
                 <p>
-                  <strong>Legal Operator &amp; Property Owner:</strong> DiBeasi Global Investments LLC, doing business as "Paycheck Planner". All intellectual property, trademarks, content, technology, and proprietary materials are the exclusive property of DiBeasi Global Investments LLC. Unauthorized use or reproduction is prohibited.
+                  <span className="font-medium">Legal Operator &amp; Property Owner.</span> DiBeasi Global Investments LLC, doing business as "Paycheck Planner". All intellectual property, trademarks, content, technology, and proprietary materials are the exclusive property of DiBeasi Global Investments LLC. Unauthorized use or reproduction is prohibited.
                 </p>
               </div>
             </div>
