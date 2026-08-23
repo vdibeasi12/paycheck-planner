@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, Smartphone, Receipt, TrendingDown, PiggyBank, Wallet, LineChart, Home, Calendar, User } from 'lucide-react'
+import { CheckCircle2, Smartphone, Receipt, TrendingDown, PiggyBank, Home, Calendar, User } from 'lucide-react'
 import MemberMilestone from './components/MemberMilestone'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { trackCta } from '@/lib/trackClient'
@@ -140,15 +140,19 @@ export default function HomePage() {
         <div className="absolute -right-[8%] top-[85%] w-[500px] h-[500px] rounded-full bg-green-500/10 blur-[140px]" />
       </div>
 
-      {/* Hero Section */}
+      {/* Hero Section -- Aug 23 2026 "make it feel like you're looking into
+          the app, not at a dashboard mockup" pass: the visual panel now
+          takes a dominant share of the grid (not a 50/50 split) and every
+          number inside it is scaled up so the eye lands on the money, not
+          the chrome around it. */}
       <section className="relative z-10 max-w-7xl mx-auto px-6 py-28 md:py-32">
-        <div className="grid md:grid-cols-2 gap-16 items-center">
+        <div className="grid md:grid-cols-[1fr_1.3fr] gap-14 lg:gap-20 items-center">
           <div>
-            <h1 className="text-4xl md:text-[64px] font-extrabold mb-6 leading-[1.05] tracking-tight max-w-[700px]">
+            <h1 className="text-4xl md:text-[64px] font-extrabold mb-6 leading-[1.05] tracking-tight max-w-[560px]">
               {t('home.heroPrefix')}<br />
               <span className="text-green-500">{t('home.heroHighlight')}</span>{t('home.heroSuffix')}
             </h1>
-            <p className="text-base md:text-[18px] text-gray-300 mb-9 leading-relaxed max-w-[620px]">
+            <p className="text-base md:text-[18px] text-gray-300 mb-9 leading-relaxed max-w-[480px]">
               {t('home.heroSubtitle')}
             </p>
             <div className="flex flex-wrap gap-4">
@@ -170,19 +174,19 @@ export default function HomePage() {
           </div>
 
           {/* Dashboard preview card -- illustrative, mirrors the real
-              paycheck-breakdown view inside the app. Polished per Vince's
-              Aug 23 2026 "make it feel like a real screenshot, not a
-              marketing graphic" pass: deeper shadow, row icons, an
-              on-track indicator, and the numbers that matter (Available,
-              progress %) pulled up to their own visual weight instead of
-              matching the supporting rows. */}
-          <div className="bg-[#0f172a] border border-gray-700 rounded-[20px] overflow-hidden shadow-[0_8px_24px_rgba(0,0,0,0.25)]">
-            {/* Header band -- Aug 2026 "make it look like a real app, not a
-                marketing card" pass: a distinct toolbar-style strip instead of
-                the label just sitting in the card's own padding, so the eye
-                reads "app chrome" before it reads "content." */}
+              paycheck-breakdown view inside the app. Enlarged per Vince's
+              Aug 23 2026 "big paycheck, big allocation, big available
+              balance" feedback: the allocation rows became a 3-up stat
+              grid, Available/Progress became the dominant closing stat
+              instead of a small side gauge, and every figure is bigger
+              relative to its label so the numbers -- not the card chrome
+              -- carry the visual weight. */}
+          <div className="bg-[#0f172a] border border-gray-700 rounded-[28px] overflow-hidden shadow-[0_24px_64px_rgba(0,0,0,0.35)]">
+            {/* Header band -- reads as "app chrome" before it reads as
+                "content," so the panel feels like a live screen rather
+                than a marketing card. */}
             <div
-              className="flex items-center justify-between px-8 py-5 border-b border-white/5"
+              className="flex items-center justify-between px-9 md:px-10 py-6 border-b border-white/5"
               style={{ background: 'linear-gradient(135deg, rgba(34,197,94,0.14), transparent 75%)' }}
             >
               <div className="text-xs font-bold uppercase tracking-wider text-gray-400">{t('home.dashLabel')}</div>
@@ -192,97 +196,78 @@ export default function HomePage() {
               </div>
             </div>
 
-            <div className="px-8 pt-6 pb-8">
-              <div className="text-[44px] leading-none font-extrabold mb-1 tabular-nums">$2,450.00</div>
-              <div className="text-sm text-gray-400 mb-7">{nextPaycheckLabel}</div>
+            <div className="px-9 md:px-10 pt-8 pb-10">
+              <div className="text-[56px] md:text-[72px] leading-none font-extrabold mb-2 tabular-nums">$2,450</div>
+              <div className="text-sm text-gray-400 mb-9">{nextPaycheckLabel}</div>
 
-              <div className="flex justify-between items-center text-[15px] text-gray-300 py-3 border-b border-white/5">
-                <span className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-md bg-blue-500/10 flex items-center justify-center shrink-0">
-                    <Receipt size={13} className="text-blue-400" />
-                  </span>
-                  {t('home.dashBills')}
-                </span>
-                <span className="tabular-nums">$1,180</span>
-              </div>
-              <div className="flex justify-between items-center text-[15px] text-gray-300 py-3 border-b border-white/5">
-                <span className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-md bg-green-500/10 flex items-center justify-center shrink-0">
-                    <TrendingDown size={13} className="text-green-400" />
-                  </span>
-                  {t('home.dashDebtPayment')}
-                </span>
-                <span className="tabular-nums">$450</span>
-              </div>
-              <div className="flex justify-between items-center text-[15px] text-gray-300 py-3 border-b border-white/5">
-                <span className="flex items-center gap-3">
-                  <span className="w-7 h-7 rounded-md bg-emerald-500/10 flex items-center justify-center shrink-0">
-                    <PiggyBank size={13} className="text-emerald-400" />
-                  </span>
-                  {t('home.dashSavings')}
-                </span>
-                <span className="tabular-nums">$250</span>
-              </div>
-
-              {/* Available + a circular progress ring for the debt-free % --
-                  echoes the Money Score gauge further down the page so the
-                  two "here's your number" moments share one visual language
-                  instead of a number card here and a totally different bar
-                  chart there. */}
-              <div className="flex items-center justify-between gap-6 pt-6 mt-1">
+              <div className="grid grid-cols-3 gap-4 sm:gap-8 pb-8 border-b border-white/5">
                 <div>
-                  <div className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-1.5">{t('home.dashAvailable')}</div>
-                  <div className="text-3xl font-extrabold text-green-400 tabular-nums">$570</div>
-                </div>
-                <div className="flex flex-col items-center gap-1 shrink-0">
-                  <div
-                    className="w-[72px] h-[72px] rounded-full flex items-center justify-center"
-                    style={{ background: 'conic-gradient(#22c55e 0% 68%, rgba(255,255,255,0.08) 68% 100%)' }}
-                  >
-                    <div className="w-[56px] h-[56px] rounded-full bg-[#0f172a] flex items-center justify-center text-base font-extrabold tabular-nums">
-                      68%
-                    </div>
+                  <div className="flex items-start gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2 min-h-[28px] leading-tight">
+                    <Receipt size={12} className="text-blue-400 shrink-0 mt-0.5" />
+                    {t('home.dashBills')}
                   </div>
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-gray-500 text-center leading-tight mt-0.5">{t('home.dashProgressLabel')}</div>
+                  <div className="text-2xl md:text-[30px] font-extrabold tabular-nums">$1,180</div>
                 </div>
+                <div>
+                  <div className="flex items-start gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2 min-h-[28px] leading-tight">
+                    <TrendingDown size={12} className="text-green-400 shrink-0 mt-0.5" />
+                    {t('home.dashDebtPayment')}
+                  </div>
+                  <div className="text-2xl md:text-[30px] font-extrabold tabular-nums">$450</div>
+                </div>
+                <div>
+                  <div className="flex items-start gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2 min-h-[28px] leading-tight">
+                    <PiggyBank size={12} className="text-emerald-400 shrink-0 mt-0.5" />
+                    {t('home.dashSavings')}
+                  </div>
+                  <div className="text-2xl md:text-[30px] font-extrabold tabular-nums">$250</div>
+                </div>
+              </div>
+
+              {/* Available + Debt-Free Progress close the card as one big
+                  paired statement -- the two numbers a visitor actually
+                  cares about, given equal top billing instead of a small
+                  number next to a decorative gauge. */}
+              <div className="flex items-end justify-between gap-8 pt-8">
+                <div>
+                  <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t('home.dashAvailable')}</div>
+                  <div className="text-4xl md:text-[52px] leading-none font-extrabold text-green-400 tabular-nums">$570</div>
+                </div>
+                <div className="text-right shrink-0">
+                  <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t('home.dashProgressLabel')}</div>
+                  <div className="text-4xl md:text-[52px] leading-none font-extrabold tabular-nums">68%</div>
+                </div>
+              </div>
+              <div className="bg-white/10 rounded-full h-2.5 overflow-hidden mt-6">
+                <div className="bg-gradient-to-r from-green-500 to-green-400 h-full rounded-full" style={{ width: '68%' }} />
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Value props -- what the product actually does, not generic marketing stats.
-          Aug 2026 "10/10 visual redesign" pass: added consistent icon badges and a
-          subtle hover state per Vince's explicit ask ("consistent icons... subtle
-          hover states... keep them clean" -- not giant colorful cards). */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 pb-24 md:pb-28">
-        <div className="grid md:grid-cols-3 gap-7">
-          <div className="relative overflow-hidden border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8 pt-9 transition hover:border-green-500/30 hover:-translate-y-0.5">
-            <div className="absolute top-0 left-0 right-0 h-[3px] bg-green-500" />
-            <div className="w-10 h-10 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-5">
-              <Wallet size={18} className="text-green-400" />
-            </div>
-            <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-2">{t('home.valuePlanEyebrow')}</div>
-            <h3 className="text-2xl font-bold mb-2">{t('home.statPayoffTitle')}</h3>
-            <p className="text-gray-400 text-[15px] leading-relaxed">{t('home.statPayoffDesc')}</p>
+      {/* Value props -- what the product actually does, not generic marketing
+          stats. Rebuilt Aug 23 2026 per Vince's "stop designing this around
+          cards" feedback: one large editorial statement instead of three
+          bordered boxes, with the three ideas carried by typography
+          (an eyebrow label + a line of copy, nothing boxed) rather than
+          colored accent bars and icon badges. */}
+      <section className="relative z-10 max-w-5xl mx-auto px-6 pb-24 md:pb-32 text-center">
+        <h2 className="text-3xl md:text-[46px] font-extrabold leading-tight mb-16 md:mb-20 max-w-2xl mx-auto">
+          {t('home.valuePropHeading')}
+        </h2>
+        <div className="grid md:grid-cols-3 gap-x-10 gap-y-12">
+          <div>
+            <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-3">{t('home.valuePlanEyebrow')}</div>
+            <p className="text-lg md:text-xl font-semibold text-gray-200 leading-snug">{t('home.statPayoffDesc')}</p>
           </div>
-          <div className="relative overflow-hidden border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8 pt-9 transition hover:border-blue-500/30 hover:-translate-y-0.5">
-            <div className="absolute top-0 left-0 right-0 h-[3px] bg-blue-500" />
-            <div className="w-10 h-10 rounded-lg bg-blue-500/10 border border-blue-500/20 flex items-center justify-center mb-5">
-              <TrendingDown size={18} className="text-blue-400" />
-            </div>
-            <div className="text-xs font-bold uppercase tracking-wider text-blue-400 mb-2">{t('home.valuePayoffEyebrow')}</div>
-            <h3 className="text-2xl font-bold mb-2">{t('home.statAiTitle')}</h3>
-            <p className="text-gray-400 text-[15px] leading-relaxed">{t('home.statAiDesc')}</p>
+          <div>
+            <div className="text-xs font-bold uppercase tracking-wider text-blue-400 mb-3">{t('home.valuePayoffEyebrow')}</div>
+            <p className="text-lg md:text-xl font-semibold text-gray-200 leading-snug">{t('home.statAiDesc')}</p>
           </div>
-          <div className="relative overflow-hidden border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8 pt-9 transition hover:border-emerald-500/30 hover:-translate-y-0.5">
-            <div className="absolute top-0 left-0 right-0 h-[3px] bg-emerald-500" />
-            <div className="w-10 h-10 rounded-lg bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-5">
-              <LineChart size={18} className="text-emerald-400" />
-            </div>
-            <div className="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-2">{t('home.valueSeeEyebrow')}</div>
-            <h3 className="text-2xl font-bold mb-2">{t('home.statInsightsTitle')}</h3>
-            <p className="text-gray-400 text-[15px] leading-relaxed">{t('home.statInsightsDesc')}</p>
+          <div>
+            <div className="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-3">{t('home.valueSeeEyebrow')}</div>
+            <p className="text-lg md:text-xl font-semibold text-gray-200 leading-snug">{t('home.statInsightsDesc')}</p>
           </div>
         </div>
       </section>
@@ -308,7 +293,13 @@ export default function HomePage() {
               {t('home.moneyScoreCta')} &rarr;
             </Link>
           </div>
-          <div className="flex flex-col gap-7 shrink-0 mx-auto w-full max-w-[280px]">
+          {/* Restyled Aug 23 2026 as a financial-health report rather than a
+              standalone gauge widget: the ring still carries the headline
+              number, but the category bars (reordered so the strongest
+              category leads) and a plain-language read of what they mean
+              now sit underneath it as one continuous report, not a
+              decorative afterthought. */}
+          <div className="flex flex-col gap-8 shrink-0 mx-auto w-full max-w-[340px]">
             <div className="relative flex flex-col items-center gap-3">
               <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[220px] h-[220px] rounded-full bg-green-500/20 blur-[50px]" aria-hidden="true" />
               <div
@@ -329,30 +320,34 @@ export default function HomePage() {
             </div>
 
             {/* Category breakdown -- illustrative bars showing what the
-                Money Score is actually made of, per Vince's Aug 23 2026
-                "treat it like a product within the product" feedback.
-                Same categories moneyScoreDesc already promises (budgeting,
-                savings, debt, cash flow); values are sample data matching
-                the illustrative 78 score above, not a real user's numbers. */}
-            <div className="flex flex-col gap-3">
+                Money Score is actually made of. Same categories
+                moneyScoreDesc already promises (budgeting, savings, debt,
+                cash flow); values are sample data matching the illustrative
+                78 score above, not a real user's numbers. Cash Flow leads
+                since it's the standout figure the narrative below refers to. */}
+            <div className="flex flex-col gap-3.5">
               {[
-                { label: t('home.moneyScoreBudgeting'), pct: 80 },
-                { label: t('home.moneyScoreSavings'), pct: 60 },
-                { label: t('home.moneyScoreDebt'), pct: 80 },
                 { label: t('home.moneyScoreCashFlow'), pct: 90 },
+                { label: t('home.moneyScoreDebt'), pct: 80 },
+                { label: t('home.moneyScoreSavings'), pct: 60 },
+                { label: t('home.moneyScoreBudgeting'), pct: 80 },
               ].map((c) => (
                 <div key={c.label} className="flex items-center gap-3">
-                  <span className="w-[70px] text-xs text-gray-400 shrink-0">{c.label}</span>
-                  <div className="flex-1 bg-white/10 rounded-full h-2 overflow-hidden">
+                  <span className="w-[80px] text-xs text-gray-400 shrink-0">{c.label}</span>
+                  <div className="flex-1 bg-white/10 rounded-full h-2.5 overflow-hidden">
                     <div
                       className="bg-gradient-to-r from-green-500 to-green-400 h-full rounded-full"
                       style={{ width: `${c.pct}%` }}
                     />
                   </div>
+                  <span className="w-9 text-right text-xs text-gray-500 tabular-nums shrink-0">{c.pct}</span>
                 </div>
               ))}
-              <p className="text-xs text-gray-500 mt-1">{t('home.moneyScoreBarsCaption')}</p>
             </div>
+
+            <p className="text-[15px] text-gray-300 leading-relaxed border-t border-white/10 pt-6">
+              {t('home.moneyScoreNarrative')}
+            </p>
           </div>
         </div>
       </section>
@@ -394,8 +389,7 @@ export default function HomePage() {
             <h3 className="text-2xl md:text-[32px] font-extrabold mb-4">{t('home.showcase1Title')}</h3>
             <p className="text-gray-300 text-[17px] leading-relaxed max-w-[420px]">{t('home.showcase1Desc')}</p>
           </div>
-          <div className="relative overflow-hidden bg-[#0f172a] border border-gray-700 rounded-2xl p-8 pt-9 shadow-[0_6px_20px_rgba(0,0,0,0.18)]">
-            <div className="absolute top-0 left-0 right-0 h-[3px] bg-green-500" />
+          <div className="bg-[#0f172a] border border-gray-700 rounded-2xl p-8 md:p-10 shadow-[0_6px_20px_rgba(0,0,0,0.18)]">
             <div className="grid grid-cols-7 gap-2 mb-5">
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
                 <div
@@ -414,28 +408,53 @@ export default function HomePage() {
           </div>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-16 items-center mt-28">
-          <div className="md:order-2">
+        {/* 02 -- Attack Your Debt. Deliberately broken out of the alternating
+            text+card rhythm the other two showcase beats use. Per Vince's
+            Aug 23 2026 feedback this is the product's strongest "wow"
+            moment (the debt-free date comparison), so it reads as one big
+            payoff statement -- a huge headline number, then the strategy
+            comparison, then the timeline -- rather than another bordered
+            card competing for attention with everything else on the page. */}
+        <div className="mt-28 md:mt-36">
+          <div className="text-center max-w-2xl mx-auto mb-16">
             <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-3">{t('home.showcase2Eyebrow')}</div>
             <h3 className="text-2xl md:text-[32px] font-extrabold mb-4">{t('home.showcase2Title')}</h3>
-            <p className="text-gray-300 text-[17px] leading-relaxed max-w-[420px]">{t('home.showcase2Desc')}</p>
+            <p className="text-gray-300 text-[17px] leading-relaxed max-w-[420px] mx-auto">{t('home.showcase2Desc')}</p>
           </div>
-          <div className="relative overflow-hidden md:order-1 bg-[#0f172a] border border-gray-700 rounded-2xl p-8 pt-9 shadow-[0_6px_20px_rgba(0,0,0,0.18)]">
-            <div className="absolute top-0 left-0 right-0 h-[3px] bg-blue-500" />
-            <div className="flex gap-5 text-xs text-gray-400 mb-4">
-              <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" />Avalanche</span>
-              <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />Snowball</span>
+
+          <div className="text-center mb-14">
+            <div className="text-[13px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-4">Debt-free, sooner</div>
+            <div className="text-[68px] sm:text-[88px] md:text-[112px] leading-[0.92] font-extrabold tracking-tight bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
+              7 Months
             </div>
-            <svg width="100%" height="140" viewBox="0 0 400 140" preserveAspectRatio="none">
-              <polyline points="0,15 60,32 120,52 180,75 240,98 300,118 360,130 400,136" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" />
-              <polyline points="0,15 60,38 120,62 180,82 240,102 300,120 360,132 400,138" fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" opacity="0.7" />
+            <div className="text-2xl md:text-4xl font-extrabold text-gray-200 -mt-1 md:-mt-2">Sooner</div>
+          </div>
+
+          <div className="grid grid-cols-[1fr_auto_1fr] gap-4 sm:gap-10 items-center max-w-2xl mx-auto mb-16">
+            <div className="text-right">
+              <div className="inline-flex items-center gap-2 text-sm font-bold text-green-400 mb-2">
+                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                Avalanche
+              </div>
+              <div className="text-xl md:text-2xl font-extrabold tabular-nums">March 2029</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wide mt-1">Debt-free</div>
+            </div>
+            <div className="text-gray-600 text-xs font-bold">VS</div>
+            <div className="text-left">
+              <div className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 mb-2">
+                <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
+                Snowball
+              </div>
+              <div className="text-xl md:text-2xl font-extrabold tabular-nums text-gray-300">October 2029</div>
+              <div className="text-xs text-gray-500 uppercase tracking-wide mt-1">Debt-free</div>
+            </div>
+          </div>
+
+          <div className="max-w-2xl mx-auto">
+            <svg width="100%" height="160" viewBox="0 0 400 160" preserveAspectRatio="none">
+              <polyline points="0,18 60,40 120,66 180,94 240,120 300,142 360,154 400,158" fill="none" stroke="#22c55e" strokeWidth="4" strokeLinecap="round" />
+              <polyline points="0,18 60,44 120,74 180,100 240,124 300,144 360,156 400,160" fill="none" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round" opacity="0.55" />
             </svg>
-            {/* The emotional payoff ("7 months sooner") gets the visual
-                weight here, not the factual line above it -- Vince's Aug 23
-                2026 feedback: "you're selling answers, not data." */}
-            <div className="text-xs text-gray-400 mt-5">Avalanche strategy debt-free date</div>
-            <div className="text-2xl font-extrabold mt-0.5 tabular-nums">March 2029</div>
-            <div className="text-base font-bold text-green-400 mt-1.5">7 months sooner than Snowball</div>
           </div>
         </div>
 
@@ -445,8 +464,7 @@ export default function HomePage() {
             <h3 className="text-2xl md:text-[32px] font-extrabold mb-4">{t('home.showcase3Title')}</h3>
             <p className="text-gray-300 text-[17px] leading-relaxed max-w-[420px]">{t('home.showcase3Desc')}</p>
           </div>
-          <div className="relative overflow-hidden bg-[#0f172a] border border-gray-700 rounded-2xl p-8 pt-9 shadow-[0_6px_20px_rgba(0,0,0,0.18)]">
-            <div className="absolute top-0 left-0 right-0 h-[3px] bg-emerald-500" />
+          <div className="bg-[#0f172a] border border-gray-700 rounded-2xl p-8 md:p-10 shadow-[0_6px_20px_rgba(0,0,0,0.18)]">
             <div className="flex items-center gap-6">
               <div
                 className="w-[100px] h-[100px] rounded-full flex items-center justify-center shrink-0"
@@ -468,18 +486,20 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Features Grid -- kept, demoted below the showcase per the redesign */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-32">
-        <h2 className="text-3xl md:text-[46px] font-extrabold text-center mb-3">{t('home.featuresHeading')}</h2>
-        <p className="text-center text-gray-400 text-lg mb-14">{t('home.featuresSubheading')}</p>
-        {/* Aug 2026 visual pass: intentionally smaller/quieter than the product
-            showcase above -- supporting capabilities, not the primary pitch. */}
-        <div className="grid md:grid-cols-3 gap-5">
+      {/* Features Grid -- deliberately quiet per Vince's Aug 23 2026
+          feedback: the showcase above already demonstrated the three real
+          products (planning, payoff, progress), so this list reads as
+          supporting capabilities in an appendix, not a fourth "here's what
+          we built" pitch. No cards, no descriptions, no icon badges --
+          just a compact checklist at a fraction of the showcase's visual
+          weight. */}
+      <section className="relative z-10 max-w-4xl mx-auto px-6 py-16 md:py-20">
+        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 text-center mb-9">{t('home.featuresHeading')}</div>
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-x-10 gap-y-4">
           {features.map((f, i) => (
-            <div key={i} className="border border-gray-700 rounded-2xl p-6 hover:border-green-500/60 transition bg-[#0f172a]/50">
-              <CheckCircle2 className="text-green-500 mb-2.5" size={20} />
-              <h3 className="font-bold text-base mb-1.5">{f.title}</h3>
-              <p className="text-gray-400 text-sm">{f.desc}</p>
+            <div key={i} className="flex items-start gap-2.5">
+              <CheckCircle2 className="text-green-500/70 mt-0.5 shrink-0" size={15} />
+              <span className="text-gray-400 text-sm leading-snug">{f.title}</span>
             </div>
           ))}
         </div>
