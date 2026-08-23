@@ -4,6 +4,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Plus Jakarta Sans, loaded in app/layout.tsx via next/font/google and
+   exposed as --font-sans. Falls back to the previous system stack so
+   nothing breaks if the font request is ever blocked. */
+body {
+  font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
 /* Prevent layout shift from scrollbar appearing/disappearing */
 html {
   scrollbar-gutter: stable;
