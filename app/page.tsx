@@ -184,7 +184,7 @@ export default function HomePage() {
                 {t('home.dashOnTrack')}
               </div>
             </div>
-            <div className="text-4xl font-extrabold mb-1">$2,450.00</div>
+            <div className="text-[44px] leading-none font-extrabold mb-1">$2,450.00</div>
             <div className="text-sm text-gray-400 mb-7">{nextPaycheckLabel}</div>
 
             <div className="flex justify-between items-center text-[15px] text-gray-300 py-2.5 border-b border-white/5">
@@ -204,7 +204,7 @@ export default function HomePage() {
 
             <div className="flex justify-between items-baseline mt-6 mb-2">
               <span className="text-xs font-bold uppercase tracking-wider text-gray-400">{t('home.dashProgressLabel')}</span>
-              <span className="text-2xl font-extrabold">68%</span>
+              <span className="text-4xl font-extrabold">68%</span>
             </div>
             <div className="bg-white/10 rounded-full h-2.5 overflow-hidden">
               <div className="bg-gradient-to-r from-green-500 to-green-400 h-full rounded-full" style={{ width: '68%' }} />
@@ -255,17 +255,50 @@ export default function HomePage() {
               {t('home.moneyScoreCta')} &rarr;
             </Link>
           </div>
-          <div className="flex flex-col items-center gap-3 shrink-0 mx-auto">
-            <div
-              className="w-[176px] h-[176px] rounded-full flex items-center justify-center"
-              style={{ background: 'conic-gradient(#22c55e 0% 78%, rgba(255,255,255,0.08) 78% 100%)' }}
-            >
-              <div className="w-[138px] h-[138px] rounded-full bg-[#020617] flex flex-col items-center justify-center">
-                <div className="text-[52px] leading-none font-extrabold">78</div>
-                <div className="text-[11px] text-gray-400 uppercase tracking-wide mt-1.5">{t('home.moneyScoreLabel')}</div>
+          <div className="flex flex-col gap-7 shrink-0 mx-auto w-full max-w-[280px]">
+            <div className="flex flex-col items-center gap-3">
+              <div
+                className="w-[176px] h-[176px] rounded-full flex items-center justify-center"
+                style={{ background: 'conic-gradient(#22c55e 0% 78%, rgba(255,255,255,0.08) 78% 100%)' }}
+              >
+                <div className="w-[138px] h-[138px] rounded-full bg-[#020617] flex flex-col items-center justify-center">
+                  <div className="text-[52px] leading-none font-extrabold">78</div>
+                  <div className="text-[11px] text-gray-400 uppercase tracking-wide mt-1.5">{t('home.moneyScoreLabel')}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="rounded-full bg-green-500/15 border border-green-500/30 px-2.5 py-1 text-[11px] font-bold text-green-400 uppercase tracking-wide">
+                  {t('home.moneyScoreRating')}
+                </span>
+                <span className="text-sm font-semibold text-green-400">{t('home.moneyScoreTrend')}</span>
               </div>
             </div>
-            <div className="text-sm font-semibold text-green-400">{t('home.moneyScoreTrend')}</div>
+
+            {/* Category breakdown -- illustrative bars showing what the
+                Money Score is actually made of, per Vince's Aug 23 2026
+                "treat it like a product within the product" feedback.
+                Same categories moneyScoreDesc already promises (budgeting,
+                savings, debt, cash flow); values are sample data matching
+                the illustrative 78 score above, not a real user's numbers. */}
+            <div className="flex flex-col gap-3">
+              {[
+                { label: t('home.moneyScoreBudgeting'), pct: 80 },
+                { label: t('home.moneyScoreSavings'), pct: 60 },
+                { label: t('home.moneyScoreDebt'), pct: 80 },
+                { label: t('home.moneyScoreCashFlow'), pct: 90 },
+              ].map((c) => (
+                <div key={c.label} className="flex items-center gap-3">
+                  <span className="w-[70px] text-xs text-gray-400 shrink-0">{c.label}</span>
+                  <div className="flex-1 bg-white/10 rounded-full h-2 overflow-hidden">
+                    <div
+                      className="bg-gradient-to-r from-green-500 to-green-400 h-full rounded-full"
+                      style={{ width: `${c.pct}%` }}
+                    />
+                  </div>
+                </div>
+              ))}
+              <p className="text-xs text-gray-500 mt-1">{t('home.moneyScoreBarsCaption')}</p>
+            </div>
           </div>
         </div>
       </section>
