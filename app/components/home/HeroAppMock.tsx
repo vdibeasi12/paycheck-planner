@@ -2,6 +2,12 @@
 
 import { Receipt, TrendingDown, PiggyBank, Wallet, Bell, ChevronRight, Sparkles } from 'lucide-react'
 
+// A quiet 8-point cash-flow trend line behind the paycheck figure -- purely
+// visual (no new copy), added Aug 23 2026 so the window reads as a real
+// product screen with real underlying data rather than a static marketing
+// card. Illustrative, matching the sample data used throughout the mock.
+const SPARK_POINTS = '0,34 20,30 40,32 60,22 80,25 100,14 120,18 140,4'
+
 /**
  * The hero's right-hand visual. This is deliberately built as a small,
  * self-contained "app window" -- header/tab chrome, a 2x2 stat grid, a
@@ -15,10 +21,10 @@ export default function HeroAppMock({ nextPaycheckLabel }: { nextPaycheckLabel: 
     <div className="relative w-full">
       {/* Depth layers behind the window so it feels lifted off the page,
           not just another bordered box sitting flush with everything else. */}
-      <div className="absolute -inset-4 md:-inset-6 rounded-[36px] bg-gradient-to-br from-green-500/10 via-transparent to-blue-500/10 blur-2xl" aria-hidden="true" />
-      <div className="absolute -right-3 -bottom-3 w-full h-full rounded-[28px] border border-white/5 bg-white/[0.02]" aria-hidden="true" />
+      <div className="absolute -inset-5 md:-inset-8 rounded-[40px] bg-gradient-to-br from-green-500/15 via-transparent to-blue-500/15 blur-3xl" aria-hidden="true" />
+      <div className="absolute -right-4 -bottom-4 w-full h-full rounded-[28px] border border-white/5 bg-white/[0.02]" aria-hidden="true" />
 
-      <div className="relative bg-[#0b1220] border border-white/10 rounded-[28px] overflow-hidden shadow-[0_30px_80px_rgba(0,0,0,0.5)]">
+      <div className="relative bg-[#0b1220] border border-white/10 rounded-[28px] overflow-hidden shadow-[0_40px_100px_rgba(0,0,0,0.55)]">
         {/* App chrome */}
         <div className="flex items-center justify-between px-5 sm:px-7 py-4 border-b border-white/10 bg-white/[0.02]">
           <div className="flex items-center gap-2.5">
@@ -53,13 +59,31 @@ export default function HeroAppMock({ nextPaycheckLabel }: { nextPaycheckLabel: 
           {/* Next paycheck -- the single dominant figure. Number leads,
               label trails underneath it (not the other way around) so the
               money is what the eye hits first. */}
-          <div className="flex items-start justify-between gap-4 mb-7">
-            <div>
+          <div className="relative flex items-start justify-between gap-4 mb-7">
+            {/* Faint trend line behind the figure -- depth, not decoration
+                for its own sake: it's the kind of chart a real cash-flow
+                screen would actually show. */}
+            <svg
+              className="pointer-events-none absolute -left-1 top-1 w-[150px] h-[42px] opacity-[0.35]"
+              viewBox="0 0 140 38"
+              fill="none"
+              aria-hidden="true"
+            >
+              <defs>
+                <linearGradient id="sparkFill" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#22c55e" stopOpacity="0.35" />
+                  <stop offset="100%" stopColor="#22c55e" stopOpacity="0" />
+                </linearGradient>
+              </defs>
+              <polyline points={`${SPARK_POINTS} 140,38 0,38`} fill="url(#sparkFill)" stroke="none" />
+              <polyline points={SPARK_POINTS} fill="none" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <div className="relative">
               <div className="text-[52px] sm:text-[60px] leading-none font-extrabold tabular-nums">$2,450</div>
               <div className="text-[13px] font-bold uppercase tracking-wider text-gray-500 mt-2.5">Next Paycheck</div>
               <div className="text-xs text-gray-500 mt-1">{nextPaycheckLabel}</div>
             </div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-green-500/10 border border-green-500/30 px-3 py-1.5 text-xs font-semibold text-green-400 shrink-0 mt-2">
+            <div className="relative inline-flex items-center gap-1.5 rounded-full bg-green-500/10 border border-green-500/30 px-3 py-1.5 text-xs font-semibold text-green-400 shrink-0 mt-2">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
               On track
             </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { Zap } from 'lucide-react'
+import { Zap, ArrowRight } from 'lucide-react'
 
 /**
  * The debt-payoff "before vs after" moment. Rebuilt Aug 2026: instead of a
@@ -37,7 +37,19 @@ export default function DebtPayoffMoment({
         <div className="text-[80px] sm:text-[110px] md:text-[140px] leading-[0.9] font-extrabold tracking-tight bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
           7 Months
         </div>
-        <div className="text-3xl md:text-5xl font-extrabold text-gray-200 -mt-1 md:-mt-2">Sooner</div>
+        <div className="text-3xl md:text-5xl font-extrabold text-gray-200 -mt-1 md:-mt-2 mb-7">Sooner</div>
+
+        {/* Instant before/after snapshot -- Aug 23 2026 addition per Vince's
+            live-site review: give the payoff away in one glance right under
+            the headline, before the visitor even reaches the detailed
+            timeline panel below. */}
+        <div className="inline-flex flex-wrap items-center justify-center gap-3 sm:gap-4 rounded-full border border-white/10 bg-white/[0.03] px-5 sm:px-7 py-3.5">
+          <span className="text-gray-500 font-bold tabular-nums line-through decoration-gray-600">Oct 2029</span>
+          <ArrowRight size={16} className="text-gray-600 shrink-0" />
+          <span className="text-green-400 font-extrabold tabular-nums text-lg">March 2029</span>
+          <span className="hidden sm:inline text-white/10">|</span>
+          <span className="text-green-400 font-bold text-sm">$2,150 saved</span>
+        </div>
       </div>
 
       {/* Two parallel timeline tracks */}

@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, Smartphone, Receipt, TrendingDown, PiggyBank, Home, Calendar, User, Sparkles, BarChart3, Trophy, ArrowLeftRight } from 'lucide-react'
+import { CheckCircle2, Smartphone, Receipt, TrendingDown, PiggyBank, Home, Calendar, User, Wallet, Activity } from 'lucide-react'
 import MemberMilestone from './components/MemberMilestone'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { trackCta } from '@/lib/trackClient'
@@ -103,15 +103,6 @@ export default function HomePage() {
     )
   }
 
-  const features = [
-    { title: t('home.feature1Title'), desc: t('home.feature1Desc'), icon: TrendingDown },
-    { title: t('home.feature2Title'), desc: t('home.feature2Desc'), icon: Receipt },
-    { title: t('home.feature3Title'), desc: t('home.feature3Desc'), icon: Trophy },
-    { title: t('home.feature4Title'), desc: t('home.feature4Desc'), icon: Sparkles },
-    { title: t('home.feature5Title'), desc: t('home.feature5Desc'), icon: BarChart3 },
-    { title: t('home.feature6Title'), desc: t('home.feature6Desc'), icon: ArrowLeftRight },
-  ]
-
   // Illustrative sample data for the hero/showcase visuals below -- these are
   // stand-ins showing what the real dashboard looks like, not aggregate
   // claims about actual users (see Aug 23 2026 homepage redesign notes: the
@@ -151,7 +142,12 @@ export default function HomePage() {
           score, debt progress, and upcoming bills -- not a single stat
           card standing in for the product. */}
       <section className="relative z-10 max-w-7xl mx-auto px-6 pt-20 pb-24 md:pt-28 md:pb-32">
-        <div className="grid md:grid-cols-[1fr_1.15fr] gap-14 lg:gap-20 items-center">
+        {/* Aug 23 2026 feedback round 3: not a font-size problem anymore --
+            the dashboard needs to be the visual centerpiece of the hero, not
+            something sitting beside the copy. Right column's share of the
+            row grew from ~53% to ~61% here (ratio, not text size) so the
+            product mock reads as substantially larger and more dominant. */}
+        <div className="grid md:grid-cols-[1fr_1.4fr] lg:grid-cols-[0.85fr_1.4fr] gap-10 lg:gap-16 items-center">
           <div>
             <h1 className="text-[44px] md:text-[72px] font-extrabold mb-7 leading-[0.98] tracking-tight max-w-[720px]">
               {t('home.heroPrefix')}<br />
@@ -248,27 +244,32 @@ export default function HomePage() {
         plannerLabel={t('home.diffPlannerLabel')}
       />
 
-      {/* Features Grid -- Aug 2026 typography pass: this used to be a
-          deliberately quiet 14px checklist (the showcase sections above
-          already carry the "wow" moments). Vince's feedback was that it
-          made real product capabilities functionally invisible, so it's
-          now an actual visual showcase -- icon chips + real heading sizes --
-          while staying visually lighter than the major sections above it. */}
-      <section className="relative z-10 max-w-6xl mx-auto px-6 py-20 md:py-24">
-        <div className="text-center max-w-xl mx-auto mb-14">
-          <h2 className="text-[28px] md:text-[36px] font-extrabold leading-tight mb-3">{t('home.featuresHeading')}</h2>
-          <p className="text-gray-400 text-lg">{t('home.featuresSubheading')}</p>
+      {/* Outcomes -- Aug 23 2026 feedback round 3: the 6-item feature
+          checklist read as a generic "every budgeting app has this" list.
+          Replaced with the 3 product OUTCOMES (not feature names) that
+          actually differentiate the product, given deliberately more
+          breathing room each so they read as statements, not checklist
+          items. Section is intentionally smaller/quieter than the major
+          showcases above it -- this is supporting evidence, not a new
+          "wow" moment competing with them. The old 6-feature copy stays in
+          en.json (feature1-6) but is no longer rendered here. */}
+      <section className="relative z-10 max-w-5xl mx-auto px-6 py-16 md:py-20">
+        <div className="text-center max-w-xl mx-auto mb-12">
+          <h2 className="text-[26px] md:text-[32px] font-extrabold leading-tight mb-3">{t('home.outcomesHeading')}</h2>
+          <p className="text-gray-500 text-base">{t('home.outcomesSubheading')}</p>
         </div>
-        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
-          {features.map((f, i) => (
-            <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center shrink-0">
-                <f.icon className="text-green-400" size={18} />
+        <div className="grid sm:grid-cols-3 gap-10 sm:gap-8">
+          {[
+            { title: t('home.outcome1Title'), desc: t('home.outcome1Desc'), icon: Wallet },
+            { title: t('home.outcome2Title'), desc: t('home.outcome2Desc'), icon: TrendingDown },
+            { title: t('home.outcome3Title'), desc: t('home.outcome3Desc'), icon: Activity },
+          ].map((o, i) => (
+            <div key={i} className="text-center sm:text-left">
+              <div className="w-11 h-11 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-4 mx-auto sm:mx-0">
+                <o.icon className="text-green-400" size={20} />
               </div>
-              <div>
-                <div className="text-white font-bold text-lg leading-snug mb-1">{f.title}</div>
-                <div className="text-gray-400 text-[15px] leading-snug">{f.desc}</div>
-              </div>
+              <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-2">{o.title}</div>
+              <p className="text-gray-300 text-lg leading-snug">{o.desc}</p>
             </div>
           ))}
         </div>

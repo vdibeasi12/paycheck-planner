@@ -34,41 +34,47 @@ export default function Differentiation({
   plannerLabel: string
 }) {
   return (
-    <section className="relative z-10 max-w-5xl mx-auto px-6 py-24 md:py-32">
+    <section className="relative z-10 max-w-6xl mx-auto px-6 py-24 md:py-32">
       <div className="text-center max-w-2xl mx-auto mb-14 md:mb-16">
         <div className="text-sm font-bold uppercase tracking-wider text-green-500 mb-4">{eyebrow}</div>
         <h2 className="text-[34px] md:text-[50px] font-extrabold leading-[1.05] mb-5">{heading}</h2>
         <p className="text-gray-300 text-lg md:text-xl leading-relaxed">{desc}</p>
       </div>
 
-      <div className="flex flex-col gap-4">
-        {/* Traditional budgeting -- flat, muted */}
-        <div className="rounded-[24px] border border-white/5 bg-white/[0.02] px-6 sm:px-9 py-8">
-          <div className="text-xs font-bold uppercase tracking-wider text-gray-600 mb-5">{traditionalLabel}</div>
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-3.5">
+      <div className="flex flex-col gap-5">
+        {/* Traditional budgeting -- flat, muted, deliberately smaller than
+            the panel below it so the contrast in scale does the work. */}
+        <div className="rounded-[24px] border border-white/5 bg-white/[0.015] px-6 sm:px-8 py-6">
+          <div className="text-xs font-bold uppercase tracking-wider text-gray-600 mb-4">{traditionalLabel}</div>
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
             {TRADITIONAL.map((step, i) => (
               <div key={step} className="flex items-center gap-3">
-                <span className="inline-flex items-center rounded-full border border-gray-700 px-5 py-2.5 text-base font-semibold text-gray-500">
+                <span className="inline-flex items-center rounded-full border border-gray-800 px-4 py-2 text-sm font-semibold text-gray-600">
                   {step}
                 </span>
-                {i < TRADITIONAL.length - 1 && <ArrowRight size={17} className="text-gray-700 shrink-0" />}
+                {i < TRADITIONAL.length - 1 && <ArrowRight size={15} className="text-gray-800 shrink-0" />}
               </div>
             ))}
-            <HelpCircle size={19} className="text-gray-700 shrink-0 ml-0.5" />
+            <HelpCircle size={17} className="text-gray-800 shrink-0 ml-0.5" />
           </div>
         </div>
 
-        {/* Paycheck Planner -- vibrant, dominant */}
-        <div className="rounded-[24px] border border-green-500/25 bg-gradient-to-br from-green-500/[0.08] to-transparent px-6 sm:px-9 py-9 sm:py-10 shadow-[0_24px_64px_rgba(34,197,94,0.08)]">
-          <div className="text-xs font-bold uppercase tracking-wider text-green-400 mb-6">{plannerLabel}</div>
-          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-4">
+        {/* Paycheck Planner -- the signature visual of the section. Aug 23
+            2026: given its own glow (matching the hero/payoff visual
+            language elsewhere on the page) and noticeably larger nodes so
+            this panel visually dominates rather than just out-coloring the
+            row above it. */}
+        <div className="relative rounded-[28px] border border-green-500/25 bg-gradient-to-br from-green-500/[0.1] to-transparent px-6 sm:px-10 py-10 sm:py-12 shadow-[0_30px_80px_rgba(34,197,94,0.1)] overflow-hidden">
+          <div className="pointer-events-none absolute -top-10 -right-10 w-[280px] h-[280px] rounded-full bg-green-500/15 blur-[90px]" aria-hidden="true" />
+          <div className="relative text-xs font-bold uppercase tracking-wider text-green-400 mb-7">{plannerLabel}</div>
+          <div className="relative flex flex-wrap items-center gap-x-3 gap-y-5">
             {PAYCHECK_PLANNER.map((step, i) => (
-              <div key={step.label} className="flex items-center gap-2.5">
-                <span className="inline-flex items-center gap-2 rounded-xl bg-white/[0.06] border border-white/10 px-5 py-3 text-base font-bold text-white">
-                  <step.icon size={16} className="text-green-400" />
+              <div key={step.label} className="flex items-center gap-3">
+                <span className="inline-flex items-center gap-2.5 rounded-2xl bg-white/[0.07] border border-white/10 px-6 py-4 text-lg font-bold text-white shadow-[0_8px_24px_rgba(0,0,0,0.25)]">
+                  <step.icon size={19} className="text-green-400" />
                   {step.label}
                 </span>
-                {i < PAYCHECK_PLANNER.length - 1 && <ArrowRight size={18} className="text-green-500/60 shrink-0" />}
+                {i < PAYCHECK_PLANNER.length - 1 && <ArrowRight size={20} className="text-green-500/60 shrink-0" />}
               </div>
             ))}
           </div>

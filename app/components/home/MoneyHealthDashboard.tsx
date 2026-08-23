@@ -66,22 +66,25 @@ export default function MoneyHealthDashboard({
             </div>
           </div>
 
-          {/* Metric tiles -- a real dashboard grid, each tile owning its own
-              indicator. Value is the dominant element in each tile, not the label. */}
-          <div className="grid sm:grid-cols-2 gap-4">
+          {/* Metric meters -- Aug 23 2026 rebuild: the four boxed tiles read
+              as another set of "small cards" (Vince's live-site feedback).
+              Replaced with full-width meter rows -- no borders, no boxes --
+              so this reads as one real dashboard gauge panel instead of a
+              grid of components. Each row still leads with its number. */}
+          <div className="flex flex-col gap-6 md:gap-7">
             {TILES.map((tile) => (
-              <div key={tile.key} className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-                <div className="flex items-center justify-between mb-3.5">
-                  <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wide text-gray-400">
-                    <tile.icon size={14} style={{ color: tile.color }} />
+              <div key={tile.key}>
+                <div className="flex items-center justify-between mb-2.5">
+                  <div className="flex items-center gap-2 text-sm font-bold text-gray-300">
+                    <tile.icon size={16} style={{ color: tile.color }} />
                     {tile.label}
                   </div>
+                  <div className="text-2xl font-extrabold tabular-nums" style={{ color: tile.color }}>
+                    {tile.display}
+                    <span className="text-sm text-gray-500 font-semibold">{tile.suffix}</span>
+                  </div>
                 </div>
-                <div className="text-3xl font-extrabold tabular-nums mb-3" style={{ color: tile.color }}>
-                  {tile.display}
-                  <span className="text-lg text-gray-500 font-semibold">{tile.suffix}</span>
-                </div>
-                <div className="bg-white/10 rounded-full h-2 overflow-hidden">
+                <div className="bg-white/10 rounded-full h-3.5 md:h-4 overflow-hidden">
                   <div className="h-full rounded-full" style={{ width: `${tile.value}%`, backgroundColor: tile.color }} />
                 </div>
               </div>
