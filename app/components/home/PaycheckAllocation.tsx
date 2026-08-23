@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { ArrowDown, Receipt, TrendingDown, PiggyBank, Wallet } from 'lucide-react'
 
@@ -28,27 +28,27 @@ export default function PaycheckAllocation({
   return (
     <section className="relative z-10 max-w-6xl mx-auto px-6 py-24 md:py-32">
       <div className="text-center max-w-2xl mx-auto mb-14 md:mb-16">
-        <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-3">{eyebrow}</div>
-        <h2 className="text-3xl md:text-[46px] font-extrabold leading-tight mb-4">{heading}</h2>
-        <p className="text-gray-300 text-[17px] leading-relaxed">{desc}</p>
+        <div className="text-sm font-bold uppercase tracking-wider text-green-500 mb-4">{eyebrow}</div>
+        <h2 className="text-[34px] md:text-[50px] font-extrabold leading-[1.05] mb-5">{heading}</h2>
+        <p className="text-gray-300 text-lg md:text-xl leading-relaxed">{desc}</p>
       </div>
 
       {/* Paycheck -> bar */}
-      <div className="flex flex-col items-center mb-2">
-        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-1.5">One Paycheck</div>
-        <div className="text-4xl sm:text-5xl font-extrabold tabular-nums mb-3">$2,450</div>
-        <ArrowDown size={18} className="text-gray-600 mb-5" />
+      <div className="flex flex-col items-center mb-3">
+        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">One Paycheck</div>
+        <div className="text-5xl sm:text-6xl font-extrabold tabular-nums mb-4">$2,450</div>
+        <ArrowDown size={20} className="text-gray-600 mb-6" />
       </div>
 
       {/* The bar -- this single element is the "wow" moment */}
-      <div className="rounded-2xl overflow-hidden flex h-16 sm:h-20 shadow-[0_20px_50px_rgba(0,0,0,0.35)] mb-3">
+      <div className="rounded-2xl overflow-hidden flex h-20 sm:h-24 shadow-[0_20px_50px_rgba(0,0,0,0.35)] mb-3">
         {SEGMENTS.map((s) => (
           <div
             key={s.key}
             className={`${s.bar} flex items-center justify-center relative`}
             style={{ width: `${s.pct}%` }}
           >
-            <span className="hidden sm:block text-[13px] md:text-base font-extrabold text-black/80 tabular-nums">
+            <span className="hidden sm:block text-lg md:text-xl font-extrabold text-black/80 tabular-nums">
               {s.pct}%
             </span>
           </div>
@@ -60,16 +60,16 @@ export default function PaycheckAllocation({
         ))}
       </div>
 
-      {/* Callouts, one per segment */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-8">
+      {/* Callouts, one per segment -- amount leads, label trails */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-x-6 gap-y-10">
         {SEGMENTS.map((s) => (
           <div key={s.key} className="flex flex-col items-center text-center">
-            <div className={`w-9 h-9 rounded-full ${s.soft} border border-white/10 flex items-center justify-center mb-3`}>
-              <s.icon size={15} className={s.text} />
+            <div className={`w-10 h-10 rounded-full ${s.soft} border border-white/10 flex items-center justify-center mb-3.5`}>
+              <s.icon size={16} className={s.text} />
             </div>
-            <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1">{s.label}</div>
-            <div className="text-xl sm:text-2xl font-extrabold tabular-nums">${s.amount.toLocaleString()}</div>
-            <div className={`text-xs font-semibold ${s.text} mt-0.5`}>{s.pct}% of paycheck</div>
+            <div className="text-2xl sm:text-[28px] font-extrabold tabular-nums leading-none">${s.amount.toLocaleString()}</div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 mt-2.5">{s.label}</div>
+            <div className={`text-sm font-semibold ${s.text} mt-0.5`}>{s.pct}% of paycheck</div>
           </div>
         ))}
       </div>

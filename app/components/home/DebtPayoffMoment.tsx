@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { Zap } from 'lucide-react'
 
@@ -23,21 +23,21 @@ export default function DebtPayoffMoment({
   return (
     <section className="relative z-10 max-w-5xl mx-auto px-6 py-24 md:py-32">
       <div className="text-center max-w-2xl mx-auto mb-14 md:mb-16">
-        <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-3">{eyebrow}</div>
-        <h2 className="text-3xl md:text-[46px] font-extrabold leading-tight mb-4">{heading}</h2>
-        <p className="text-gray-300 text-[17px] leading-relaxed">{desc}</p>
+        <div className="text-sm font-bold uppercase tracking-wider text-green-500 mb-4">{eyebrow}</div>
+        <h2 className="text-[34px] md:text-[50px] font-extrabold leading-[1.05] mb-5">{heading}</h2>
+        <p className="text-gray-300 text-lg md:text-xl leading-relaxed">{desc}</p>
       </div>
 
       {/* The dominant result */}
       <div className="text-center mb-16 md:mb-20">
-        <div className="inline-flex items-center gap-2 text-[13px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-4">
-          <Zap size={14} className="text-green-400" />
+        <div className="inline-flex items-center gap-2 text-sm font-bold uppercase tracking-[0.2em] text-gray-500 mb-5">
+          <Zap size={16} className="text-green-400" />
           Debt-free, sooner
         </div>
-        <div className="text-[72px] sm:text-[100px] md:text-[128px] leading-[0.9] font-extrabold tracking-tight bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
+        <div className="text-[80px] sm:text-[110px] md:text-[140px] leading-[0.9] font-extrabold tracking-tight bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
           7 Months
         </div>
-        <div className="text-2xl md:text-4xl font-extrabold text-gray-200 -mt-1 md:-mt-2">Sooner</div>
+        <div className="text-3xl md:text-5xl font-extrabold text-gray-200 -mt-1 md:-mt-2">Sooner</div>
       </div>
 
       {/* Two parallel timeline tracks */}
@@ -46,11 +46,11 @@ export default function DebtPayoffMoment({
           {/* Current path */}
           <div>
             <div className="flex items-center justify-between mb-3 gap-3">
-              <span className="inline-flex items-center gap-2 text-sm font-bold text-gray-400">
+              <span className="inline-flex items-center gap-2 text-base font-bold text-gray-400">
                 <span className="w-2 h-2 rounded-full bg-gray-500 shrink-0" />
                 Current Path
               </span>
-              <span className="text-sm font-extrabold tabular-nums text-gray-300">Oct 2029</span>
+              <span className="text-lg font-extrabold tabular-nums text-gray-300">Oct 2029</span>
             </div>
             <div className="relative h-2 rounded-full bg-white/5">
               <div className="absolute inset-y-0 left-0 rounded-full bg-gray-600" style={{ width: '100%' }} />
@@ -62,11 +62,11 @@ export default function DebtPayoffMoment({
           {/* Optimized plan -- visibly shorter, highlighted */}
           <div>
             <div className="flex items-center justify-between mb-3 gap-3">
-              <span className="inline-flex items-center gap-2 text-sm font-bold text-green-400">
+              <span className="inline-flex items-center gap-2 text-base font-bold text-green-400">
                 <span className="w-2 h-2 rounded-full bg-green-400 shrink-0" />
                 Optimized Plan
               </span>
-              <span className="text-sm font-extrabold tabular-nums text-green-400">March 2029</span>
+              <span className="text-lg font-extrabold tabular-nums text-green-400">March 2029</span>
             </div>
             <div className="relative h-2 rounded-full bg-white/5">
               <div
@@ -79,19 +79,19 @@ export default function DebtPayoffMoment({
           </div>
         </div>
 
-        {/* Supporting figures */}
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-5 sm:gap-8 mt-10 pt-8 border-t border-white/10">
+        {/* Supporting figures -- number leads, label trails underneath */}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 sm:gap-8 mt-10 pt-8 border-t border-white/10">
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Balance Today</div>
-            <div className="text-xl sm:text-2xl font-extrabold tabular-nums">$18,400</div>
+            <div className="text-2xl sm:text-[28px] font-extrabold tabular-nums leading-none">$18,400</div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 mt-2">Balance Today</div>
           </div>
           <div>
-            <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Interest Saved</div>
-            <div className="text-xl sm:text-2xl font-extrabold tabular-nums text-green-400">$2,150</div>
+            <div className="text-2xl sm:text-[28px] font-extrabold tabular-nums leading-none text-green-400">$2,150</div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 mt-2">Interest Saved</div>
           </div>
           <div className="col-span-2 sm:col-span-1">
-            <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">Debt-Free Date</div>
-            <div className="text-xl sm:text-2xl font-extrabold tabular-nums text-green-400">March 2029</div>
+            <div className="text-2xl sm:text-[28px] font-extrabold tabular-nums leading-none text-green-400">March 2029</div>
+            <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500 mt-2">Debt-Free Date</div>
           </div>
         </div>
       </div>

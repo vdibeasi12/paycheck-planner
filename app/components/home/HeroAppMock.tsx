@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { Receipt, TrendingDown, PiggyBank, Wallet, Bell, ChevronRight, Sparkles } from 'lucide-react'
 
@@ -50,21 +50,24 @@ export default function HeroAppMock({ nextPaycheckLabel }: { nextPaycheckLabel: 
         </div>
 
         <div className="px-5 sm:px-7 pt-5 pb-6">
-          {/* Next paycheck -- the single dominant figure */}
-          <div className="flex items-start justify-between gap-4 mb-6">
+          {/* Next paycheck -- the single dominant figure. Number leads,
+              label trails underneath it (not the other way around) so the
+              money is what the eye hits first. */}
+          <div className="flex items-start justify-between gap-4 mb-7">
             <div>
-              <div className="text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-1.5">Next Paycheck</div>
-              <div className="text-[44px] sm:text-[52px] leading-none font-extrabold tabular-nums">$2,450</div>
-              <div className="text-xs text-gray-500 mt-2">{nextPaycheckLabel}</div>
+              <div className="text-[52px] sm:text-[60px] leading-none font-extrabold tabular-nums">$2,450</div>
+              <div className="text-[13px] font-bold uppercase tracking-wider text-gray-500 mt-2.5">Next Paycheck</div>
+              <div className="text-xs text-gray-500 mt-1">{nextPaycheckLabel}</div>
             </div>
-            <div className="inline-flex items-center gap-1.5 rounded-full bg-green-500/10 border border-green-500/30 px-2.5 py-1 text-[11px] font-semibold text-green-400 shrink-0 mt-1">
+            <div className="inline-flex items-center gap-1.5 rounded-full bg-green-500/10 border border-green-500/30 px-3 py-1.5 text-xs font-semibold text-green-400 shrink-0 mt-2">
               <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
               On track
             </div>
           </div>
 
-          {/* 2x2 allocation grid -- each figure is its own tile, not a row */}
-          <div className="grid grid-cols-2 gap-2.5 mb-5">
+          {/* 2x2 allocation grid -- each figure is its own tile, not a row.
+              Value leads (big), label trails (small) in every tile. */}
+          <div className="grid grid-cols-2 gap-3 mb-5">
             {[
               { label: 'Bills', value: '$1,180', icon: Receipt, color: 'text-blue-400' },
               { label: 'Debt Payment', value: '$450', icon: TrendingDown, color: 'text-green-400' },
@@ -73,42 +76,43 @@ export default function HeroAppMock({ nextPaycheckLabel }: { nextPaycheckLabel: 
             ].map((s) => (
               <div
                 key={s.label}
-                className={`rounded-xl px-3.5 py-3 border ${
+                className={`rounded-xl px-4 py-3.5 border ${
                   s.highlight ? 'bg-green-500/10 border-green-500/30' : 'bg-white/[0.03] border-white/10'
                 }`}
               >
-                <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">
-                  <s.icon size={11} className={s.color} />
+                <div className={`text-2xl sm:text-[28px] font-extrabold tabular-nums leading-none ${s.highlight ? 'text-green-400' : 'text-white'}`}>{s.value}</div>
+                <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-gray-500 mt-2">
+                  <s.icon size={12} className={s.color} />
                   {s.label}
                 </div>
-                <div className={`text-lg font-extrabold tabular-nums ${s.highlight ? 'text-green-400' : 'text-white'}`}>{s.value}</div>
               </div>
             ))}
           </div>
 
-          {/* Money score + debt progress side by side */}
-          <div className="grid grid-cols-2 gap-2.5 mb-5">
-            <div className="rounded-xl px-3.5 py-3 border border-white/10 bg-white/[0.03] flex items-center gap-3">
+          {/* Money score + debt progress side by side -- both lead with
+              their number, not their label. */}
+          <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="rounded-xl px-4 py-3.5 border border-white/10 bg-white/[0.03] flex items-center gap-3.5">
               <div
-                className="relative w-11 h-11 rounded-full flex items-center justify-center shrink-0"
+                className="relative w-14 h-14 rounded-full flex items-center justify-center shrink-0"
                 style={{ background: 'conic-gradient(#22c55e 0% 78%, rgba(255,255,255,0.1) 78% 100%)' }}
               >
-                <div className="w-8 h-8 rounded-full bg-[#0b1220] flex items-center justify-center text-[13px] font-extrabold tabular-nums">78</div>
+                <div className="w-10 h-10 rounded-full bg-[#0b1220] flex items-center justify-center text-lg font-extrabold tabular-nums">78</div>
               </div>
               <div>
-                <div className="text-[10px] font-bold uppercase tracking-wide text-gray-500">Money Score</div>
-                <div className="text-[11px] font-semibold text-green-400">Good &uarr;</div>
+                <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Money Score</div>
+                <div className="text-sm font-semibold text-green-400">Good &uarr;</div>
               </div>
             </div>
-            <div className="rounded-xl px-3.5 py-3 border border-white/10 bg-white/[0.03]">
-              <div className="flex items-center justify-between text-[10px] font-bold uppercase tracking-wide text-gray-500 mb-1.5">
-                <span>Debt Progress</span>
-                <span className="text-gray-300 tabular-nums">68%</span>
+            <div className="rounded-xl px-4 py-3.5 border border-white/10 bg-white/[0.03]">
+              <div className="flex items-baseline justify-between mb-1.5">
+                <span className="text-2xl font-extrabold tabular-nums text-white">68%</span>
+                <span className="text-[10px] text-gray-500">$6,120 left</span>
               </div>
               <div className="bg-white/10 rounded-full h-1.5 overflow-hidden mb-1.5">
                 <div className="bg-gradient-to-r from-green-500 to-green-400 h-full rounded-full" style={{ width: '68%' }} />
               </div>
-              <div className="text-[10px] text-gray-500">$6,120 left</div>
+              <div className="text-[11px] font-bold uppercase tracking-wide text-gray-500">Debt Progress</div>
             </div>
           </div>
 
@@ -123,7 +127,7 @@ export default function HeroAppMock({ nextPaycheckLabel }: { nextPaycheckLabel: 
                 { label: 'Rent', date: 'Aug 29' },
                 { label: 'Car payment', date: 'Sep 2' },
               ].map((o) => (
-                <div key={o.label} className="flex items-center justify-between text-[12px]">
+                <div key={o.label} className="flex items-center justify-between text-sm">
                   <span className="text-gray-300">{o.label}</span>
                   <span className="text-gray-500 tabular-nums">{o.date}</span>
                 </div>

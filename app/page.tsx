@@ -1,8 +1,8 @@
-﻿'use client'
+'use client'
 
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, Smartphone, Receipt, TrendingDown, PiggyBank, Home, Calendar, User } from 'lucide-react'
+import { CheckCircle2, Smartphone, Receipt, TrendingDown, PiggyBank, Home, Calendar, User, Sparkles, BarChart3, Trophy, ArrowLeftRight } from 'lucide-react'
 import MemberMilestone from './components/MemberMilestone'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { trackCta } from '@/lib/trackClient'
@@ -104,12 +104,12 @@ export default function HomePage() {
   }
 
   const features = [
-    { title: t('home.feature1Title'), desc: t('home.feature1Desc') },
-    { title: t('home.feature2Title'), desc: t('home.feature2Desc') },
-    { title: t('home.feature3Title'), desc: t('home.feature3Desc') },
-    { title: t('home.feature4Title'), desc: t('home.feature4Desc') },
-    { title: t('home.feature5Title'), desc: t('home.feature5Desc') },
-    { title: t('home.feature6Title'), desc: t('home.feature6Desc') },
+    { title: t('home.feature1Title'), desc: t('home.feature1Desc'), icon: TrendingDown },
+    { title: t('home.feature2Title'), desc: t('home.feature2Desc'), icon: Receipt },
+    { title: t('home.feature3Title'), desc: t('home.feature3Desc'), icon: Trophy },
+    { title: t('home.feature4Title'), desc: t('home.feature4Desc'), icon: Sparkles },
+    { title: t('home.feature5Title'), desc: t('home.feature5Desc'), icon: BarChart3 },
+    { title: t('home.feature6Title'), desc: t('home.feature6Desc'), icon: ArrowLeftRight },
   ]
 
   // Illustrative sample data for the hero/showcase visuals below -- these are
@@ -153,31 +153,31 @@ export default function HomePage() {
       <section className="relative z-10 max-w-7xl mx-auto px-6 pt-20 pb-24 md:pt-28 md:pb-32">
         <div className="grid md:grid-cols-[1fr_1.15fr] gap-14 lg:gap-20 items-center">
           <div>
-            <h1 className="text-4xl md:text-[64px] font-extrabold mb-6 leading-[1.05] tracking-tight max-w-[560px]">
+            <h1 className="text-[44px] md:text-[72px] font-extrabold mb-7 leading-[0.98] tracking-tight max-w-[720px]">
               {t('home.heroPrefix')}<br />
               <span className="text-green-500">{t('home.heroHighlight')}</span>{t('home.heroSuffix')}
             </h1>
-            <p className="text-base md:text-[18px] text-gray-300 mb-9 leading-relaxed max-w-[480px]">
+            <p className="text-lg md:text-[22px] text-gray-300 mb-9 leading-[1.5] max-w-[640px]">
               {t('home.heroSubtitle')}
             </p>
-            <div className="flex flex-wrap gap-4 mb-6">
+            <div className="flex flex-wrap gap-4 mb-7">
               <Link
                 href="/signup"
                 onClick={() => trackCta('get_started_hero')}
-                className="bg-green-500 hover:bg-green-600 text-black font-bold px-8 py-4 rounded-xl text-base transition"
+                className="bg-green-500 hover:bg-green-600 text-black font-bold px-9 py-5 rounded-xl text-[17px] transition"
               >
                 {t('home.ctaStartFree')}
               </Link>
               <Link
                 href="#how-it-works"
                 onClick={() => trackCta('see_how_it_works_hero')}
-                className="border border-gray-700 text-white hover:border-gray-500 font-bold px-8 py-4 rounded-xl text-base transition"
+                className="border border-gray-700 text-white hover:border-gray-500 font-bold px-9 py-5 rounded-xl text-[17px] transition"
               >
                 {t('home.ctaSeeHowItWorks')}
               </Link>
             </div>
-            <div className="flex items-center gap-2 text-sm text-gray-500">
-              <CheckCircle2 size={15} className="text-green-500/70 shrink-0" />
+            <div className="flex items-center gap-2 text-base text-gray-500">
+              <CheckCircle2 size={17} className="text-green-500/70 shrink-0" />
               {t('home.heroTrust')}
             </div>
           </div>
@@ -210,8 +210,8 @@ export default function HomePage() {
       {/* How It Works -- new section; the product's whole value prop in three steps */}
       <section id="how-it-works" className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-32">
         <div className="text-center max-w-xl mx-auto mb-16">
-          <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-3">{t('home.howItWorksEyebrow')}</div>
-          <h2 className="text-3xl md:text-[46px] font-extrabold leading-tight">{t('home.howItWorksHeading')}</h2>
+          <div className="text-sm font-bold uppercase tracking-wider text-green-500 mb-4">{t('home.howItWorksEyebrow')}</div>
+          <h2 className="text-[34px] md:text-[50px] font-extrabold leading-[1.05]">{t('home.howItWorksHeading')}</h2>
         </div>
         {/* Aug 2026 visual pass: a hairline connector behind the step numbers
             ties the three steps into one flow on desktop -- subtle, not a
@@ -225,8 +225,8 @@ export default function HomePage() {
           ].map((s) => (
             <div key={s.n} className="relative text-center px-3">
               <div className="inline-block bg-[#020617] px-2 text-xs font-semibold text-gray-500 mb-3 tracking-wide">{s.n}</div>
-              <h3 className="text-2xl font-extrabold mb-2">{s.title}</h3>
-              <p className="text-gray-400 text-[15px] leading-relaxed">{s.desc}</p>
+              <h3 className="text-2xl md:text-[28px] font-extrabold mb-3">{s.title}</h3>
+              <p className="text-gray-400 text-base leading-relaxed">{s.desc}</p>
             </div>
           ))}
         </div>
@@ -248,20 +248,27 @@ export default function HomePage() {
         plannerLabel={t('home.diffPlannerLabel')}
       />
 
-      {/* Features Grid -- deliberately quiet per Vince's Aug 23 2026
-          feedback: the showcase above already demonstrated the three real
-          products (planning, payoff, progress), so this list reads as
-          supporting capabilities in an appendix, not a fourth "here's what
-          we built" pitch. No cards, no descriptions, no icon badges --
-          just a compact checklist at a fraction of the showcase's visual
-          weight. */}
-      <section className="relative z-10 max-w-4xl mx-auto px-6 py-16 md:py-20">
-        <div className="text-xs font-bold uppercase tracking-wider text-gray-500 text-center mb-9">{t('home.featuresHeading')}</div>
-        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-x-10 gap-y-4">
+      {/* Features Grid -- Aug 2026 typography pass: this used to be a
+          deliberately quiet 14px checklist (the showcase sections above
+          already carry the "wow" moments). Vince's feedback was that it
+          made real product capabilities functionally invisible, so it's
+          now an actual visual showcase -- icon chips + real heading sizes --
+          while staying visually lighter than the major sections above it. */}
+      <section className="relative z-10 max-w-6xl mx-auto px-6 py-20 md:py-24">
+        <div className="text-center max-w-xl mx-auto mb-14">
+          <h2 className="text-[28px] md:text-[36px] font-extrabold leading-tight mb-3">{t('home.featuresHeading')}</h2>
+          <p className="text-gray-400 text-lg">{t('home.featuresSubheading')}</p>
+        </div>
+        <div className="grid sm:grid-cols-2 md:grid-cols-3 gap-6">
           {features.map((f, i) => (
-            <div key={i} className="flex items-start gap-2.5">
-              <CheckCircle2 className="text-green-500/70 mt-0.5 shrink-0" size={15} />
-              <span className="text-gray-400 text-sm leading-snug">{f.title}</span>
+            <div key={i} className="rounded-2xl border border-white/10 bg-white/[0.02] p-5 flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center shrink-0">
+                <f.icon className="text-green-400" size={18} />
+              </div>
+              <div>
+                <div className="text-white font-bold text-lg leading-snug mb-1">{f.title}</div>
+                <div className="text-gray-400 text-[15px] leading-snug">{f.desc}</div>
+              </div>
             </div>
           ))}
         </div>
@@ -279,9 +286,9 @@ export default function HomePage() {
             <div className="w-10 h-10 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-5">
               <Smartphone size={18} className="text-green-400" />
             </div>
-            <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-3">{t('home.mobileEyebrow')}</div>
-            <h2 className="text-3xl md:text-4xl font-extrabold mb-4">{t('home.mobileHeading')}</h2>
-            <p className="text-gray-300 text-[17px] mb-7 max-w-[440px]">{t('home.mobileDesc')}</p>
+            <div className="text-sm font-bold uppercase tracking-wider text-green-500 mb-4">{t('home.mobileEyebrow')}</div>
+            <h2 className="text-[30px] md:text-[42px] font-extrabold mb-4 leading-tight">{t('home.mobileHeading')}</h2>
+            <p className="text-gray-300 text-lg mb-7 max-w-[440px]">{t('home.mobileDesc')}</p>
             <div className="flex flex-wrap gap-3.5">
               <a
                 href="https://play.google.com/store/apps/details?id=com.dibeasi.paycheckplanner"
@@ -347,13 +354,13 @@ export default function HomePage() {
       {/* Final CTA */}
       <section className="relative z-10 border-t border-gray-800 py-24 md:py-32" style={{ background: 'linear-gradient(180deg, transparent, rgba(34,197,94,0.08))' }}>
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-4">{t('home.ctaEyebrow')}</div>
-          <h2 className="text-3xl md:text-[40px] font-extrabold mb-4 leading-tight">{t('home.ctaHeading')}</h2>
-          <p className="text-gray-400 text-base mb-9">{t('home.ctaSubtitle')}</p>
+          <div className="text-sm font-bold uppercase tracking-wider text-green-500 mb-4">{t('home.ctaEyebrow')}</div>
+          <h2 className="text-[34px] md:text-[48px] font-extrabold mb-5 leading-[1.05]">{t('home.ctaHeading')}</h2>
+          <p className="text-gray-400 text-lg mb-9">{t('home.ctaSubtitle')}</p>
           <Link
             href="/signup"
             onClick={() => trackCta('get_started_bottom')}
-            className="inline-block bg-green-500 hover:bg-green-600 text-black font-bold px-9 py-4 rounded-xl text-base transition"
+            className="inline-block bg-green-500 hover:bg-green-600 text-black font-bold px-9 py-5 rounded-xl text-[17px] transition"
           >
             {t('home.ctaStartFree')}
           </Link>
