@@ -6,6 +6,23 @@ module.exports = {
   ],
   theme: {
     extend: {
+      // Point Tailwind's own `font-sans` utility at the Plus Jakarta Sans
+      // variable (set on <body> in app/layout.tsx) instead of Tailwind's
+      // default system-font stack. Defensive: nothing currently uses the
+      // `font-sans` class, but if anything ever does, this keeps it from
+      // silently overriding the site font.
+      fontFamily: {
+        sans: [
+          "var(--font-sans)",
+          "-apple-system",
+          "BlinkMacSystemFont",
+          "Segoe UI",
+          "Roboto",
+          "Helvetica",
+          "Arial",
+          "sans-serif",
+        ],
+      },
       // Shave every bold-ish weight down a notch app-wide so headings/labels
       // read lighter against the dark background, without flattening the
       // hierarchy between font-medium/semibold/bold/extrabold. Touches every

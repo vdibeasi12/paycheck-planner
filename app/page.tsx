@@ -124,9 +124,24 @@ export default function HomePage() {
   }, [])
 
   return (
-    <main className="min-h-screen bg-[#020617] text-white">
+    <main className="min-h-screen bg-[#020617] text-white relative overflow-hidden">
+      {/* Ambient full-bleed background glow -- Vince's Aug 23 2026 feedback:
+          the page felt "blank on both sides" on wide screens because every
+          section is a centered max-w column against flat black with nothing
+          filling the margins. These are large, softly blurred color blobs
+          pinned to the far edges of the viewport (not the content column),
+          so wide monitors get ambient light in the gutters instead of empty
+          black, while the readable content width is untouched. Purely
+          decorative -- pointer-events-none, sits behind everything (z-0). */}
+      <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
+        <div className="absolute -left-[10%] top-[-5%] w-[600px] h-[600px] rounded-full bg-green-500/10 blur-[140px]" />
+        <div className="absolute -right-[10%] top-[15%] w-[560px] h-[560px] rounded-full bg-blue-500/10 blur-[140px]" />
+        <div className="absolute -left-[8%] top-[60%] w-[500px] h-[500px] rounded-full bg-emerald-500/10 blur-[140px]" />
+        <div className="absolute -right-[8%] top-[85%] w-[500px] h-[500px] rounded-full bg-green-500/10 blur-[140px]" />
+      </div>
+
       {/* Hero Section */}
-      <section className="max-w-6xl mx-auto px-6 py-24 md:py-32">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-32">
         <div className="grid md:grid-cols-2 gap-16 items-center">
           <div>
             <h1 className="text-4xl md:text-[60px] font-extrabold mb-6 leading-[1.08] tracking-tight max-w-[700px]">
@@ -199,7 +214,7 @@ export default function HomePage() {
       </section>
 
       {/* Value props -- what the product actually does, not generic marketing stats */}
-      <section className="max-w-6xl mx-auto px-6 pb-20">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 pb-20">
         <div className="grid md:grid-cols-3 gap-7">
           <div className="border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8">
             <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-2">{t('home.valuePlanEyebrow')}</div>
@@ -226,7 +241,7 @@ export default function HomePage() {
           page per the Aug 23 2026 redesign: it's a low-commitment top-of-
           funnel tool (no account needed), so it earns a place right after
           the hero instead of being buried below the feature grid. */}
-      <section className="max-w-6xl mx-auto px-6 py-16">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-16">
         <div className="rounded-[20px] border border-white/10 p-10 md:p-14 grid md:grid-cols-[1fr_auto] gap-12 items-center"
              style={{ background: 'linear-gradient(135deg, rgba(34,197,94,0.12), transparent 60%)' }}>
           <div>
@@ -256,7 +271,7 @@ export default function HomePage() {
       </section>
 
       {/* How It Works -- new section; the product's whole value prop in three steps */}
-      <section id="how-it-works" className="max-w-6xl mx-auto px-6 py-24 md:py-28">
+      <section id="how-it-works" className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-28">
         <div className="text-center max-w-xl mx-auto mb-16">
           <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-3">{t('home.howItWorksEyebrow')}</div>
           <h2 className="text-3xl md:text-[42px] font-extrabold leading-tight">{t('home.howItWorksHeading')}</h2>
@@ -279,7 +294,7 @@ export default function HomePage() {
       {/* Product Showcase -- three large alternating sections, replacing the
           old flat 6-card feature grid as the primary "show, don't tell" beat.
           The six smaller feature cards still exist further down. */}
-      <section className="max-w-6xl mx-auto px-6 py-24 md:py-28">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-28">
         <h2 className="text-3xl md:text-[42px] font-extrabold text-center mb-20">{t('home.showcaseHeading')}</h2>
 
         <div className="grid md:grid-cols-2 gap-16 items-center">
@@ -360,7 +375,7 @@ export default function HomePage() {
       </section>
 
       {/* Features Grid -- kept, demoted below the showcase per the redesign */}
-      <section className="max-w-6xl mx-auto px-6 py-24 md:py-28">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-28">
         <h2 className="text-3xl md:text-[42px] font-extrabold text-center mb-3">{t('home.featuresHeading')}</h2>
         <p className="text-center text-gray-400 text-lg mb-14">{t('home.featuresSubheading')}</p>
         <div className="grid md:grid-cols-3 gap-6">
@@ -377,7 +392,7 @@ export default function HomePage() {
       {/* Mobile App -- more prominent standalone section per the redesign;
           Footer.tsx also has a compact version of this (Google Play badge +
           QR code) that appears on every page -- left as-is for now. */}
-      <section className="max-w-6xl mx-auto px-6 py-20">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-20">
         <div className="grid md:grid-cols-2 gap-16 items-center">
           <div>
             <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-3">{t('home.mobileEyebrow')}</div>
@@ -415,7 +430,7 @@ export default function HomePage() {
       </section>
 
       {/* Final CTA */}
-      <section className="border-t border-gray-800 py-24 md:py-28" style={{ background: 'linear-gradient(180deg, transparent, rgba(34,197,94,0.08))' }}>
+      <section className="relative z-10 border-t border-gray-800 py-24 md:py-28" style={{ background: 'linear-gradient(180deg, transparent, rgba(34,197,94,0.08))' }}>
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-3xl md:text-[40px] font-extrabold mb-9 leading-tight">{t('home.ctaHeading')}</h2>
           <Link
