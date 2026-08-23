@@ -58,7 +58,7 @@ export default function MemberMilestone() {
   const pct = count !== null ? Math.min(100, Math.round((count / goal) * 100)) : 0
 
   return (
-    <section className="relative z-10 max-w-7xl mx-auto px-6 py-12">
+    <section className="relative z-10 max-w-7xl mx-auto px-6 py-20 md:py-24">
       <div className="rounded-2xl border border-gray-700 bg-gradient-to-r from-green-500/10 to-blue-500/10 px-8 py-10 text-center">
         {count === null ? (
           // Skeleton placeholder instead of a bare "Loading..." string --

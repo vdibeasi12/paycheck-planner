@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, Smartphone, Receipt, TrendingDown, PiggyBank } from 'lucide-react'
+import { CheckCircle2, Smartphone, Receipt, TrendingDown, PiggyBank, Wallet, LineChart, Home, Calendar, User } from 'lucide-react'
 import MemberMilestone from './components/MemberMilestone'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { trackCta } from '@/lib/trackClient'
@@ -141,14 +141,14 @@ export default function HomePage() {
       </div>
 
       {/* Hero Section */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-32">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-28 md:py-32">
         <div className="grid md:grid-cols-2 gap-16 items-center">
           <div>
             <h1 className="text-4xl md:text-[60px] font-extrabold mb-6 leading-[1.08] tracking-tight max-w-[700px]">
               {t('home.heroPrefix')}<br />
               <span className="text-green-500">{t('home.heroHighlight')}</span>{t('home.heroSuffix')}
             </h1>
-            <p className="text-lg md:text-[19px] text-gray-300 mb-9 leading-relaxed max-w-[560px]">
+            <p className="text-base md:text-[18px] text-gray-300 mb-9 leading-relaxed max-w-[620px]">
               {t('home.heroSubtitle')}
             </p>
             <div className="flex flex-wrap gap-4">
@@ -176,7 +176,7 @@ export default function HomePage() {
               on-track indicator, and the numbers that matter (Available,
               progress %) pulled up to their own visual weight instead of
               matching the supporting rows. */}
-          <div className="bg-[#0f172a] border border-gray-700 rounded-[20px] p-8 shadow-[0_16px_50px_rgba(0,0,0,0.45)]">
+          <div className="bg-[#0f172a] border border-gray-700 rounded-[20px] p-8 shadow-[0_8px_24px_rgba(0,0,0,0.25)]">
             <div className="flex items-center justify-between mb-2">
               <div className="text-xs font-bold uppercase tracking-wider text-gray-400">{t('home.dashLabel')}</div>
               <div className="inline-flex items-center gap-1.5 rounded-full bg-green-500/10 border border-green-500/30 px-2.5 py-1 text-[11px] font-semibold text-green-400">
@@ -213,22 +213,34 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Value props -- what the product actually does, not generic marketing stats */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 pb-20">
+      {/* Value props -- what the product actually does, not generic marketing stats.
+          Aug 2026 "10/10 visual redesign" pass: added consistent icon badges and a
+          subtle hover state per Vince's explicit ask ("consistent icons... subtle
+          hover states... keep them clean" -- not giant colorful cards). */}
+      <section className="relative z-10 max-w-7xl mx-auto px-6 pb-24 md:pb-28">
         <div className="grid md:grid-cols-3 gap-7">
-          <div className="border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8">
+          <div className="border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8 transition hover:border-green-500/30 hover:-translate-y-0.5">
+            <div className="w-10 h-10 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-5">
+              <Wallet size={18} className="text-green-400" />
+            </div>
             <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-2">{t('home.valuePlanEyebrow')}</div>
-            <h3 className="text-xl font-bold mb-2">{t('home.statPayoffTitle')}</h3>
+            <h3 className="text-2xl font-bold mb-2">{t('home.statPayoffTitle')}</h3>
             <p className="text-gray-400 text-[15px] leading-relaxed">{t('home.statPayoffDesc')}</p>
           </div>
-          <div className="border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8">
+          <div className="border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8 transition hover:border-green-500/30 hover:-translate-y-0.5">
+            <div className="w-10 h-10 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-5">
+              <TrendingDown size={18} className="text-green-400" />
+            </div>
             <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-2">{t('home.valuePayoffEyebrow')}</div>
-            <h3 className="text-xl font-bold mb-2">{t('home.statAiTitle')}</h3>
+            <h3 className="text-2xl font-bold mb-2">{t('home.statAiTitle')}</h3>
             <p className="text-gray-400 text-[15px] leading-relaxed">{t('home.statAiDesc')}</p>
           </div>
-          <div className="border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8">
+          <div className="border border-white/10 bg-[#0f172a]/60 rounded-2xl p-8 transition hover:border-green-500/30 hover:-translate-y-0.5">
+            <div className="w-10 h-10 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-5">
+              <LineChart size={18} className="text-green-400" />
+            </div>
             <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-2">{t('home.valueSeeEyebrow')}</div>
-            <h3 className="text-xl font-bold mb-2">{t('home.statInsightsTitle')}</h3>
+            <h3 className="text-2xl font-bold mb-2">{t('home.statInsightsTitle')}</h3>
             <p className="text-gray-400 text-[15px] leading-relaxed">{t('home.statInsightsDesc')}</p>
           </div>
         </div>
@@ -241,11 +253,11 @@ export default function HomePage() {
           page per the Aug 23 2026 redesign: it's a low-commitment top-of-
           funnel tool (no account needed), so it earns a place right after
           the hero instead of being buried below the feature grid. */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-16">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-20 md:py-28">
         <div className="rounded-[20px] border border-white/10 p-10 md:p-14 grid md:grid-cols-[1fr_auto] gap-12 items-center"
              style={{ background: 'linear-gradient(135deg, rgba(34,197,94,0.12), transparent 60%)' }}>
           <div>
-            <h2 className="text-3xl md:text-[34px] font-extrabold mb-4">{t('home.moneyScoreHeading')}</h2>
+            <h2 className="text-3xl md:text-[42px] font-extrabold mb-4 leading-tight">{t('home.moneyScoreHeading')}</h2>
             <p className="text-gray-300 text-[17px] leading-relaxed max-w-[480px] mb-7">{t('home.moneyScoreDesc')}</p>
             <Link
               href="/money-score"
@@ -304,19 +316,23 @@ export default function HomePage() {
       </section>
 
       {/* How It Works -- new section; the product's whole value prop in three steps */}
-      <section id="how-it-works" className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-28">
+      <section id="how-it-works" className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-32">
         <div className="text-center max-w-xl mx-auto mb-16">
           <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-3">{t('home.howItWorksEyebrow')}</div>
           <h2 className="text-3xl md:text-[42px] font-extrabold leading-tight">{t('home.howItWorksHeading')}</h2>
         </div>
-        <div className="grid md:grid-cols-3 gap-10">
+        {/* Aug 2026 visual pass: a hairline connector behind the step numbers
+            ties the three steps into one flow on desktop -- subtle, not a
+            decorative graphic. Hidden on mobile where steps stack vertically. */}
+        <div className="relative grid md:grid-cols-3 gap-10">
+          <div className="hidden md:block absolute top-[7px] left-[16.5%] right-[16.5%] h-px bg-white/10" aria-hidden="true" />
           {[
             { n: '01', title: t('home.step1Title'), desc: t('home.step1Desc') },
             { n: '02', title: t('home.step2Title'), desc: t('home.step2Desc') },
             { n: '03', title: t('home.step3Title'), desc: t('home.step3Desc') },
           ].map((s) => (
-            <div key={s.n} className="text-center px-3">
-              <div className="text-xs font-semibold text-gray-500 mb-3 tracking-wide">{s.n}</div>
+            <div key={s.n} className="relative text-center px-3">
+              <div className="inline-block bg-[#020617] px-2 text-xs font-semibold text-gray-500 mb-3 tracking-wide">{s.n}</div>
               <h3 className="text-2xl font-extrabold mb-2">{s.title}</h3>
               <p className="text-gray-400 text-[15px] leading-relaxed">{s.desc}</p>
             </div>
@@ -327,7 +343,7 @@ export default function HomePage() {
       {/* Product Showcase -- three large alternating sections, replacing the
           old flat 6-card feature grid as the primary "show, don't tell" beat.
           The six smaller feature cards still exist further down. */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-28">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-32">
         <h2 className="text-3xl md:text-[42px] font-extrabold text-center mb-20">{t('home.showcaseHeading')}</h2>
 
         <div className="grid md:grid-cols-2 gap-16 items-center">
@@ -336,7 +352,7 @@ export default function HomePage() {
             <h3 className="text-2xl md:text-[32px] font-extrabold mb-4">{t('home.showcase1Title')}</h3>
             <p className="text-gray-300 text-[17px] leading-relaxed max-w-[420px]">{t('home.showcase1Desc')}</p>
           </div>
-          <div className="bg-[#0f172a] border border-gray-700 rounded-2xl p-8 shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+          <div className="bg-[#0f172a] border border-gray-700 rounded-2xl p-8 shadow-[0_6px_20px_rgba(0,0,0,0.18)]">
             <div className="grid grid-cols-7 gap-2 mb-5">
               {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
                 <div
@@ -361,7 +377,7 @@ export default function HomePage() {
             <h3 className="text-2xl md:text-[32px] font-extrabold mb-4">{t('home.showcase2Title')}</h3>
             <p className="text-gray-300 text-[17px] leading-relaxed max-w-[420px]">{t('home.showcase2Desc')}</p>
           </div>
-          <div className="md:order-1 bg-[#0f172a] border border-gray-700 rounded-2xl p-8 shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+          <div className="md:order-1 bg-[#0f172a] border border-gray-700 rounded-2xl p-8 shadow-[0_6px_20px_rgba(0,0,0,0.18)]">
             <div className="flex gap-5 text-xs text-gray-400 mb-4">
               <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-green-500 inline-block" />Avalanche</span>
               <span className="inline-flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-blue-500 inline-block" />Snowball</span>
@@ -375,7 +391,7 @@ export default function HomePage() {
                 2026 feedback: "you're selling answers, not data." */}
             <div className="text-xs text-gray-400 mt-5">Avalanche strategy debt-free date</div>
             <div className="text-2xl font-extrabold mt-0.5">March 2029</div>
-            <div className="text-sm font-bold text-green-400 mt-1">7 months sooner than Snowball</div>
+            <div className="text-base font-bold text-green-400 mt-1.5">7 months sooner than Snowball</div>
           </div>
         </div>
 
@@ -385,7 +401,7 @@ export default function HomePage() {
             <h3 className="text-2xl md:text-[32px] font-extrabold mb-4">{t('home.showcase3Title')}</h3>
             <p className="text-gray-300 text-[17px] leading-relaxed max-w-[420px]">{t('home.showcase3Desc')}</p>
           </div>
-          <div className="bg-[#0f172a] border border-gray-700 rounded-2xl p-8 shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
+          <div className="bg-[#0f172a] border border-gray-700 rounded-2xl p-8 shadow-[0_6px_20px_rgba(0,0,0,0.18)]">
             <div className="flex items-center gap-6">
               <div
                 className="w-[100px] h-[100px] rounded-full flex items-center justify-center shrink-0"
@@ -408,15 +424,17 @@ export default function HomePage() {
       </section>
 
       {/* Features Grid -- kept, demoted below the showcase per the redesign */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-28">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-32">
         <h2 className="text-3xl md:text-[42px] font-extrabold text-center mb-3">{t('home.featuresHeading')}</h2>
         <p className="text-center text-gray-400 text-lg mb-14">{t('home.featuresSubheading')}</p>
-        <div className="grid md:grid-cols-3 gap-6">
+        {/* Aug 2026 visual pass: intentionally smaller/quieter than the product
+            showcase above -- supporting capabilities, not the primary pitch. */}
+        <div className="grid md:grid-cols-3 gap-5">
           {features.map((f, i) => (
-            <div key={i} className="border border-gray-700 rounded-2xl p-7 hover:border-green-500 transition bg-[#0f172a]/50">
-              <CheckCircle2 className="text-green-500 mb-3" size={24} />
-              <h3 className="font-bold text-lg mb-2">{f.title}</h3>
-              <p className="text-gray-400 text-[15px]">{f.desc}</p>
+            <div key={i} className="border border-gray-700 rounded-2xl p-6 hover:border-green-500/60 transition bg-[#0f172a]/50">
+              <CheckCircle2 className="text-green-500 mb-2.5" size={20} />
+              <h3 className="font-bold text-base mb-1.5">{f.title}</h3>
+              <p className="text-gray-400 text-sm">{f.desc}</p>
             </div>
           ))}
         </div>
@@ -425,9 +443,12 @@ export default function HomePage() {
       {/* Mobile App -- more prominent standalone section per the redesign;
           Footer.tsx also has a compact version of this (Google Play badge +
           QR code) that appears on every page -- left as-is for now. */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-20">
+      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-32">
         <div className="grid md:grid-cols-2 gap-16 items-center">
           <div>
+            <div className="w-10 h-10 rounded-lg bg-green-500/10 border border-green-500/20 flex items-center justify-center mb-5">
+              <Smartphone size={18} className="text-green-400" />
+            </div>
             <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-3">{t('home.mobileEyebrow')}</div>
             <h2 className="text-3xl md:text-4xl font-extrabold mb-4">{t('home.mobileHeading')}</h2>
             <p className="text-gray-300 text-[17px] mb-7 max-w-[440px]">{t('home.mobileDesc')}</p>
@@ -446,24 +467,55 @@ export default function HomePage() {
               </span>
             </div>
           </div>
-          <div className="mx-auto w-[240px] h-[460px] rounded-[32px] border-[6px] border-gray-800 bg-[#0f172a] shadow-[0_20px_50px_rgba(0,0,0,0.5)] p-5 flex flex-col gap-3.5">
-            <div className="w-14 h-1.5 rounded-full bg-gray-700 mx-auto mb-1" />
-            <Smartphone className="text-green-500 mx-auto mb-1" size={22} />
-            <div className="bg-white/5 rounded-lg px-3 py-2.5 text-[11px] text-gray-400">
-              {t('home.dashLabel')}<b className="block text-white text-sm mt-0.5">$2,450.00</b>
+
+          {/* Phone mockup -- Aug 2026 visual pass: rebuilt to look like an
+              actual screenshot of the app (in-app header, real row icons,
+              a progress bar under the debt-free %, bottom tab bar) instead
+              of a floating icon over three plain data rows. Same illustrative
+              numbers as the hero card for consistency. */}
+          <div className="mx-auto w-[260px] h-[500px] rounded-[36px] border-[6px] border-gray-800 bg-[#0f172a] shadow-[0_16px_40px_rgba(0,0,0,0.3)] flex flex-col overflow-hidden">
+            <div className="w-14 h-1.5 rounded-full bg-gray-700 mx-auto mt-3 mb-2 shrink-0" />
+            <div className="flex items-center justify-between px-4 py-2 shrink-0">
+              <span className="text-xs font-bold text-white">Paycheck Planner</span>
+              <span className="w-6 h-6 rounded-full bg-white/10 flex items-center justify-center">
+                <User size={12} className="text-gray-400" />
+              </span>
             </div>
-            <div className="bg-white/5 rounded-lg px-3 py-2.5 text-[11px] text-gray-400">
-              {t('home.dashAvailable')}<b className="block text-white text-sm mt-0.5">$570.00</b>
+            <div className="flex-1 px-4 pb-3 flex flex-col justify-center gap-3.5 overflow-hidden">
+              <div className="bg-white/5 rounded-lg px-3 py-2.5 text-[11px] text-gray-400">
+                {t('home.dashLabel')}<b className="block text-white text-base mt-0.5">$2,450.00</b>
+              </div>
+              <div className="flex justify-between items-center text-[11px] text-gray-400 px-1">
+                <span className="flex items-center gap-1.5"><Receipt size={12} className="text-gray-500" />{t('home.dashBills')}</span><span className="text-gray-200">$1,180</span>
+              </div>
+              <div className="flex justify-between items-center text-[11px] text-gray-400 px-1">
+                <span className="flex items-center gap-1.5"><TrendingDown size={12} className="text-gray-500" />{t('home.dashDebtPayment')}</span><span className="text-gray-200">$450</span>
+              </div>
+              <div className="flex justify-between items-center text-[11px] text-gray-400 px-1">
+                <span className="flex items-center gap-1.5"><PiggyBank size={12} className="text-gray-500" />{t('home.dashSavings')}</span><span className="text-gray-200">$250</span>
+              </div>
+              <div className="bg-white/5 rounded-lg px-3 py-2.5 text-[11px] text-gray-400">
+                {t('home.dashAvailable')}<b className="block text-green-400 text-base mt-0.5">$570.00</b>
+              </div>
+              <div className="bg-white/5 rounded-lg px-3 py-2.5 text-[11px] text-gray-400">
+                {t('home.dashProgressLabel')}<b className="block text-white text-base mt-0.5">68%</b>
+                <div className="bg-white/10 rounded-full h-1.5 overflow-hidden mt-1.5">
+                  <div className="bg-gradient-to-r from-green-500 to-green-400 h-full rounded-full" style={{ width: '68%' }} />
+                </div>
+              </div>
             </div>
-            <div className="bg-white/5 rounded-lg px-3 py-2.5 text-[11px] text-gray-400">
-              {t('home.dashProgressLabel')}<b className="block text-white text-sm mt-0.5">68%</b>
+            <div className="flex items-center justify-around border-t border-white/10 py-3 shrink-0">
+              <Home size={16} className="text-green-400" />
+              <Calendar size={16} className="text-gray-600" />
+              <TrendingDown size={16} className="text-gray-600" />
+              <User size={16} className="text-gray-600" />
             </div>
           </div>
         </div>
       </section>
 
       {/* Final CTA */}
-      <section className="relative z-10 border-t border-gray-800 py-24 md:py-28" style={{ background: 'linear-gradient(180deg, transparent, rgba(34,197,94,0.08))' }}>
+      <section className="relative z-10 border-t border-gray-800 py-24 md:py-32" style={{ background: 'linear-gradient(180deg, transparent, rgba(34,197,94,0.08))' }}>
         <div className="max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-3xl md:text-[40px] font-extrabold mb-9 leading-tight">{t('home.ctaHeading')}</h2>
           <Link
