@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
@@ -10,6 +10,11 @@ import { isNativeApp } from '@/lib/platform'
 import { supabase } from '@/lib/supabase/client'
 import { withTimeout } from '@/lib/withTimeout'
 import { PaycheckPlannerLogo } from './components/PaycheckPlannerLogo'
+import HeroAppMock from './components/home/HeroAppMock'
+import PaycheckAllocation from './components/home/PaycheckAllocation'
+import MoneyHealthDashboard from './components/home/MoneyHealthDashboard'
+import DebtPayoffMoment from './components/home/DebtPayoffMoment'
+import Differentiation from './components/home/Differentiation'
 
 // SSR can't tell native from web, so it always renders this page's real
 // return value below -- fine, since useLayoutEffect (guarded here so it
@@ -140,13 +145,13 @@ export default function HomePage() {
         <div className="absolute -right-[8%] top-[85%] w-[500px] h-[500px] rounded-full bg-green-500/10 blur-[140px]" />
       </div>
 
-      {/* Hero Section -- Aug 23 2026 "make it feel like you're looking into
-          the app, not at a dashboard mockup" pass: the visual panel now
-          takes a dominant share of the grid (not a 50/50 split) and every
-          number inside it is scaled up so the eye lands on the money, not
-          the chrome around it. */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-28 md:py-32">
-        <div className="grid md:grid-cols-[1fr_1.3fr] gap-14 lg:gap-20 items-center">
+      {/* Hero Section -- Aug 2026 composition rebuild: genuine split-screen.
+          Left carries the pitch and both CTAs; right is a real multi-panel
+          "app window" (HeroAppMock) with its own chrome, tabs, stat grid,
+          score, debt progress, and upcoming bills -- not a single stat
+          card standing in for the product. */}
+      <section className="relative z-10 max-w-7xl mx-auto px-6 pt-20 pb-24 md:pt-28 md:pb-32">
+        <div className="grid md:grid-cols-[1fr_1.15fr] gap-14 lg:gap-20 items-center">
           <div>
             <h1 className="text-4xl md:text-[64px] font-extrabold mb-6 leading-[1.05] tracking-tight max-w-[560px]">
               {t('home.heroPrefix')}<br />
@@ -155,7 +160,7 @@ export default function HomePage() {
             <p className="text-base md:text-[18px] text-gray-300 mb-9 leading-relaxed max-w-[480px]">
               {t('home.heroSubtitle')}
             </p>
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-wrap gap-4 mb-6">
               <Link
                 href="/signup"
                 onClick={() => trackCta('get_started_hero')}
@@ -171,191 +176,36 @@ export default function HomePage() {
                 {t('home.ctaSeeHowItWorks')}
               </Link>
             </div>
-          </div>
-
-          {/* Dashboard preview card -- illustrative, mirrors the real
-              paycheck-breakdown view inside the app. Enlarged per Vince's
-              Aug 23 2026 "big paycheck, big allocation, big available
-              balance" feedback: the allocation rows became a 3-up stat
-              grid, Available/Progress became the dominant closing stat
-              instead of a small side gauge, and every figure is bigger
-              relative to its label so the numbers -- not the card chrome
-              -- carry the visual weight. */}
-          <div className="bg-[#0f172a] border border-gray-700 rounded-[28px] overflow-hidden shadow-[0_24px_64px_rgba(0,0,0,0.35)]">
-            {/* Header band -- reads as "app chrome" before it reads as
-                "content," so the panel feels like a live screen rather
-                than a marketing card. */}
-            <div
-              className="flex items-center justify-between px-9 md:px-10 py-6 border-b border-white/5"
-              style={{ background: 'linear-gradient(135deg, rgba(34,197,94,0.14), transparent 75%)' }}
-            >
-              <div className="text-xs font-bold uppercase tracking-wider text-gray-400">{t('home.dashLabel')}</div>
-              <div className="inline-flex items-center gap-1.5 rounded-full bg-green-500/10 border border-green-500/30 px-2.5 py-1 text-[11px] font-semibold text-green-400">
-                <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
-                {t('home.dashOnTrack')}
-              </div>
-            </div>
-
-            <div className="px-9 md:px-10 pt-8 pb-10">
-              <div className="text-[56px] md:text-[72px] leading-none font-extrabold mb-2 tabular-nums">$2,450</div>
-              <div className="text-sm text-gray-400 mb-9">{nextPaycheckLabel}</div>
-
-              <div className="grid grid-cols-3 gap-4 sm:gap-8 pb-8 border-b border-white/5">
-                <div>
-                  <div className="flex items-start gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2 min-h-[28px] leading-tight">
-                    <Receipt size={12} className="text-blue-400 shrink-0 mt-0.5" />
-                    {t('home.dashBills')}
-                  </div>
-                  <div className="text-2xl md:text-[30px] font-extrabold tabular-nums">$1,180</div>
-                </div>
-                <div>
-                  <div className="flex items-start gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2 min-h-[28px] leading-tight">
-                    <TrendingDown size={12} className="text-green-400 shrink-0 mt-0.5" />
-                    {t('home.dashDebtPayment')}
-                  </div>
-                  <div className="text-2xl md:text-[30px] font-extrabold tabular-nums">$450</div>
-                </div>
-                <div>
-                  <div className="flex items-start gap-2 text-[11px] font-bold uppercase tracking-wider text-gray-500 mb-2 min-h-[28px] leading-tight">
-                    <PiggyBank size={12} className="text-emerald-400 shrink-0 mt-0.5" />
-                    {t('home.dashSavings')}
-                  </div>
-                  <div className="text-2xl md:text-[30px] font-extrabold tabular-nums">$250</div>
-                </div>
-              </div>
-
-              {/* Available + Debt-Free Progress close the card as one big
-                  paired statement -- the two numbers a visitor actually
-                  cares about, given equal top billing instead of a small
-                  number next to a decorative gauge. */}
-              <div className="flex items-end justify-between gap-8 pt-8">
-                <div>
-                  <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t('home.dashAvailable')}</div>
-                  <div className="text-4xl md:text-[52px] leading-none font-extrabold text-green-400 tabular-nums">$570</div>
-                </div>
-                <div className="text-right shrink-0">
-                  <div className="text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">{t('home.dashProgressLabel')}</div>
-                  <div className="text-4xl md:text-[52px] leading-none font-extrabold tabular-nums">68%</div>
-                </div>
-              </div>
-              <div className="bg-white/10 rounded-full h-2.5 overflow-hidden mt-6">
-                <div className="bg-gradient-to-r from-green-500 to-green-400 h-full rounded-full" style={{ width: '68%' }} />
-              </div>
+            <div className="flex items-center gap-2 text-sm text-gray-500">
+              <CheckCircle2 size={15} className="text-green-500/70 shrink-0" />
+              {t('home.heroTrust')}
             </div>
           </div>
-        </div>
-      </section>
 
-      {/* Value props -- what the product actually does, not generic marketing
-          stats. Rebuilt Aug 23 2026 per Vince's "stop designing this around
-          cards" feedback: one large editorial statement instead of three
-          bordered boxes, with the three ideas carried by typography
-          (an eyebrow label + a line of copy, nothing boxed) rather than
-          colored accent bars and icon badges. */}
-      <section className="relative z-10 max-w-5xl mx-auto px-6 pb-24 md:pb-32 text-center">
-        <h2 className="text-3xl md:text-[46px] font-extrabold leading-tight mb-16 md:mb-20 max-w-2xl mx-auto">
-          {t('home.valuePropHeading')}
-        </h2>
-        <div className="grid md:grid-cols-3 gap-x-10 gap-y-12">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-3">{t('home.valuePlanEyebrow')}</div>
-            <p className="text-lg md:text-xl font-semibold text-gray-200 leading-snug">{t('home.statPayoffDesc')}</p>
-          </div>
-          <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-blue-400 mb-3">{t('home.valuePayoffEyebrow')}</div>
-            <p className="text-lg md:text-xl font-semibold text-gray-200 leading-snug">{t('home.statAiDesc')}</p>
-          </div>
-          <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-emerald-400 mb-3">{t('home.valueSeeEyebrow')}</div>
-            <p className="text-lg md:text-xl font-semibold text-gray-200 leading-snug">{t('home.statInsightsDesc')}</p>
-          </div>
+          <HeroAppMock nextPaycheckLabel={nextPaycheckLabel} />
         </div>
       </section>
 
       {/* Social proof / milestone -- real live member count, not a fabricated number */}
       <MemberMilestone />
 
-      {/* Money Score -- moved up from its old spot near the bottom of the
-          page per the Aug 23 2026 redesign: it's a low-commitment top-of-
-          funnel tool (no account needed), so it earns a place right after
-          the hero instead of being buried below the feature grid.
-          De-boxed in the Aug 23 2026 composition pass: this used to sit
-          inside its own bordered/gradient-filled card, which just added
-          another card to the "card, card, card" scroll. It's now an open,
-          full-width editorial section -- a financial-health report, not a
-          widget in a box -- with the ambient glow doing the framing instead
-          of a border. */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-32">
-        <div className="grid md:grid-cols-[1fr_auto] gap-12 md:gap-20 items-center">
-          <div>
-            <h2 className="text-3xl md:text-[46px] font-extrabold mb-4 leading-tight">{t('home.moneyScoreHeading')}</h2>
-            <p className="text-gray-300 text-[17px] leading-relaxed max-w-[480px] mb-7">{t('home.moneyScoreDesc')}</p>
-            <Link
-              href="/money-score"
-              onClick={() => trackCta('money_score_hero')}
-              className="inline-block bg-green-500 hover:bg-green-600 text-black font-bold px-8 py-4 rounded-xl text-base transition"
-            >
-              {t('home.moneyScoreCta')} &rarr;
-            </Link>
-          </div>
-          {/* Restyled Aug 23 2026 as a financial-health report rather than a
-              standalone gauge widget: the ring still carries the headline
-              number, but the category bars (reordered so the strongest
-              category leads) and a plain-language read of what they mean
-              now sit underneath it as one continuous report, not a
-              decorative afterthought. */}
-          <div className="flex flex-col gap-8 shrink-0 mx-auto w-full max-w-[340px]">
-            <div className="relative flex flex-col items-center gap-3">
-              <div className="pointer-events-none absolute top-0 left-1/2 -translate-x-1/2 w-[220px] h-[220px] rounded-full bg-green-500/20 blur-[50px]" aria-hidden="true" />
-              <div
-                className="relative w-[200px] h-[200px] rounded-full flex items-center justify-center"
-                style={{ background: 'conic-gradient(#22c55e 0% 78%, rgba(255,255,255,0.08) 78% 100%)' }}
-              >
-                <div className="w-[158px] h-[158px] rounded-full bg-[#020617] flex flex-col items-center justify-center">
-                  <div className="text-[60px] leading-none font-extrabold tabular-nums">78</div>
-                  <div className="text-[11px] text-gray-400 uppercase tracking-wide mt-1.5">{t('home.moneyScoreLabel')}</div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-green-500/15 border border-green-500/30 px-2.5 py-1 text-[11px] font-bold text-green-400 uppercase tracking-wide">
-                  {t('home.moneyScoreRating')}
-                </span>
-                <span className="text-sm font-semibold text-green-400">{t('home.moneyScoreTrend')}</span>
-              </div>
-            </div>
+      {/* PLAN -- "Where does my paycheck actually go?" One proportional bar
+          carries the whole idea; see PaycheckAllocation for detail. */}
+      <PaycheckAllocation
+        eyebrow={t('home.allocationEyebrow')}
+        heading={t('home.allocationHeading')}
+        desc={t('home.allocationDesc')}
+      />
 
-            {/* Category breakdown -- illustrative bars showing what the
-                Money Score is actually made of. Same categories
-                moneyScoreDesc already promises (budgeting, savings, debt,
-                cash flow); values are sample data matching the illustrative
-                78 score above, not a real user's numbers. Cash Flow leads
-                since it's the standout figure the narrative below refers to. */}
-            <div className="flex flex-col gap-3.5">
-              {[
-                { label: t('home.moneyScoreCashFlow'), pct: 90 },
-                { label: t('home.moneyScoreDebt'), pct: 80 },
-                { label: t('home.moneyScoreSavings'), pct: 60 },
-                { label: t('home.moneyScoreBudgeting'), pct: 80 },
-              ].map((c) => (
-                <div key={c.label} className="flex items-center gap-3">
-                  <span className="w-[80px] text-xs text-gray-400 shrink-0">{c.label}</span>
-                  <div className="flex-1 bg-white/10 rounded-full h-2.5 overflow-hidden">
-                    <div
-                      className="bg-gradient-to-r from-green-500 to-green-400 h-full rounded-full"
-                      style={{ width: `${c.pct}%` }}
-                    />
-                  </div>
-                  <span className="w-9 text-right text-xs text-gray-500 tabular-nums shrink-0">{c.pct}</span>
-                </div>
-              ))}
-            </div>
-
-            <p className="text-[15px] text-gray-300 leading-relaxed border-t border-white/10 pt-6">
-              {t('home.moneyScoreNarrative')}
-            </p>
-          </div>
-        </div>
-      </section>
+      {/* CONTROL -- financial health as an actual dashboard, not four text
+          blocks. Also folds in the progress-milestone strip that used to be
+          its own separate showcase section further down the page. */}
+      <MoneyHealthDashboard
+        eyebrow={t('home.moneyHealthEyebrow')}
+        heading={t('home.moneyHealthHeading')}
+        desc={t('home.moneyHealthDesc')}
+        ctaLabel={t('home.moneyScoreCta')}
+      />
 
       {/* How It Works -- new section; the product's whole value prop in three steps */}
       <section id="how-it-works" className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-32">
@@ -382,139 +232,21 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Product Showcase -- three large alternating sections, replacing the
-          old flat 6-card feature grid as the primary "show, don't tell" beat.
-          The six smaller feature cards still exist further down. */}
-      <section className="relative z-10 max-w-7xl mx-auto px-6 py-24 md:py-32">
-        <h2 className="text-3xl md:text-[46px] font-extrabold text-center mb-20">{t('home.showcaseHeading')}</h2>
+      {/* DEBT -- "Pay debt strategically." Rebuilt Aug 2026: the 7-months
+          headline now sits above two literal timeline tracks (current path
+          vs optimized plan) instead of a strategy-vs-strategy date pair, so
+          the acceleration is something you see, not something you read. */}
+      <DebtPayoffMoment eyebrow={t('home.debtEyebrow')} heading={t('home.debtHeading')} desc={t('home.debtDesc')} />
 
-        <div className="grid md:grid-cols-2 gap-16 items-center">
-          <div>
-            <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-3">{t('home.showcase1Eyebrow')}</div>
-            <h3 className="text-2xl md:text-[32px] font-extrabold mb-4">{t('home.showcase1Title')}</h3>
-            <p className="text-gray-300 text-[17px] leading-relaxed max-w-[420px]">{t('home.showcase1Desc')}</p>
-          </div>
-          <div className="bg-[#0f172a] rounded-2xl p-8 md:p-10">
-            <div className="grid grid-cols-7 gap-2 mb-5">
-              {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
-                <div
-                  key={d}
-                  className={`rounded-lg py-3 text-center text-xs ${
-                    d === 'Thu' ? 'bg-green-500/10 border border-green-500/40 text-white font-bold' : 'bg-white/5 text-gray-400'
-                  }`}
-                >
-                  {d}{d === 'Thu' && <><br />Pay</>}
-                </div>
-              ))}
-            </div>
-            <div className="flex justify-between text-sm text-gray-300 py-2 border-t border-gray-700"><span>Rent due</span><span>Aug 29</span></div>
-            <div className="flex justify-between text-sm text-gray-300 py-2 border-t border-gray-700"><span>Car payment</span><span>Sep 2</span></div>
-            <div className="flex justify-between text-sm text-gray-300 py-2 border-t border-gray-700"><span>Savings transfer</span><span>Sep 3</span></div>
-          </div>
-        </div>
-
-        {/* 02 -- Attack Your Debt. Deliberately broken out of the alternating
-            text+card rhythm the other two showcase beats use. Per Vince's
-            Aug 23 2026 feedback this is the product's strongest "wow"
-            moment (the debt-free date comparison), so it reads as one big
-            payoff statement -- a huge headline number, then the strategy
-            comparison, then the timeline -- rather than another bordered
-            card competing for attention with everything else on the page. */}
-        <div className="mt-28 md:mt-36">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-3">{t('home.showcase2Eyebrow')}</div>
-            <h3 className="text-2xl md:text-[32px] font-extrabold mb-4">{t('home.showcase2Title')}</h3>
-            <p className="text-gray-300 text-[17px] leading-relaxed max-w-[420px] mx-auto">{t('home.showcase2Desc')}</p>
-          </div>
-
-          <div className="text-center mb-14">
-            <div className="text-[13px] font-bold uppercase tracking-[0.2em] text-gray-500 mb-4">Debt-free, sooner</div>
-            <div className="text-[68px] sm:text-[88px] md:text-[112px] leading-[0.92] font-extrabold tracking-tight bg-gradient-to-r from-green-400 to-emerald-500 bg-clip-text text-transparent">
-              7 Months
-            </div>
-            <div className="text-2xl md:text-4xl font-extrabold text-gray-200 -mt-1 md:-mt-2">Sooner</div>
-          </div>
-
-          <div className="grid grid-cols-[1fr_auto_1fr] gap-4 sm:gap-10 items-center max-w-2xl mx-auto mb-16">
-            <div className="text-right">
-              <div className="inline-flex items-center gap-2 text-sm font-bold text-green-400 mb-2">
-                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
-                Avalanche
-              </div>
-              <div className="text-xl md:text-2xl font-extrabold tabular-nums">March 2029</div>
-              <div className="text-xs text-gray-500 uppercase tracking-wide mt-1">Debt-free</div>
-            </div>
-            <div className="text-gray-600 text-xs font-bold">VS</div>
-            <div className="text-left">
-              <div className="inline-flex items-center gap-2 text-sm font-bold text-blue-400 mb-2">
-                <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" />
-                Snowball
-              </div>
-              <div className="text-xl md:text-2xl font-extrabold tabular-nums text-gray-300">October 2029</div>
-              <div className="text-xs text-gray-500 uppercase tracking-wide mt-1">Debt-free</div>
-            </div>
-          </div>
-
-          <div className="max-w-2xl mx-auto">
-            <svg width="100%" height="160" viewBox="0 0 400 160" preserveAspectRatio="none">
-              <polyline points="0,18 60,40 120,66 180,94 240,120 300,142 360,154 400,158" fill="none" stroke="#22c55e" strokeWidth="4" strokeLinecap="round" />
-              <polyline points="0,18 60,44 120,74 180,100 240,124 300,144 360,156 400,160" fill="none" stroke="#3b82f6" strokeWidth="4" strokeLinecap="round" opacity="0.55" />
-            </svg>
-          </div>
-        </div>
-
-        {/* 03 -- See Your Progress. Rebuilt Aug 23 2026 per Vince's "show
-            this as a real dashboard visualization, not another card"
-            feedback: broken out of the alternating text+card rhythm (same
-            treatment as the debt-payoff beat above), with a bigger score
-            ring and the milestones laid out as an open activity list
-            instead of pill badges boxed inside a bordered card. */}
-        <div className="mt-28 md:mt-36">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-3">{t('home.showcase3Eyebrow')}</div>
-            <h3 className="text-2xl md:text-[32px] font-extrabold mb-4">{t('home.showcase3Title')}</h3>
-            <p className="text-gray-300 text-[17px] leading-relaxed max-w-[420px] mx-auto">{t('home.showcase3Desc')}</p>
-          </div>
-
-          <div className="flex flex-col md:flex-row items-center justify-center gap-14 md:gap-24 max-w-3xl mx-auto">
-            <div className="flex flex-col items-center gap-3 shrink-0">
-              <div
-                className="w-[160px] h-[160px] rounded-full flex items-center justify-center"
-                style={{ background: 'conic-gradient(#22c55e 0% 78%, rgba(255,255,255,0.08) 78% 100%)' }}
-              >
-                <div className="w-[124px] h-[124px] rounded-full bg-[#020617] flex flex-col items-center justify-center">
-                  <div className="text-[42px] leading-none font-extrabold tabular-nums">78</div>
-                  <div className="text-[10px] text-gray-500 uppercase tracking-wide mt-1">Money Score</div>
-                </div>
-              </div>
-              <div className="text-sm font-semibold text-green-400">Up 6 points this month</div>
-            </div>
-
-            <div className="flex flex-col gap-5 w-full max-w-sm">
-              {[
-                { label: 'Emergency Fund Started', done: true },
-                { label: 'First Debt Paid Off', done: true },
-                { label: '3-Month Streak', done: false },
-              ].map((m) => (
-                <div key={m.label} className="flex items-center gap-3.5">
-                  <span
-                    className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${
-                      m.done ? 'bg-green-500/15 border border-green-500/40' : 'border border-gray-700'
-                    }`}
-                  >
-                    {m.done ? (
-                      <CheckCircle2 size={13} className="text-green-400" />
-                    ) : (
-                      <span className="w-1.5 h-1.5 rounded-full bg-gray-600" />
-                    )}
-                  </span>
-                  <span className={`text-[15px] ${m.done ? 'text-gray-200 font-semibold' : 'text-gray-500'}`}>{m.label}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
+      {/* WHY -- Paycheck Planner vs. a traditional budgeting app, as two
+          literal flows rather than marketing cards. */}
+      <Differentiation
+        eyebrow={t('home.diffEyebrow')}
+        heading={t('home.diffHeading')}
+        desc={t('home.diffDesc')}
+        traditionalLabel={t('home.diffTraditionalLabel')}
+        plannerLabel={t('home.diffPlannerLabel')}
+      />
 
       {/* Features Grid -- deliberately quiet per Vince's Aug 23 2026
           feedback: the showcase above already demonstrated the three real
@@ -615,7 +347,9 @@ export default function HomePage() {
       {/* Final CTA */}
       <section className="relative z-10 border-t border-gray-800 py-24 md:py-32" style={{ background: 'linear-gradient(180deg, transparent, rgba(34,197,94,0.08))' }}>
         <div className="max-w-4xl mx-auto px-6 text-center">
-          <h2 className="text-3xl md:text-[40px] font-extrabold mb-9 leading-tight">{t('home.ctaHeading')}</h2>
+          <div className="text-xs font-bold uppercase tracking-wider text-green-500 mb-4">{t('home.ctaEyebrow')}</div>
+          <h2 className="text-3xl md:text-[40px] font-extrabold mb-4 leading-tight">{t('home.ctaHeading')}</h2>
+          <p className="text-gray-400 text-base mb-9">{t('home.ctaSubtitle')}</p>
           <Link
             href="/signup"
             onClick={() => trackCta('get_started_bottom')}

@@ -1,4 +1,4 @@
-{
+﻿{
   "nav": {
     "dashboard": "Dashboard",
     "calendar": "Calendar",
@@ -105,7 +105,23 @@
     "moneyQuizTitle": "What's Your Money Score?",
     "moneyQuizDesc": "Answer 10 quick questions about budgeting, savings, and debt to get an instant score out of 100 -- plus a personalized plan to improve it.",
     "moneyQuizCta": "Take the Free Quiz",
-    "ctaHeading": "Your Money Has a Plan. Now You Do Too.",
+    "heroTrust": "Free to start. Upgrade anytime. Cancel whenever you want.",
+    "allocationEyebrow": "Plan",
+    "allocationHeading": "Here's exactly where it goes.",
+    "allocationDesc": "Every paycheck splits automatically across bills, debt, and savings -- so you always know what's already spoken for, and what's actually yours to spend.",
+    "moneyHealthEyebrow": "Control",
+    "moneyHealthHeading": "See your financial health.",
+    "moneyHealthDesc": "One score, built from your real cash flow, bills, debt, and savings -- so you know exactly how healthy your money is, not just how much of it there is.",
+    "debtEyebrow": "Debt",
+    "debtHeading": "Pay debt strategically.",
+    "debtDesc": "Paycheck Planner finds the payoff order that saves you the most time and interest, then shows you exactly what that looks like.",
+    "diffEyebrow": "Why Paycheck Planner",
+    "diffHeading": "This isn't a budgeting app. It's a paycheck plan.",
+    "diffDesc": "Traditional budgeting apps hand you a monthly number and hope it holds. Paycheck Planner tells you what every paycheck needs to do, the moment it lands.",
+    "diffTraditionalLabel": "Traditional Budgeting App",
+    "diffPlannerLabel": "Paycheck Planner",
+    "ctaEyebrow": "Get Started",
+    "ctaHeading": "Start planning your next paycheck.",
     "ctaSubtitle": "Start free, upgrade anytime. Cancel whenever you want.",
     "ctaButton": "Get Started Free"
   },
