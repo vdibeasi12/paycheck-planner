@@ -1,8 +1,18 @@
 'use client'
 
 import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 export default function Footer() {
+  // The homepage has its own full "Your Financial Plan. In Your Pocket."
+  // section with a phone mockup right above the footer -- per Vince's Aug
+  // 23 2026 feedback, having this same Google Play pitch repeated again
+  // immediately below it read as a redundant, competing section rather
+  // than a footer utility. Everywhere else, this is the only app promo on
+  // the page, so it stays.
+  const pathname = usePathname()
+  const isHomepage = pathname === '/'
+
   return (
     <footer className="border-t border-gray-800 bg-[#020617]">
       <div className="flex justify-center px-6 py-12">
@@ -16,7 +26,10 @@ export default function Footer() {
               listing. The App Store badge stays "coming soon" until iOS is
               actually submitted; swap it for the official "Download on the
               App Store" badge asset (per Apple's brand guidelines) at that
-              point. */}
+              point. Skipped entirely on the homepage -- see isHomepage
+              above -- since the homepage already pitches the app with its
+              own dedicated section. */}
+          {!isHomepage && (
           <div className="mb-12 hidden rounded-2xl border border-gray-800 bg-[#0f172a] p-6 md:block">
             <div className="flex flex-col items-center gap-6 md:flex-row md:justify-between">
               <div className="text-center md:text-left">
@@ -56,6 +69,7 @@ export default function Footer() {
               </div>
             </div>
           </div>
+          )}
 
           {/* Footer Links Grid -- reorganized into 5 focused groups (Aug 23
               2026) instead of one long "Product" column with everything
@@ -162,4 +176,4 @@ export default function Footer() {
       </div>
     </footer>
   )
-}
+}
