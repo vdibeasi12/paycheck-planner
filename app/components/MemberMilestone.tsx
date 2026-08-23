@@ -61,7 +61,16 @@ export default function MemberMilestone() {
     <section className="max-w-6xl mx-auto px-6 py-12">
       <div className="rounded-2xl border border-gray-700 bg-gradient-to-r from-green-500/10 to-blue-500/10 px-8 py-10 text-center">
         {count === null ? (
-          <p className="text-gray-500">Loading our community...</p>
+          // Skeleton placeholder instead of a bare "Loading..." string --
+          // Vince's Aug 23 2026 feedback: raw loading text on a production
+          // homepage reads as unfinished. Sized to roughly match the
+          // "belowReveal" state below so there's minimal layout shift once
+          // the real count arrives.
+          <div className="animate-pulse" aria-hidden="true">
+            <div className="mx-auto h-8 w-72 rounded-md bg-white/10 md:h-9 md:w-96" />
+            <div className="mx-auto mt-4 h-4 w-64 rounded bg-white/5" />
+            <div className="mx-auto mt-6 h-11 w-32 rounded-lg bg-white/5" />
+          </div>
         ) : belowReveal ? (
           <>
             <h2 className="text-2xl md:text-3xl font-bold">

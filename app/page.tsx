@@ -2,7 +2,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
-import { CheckCircle2, Smartphone } from 'lucide-react'
+import { CheckCircle2, Smartphone, Receipt, TrendingDown, PiggyBank } from 'lucide-react'
 import MemberMilestone from './components/MemberMilestone'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { trackCta } from '@/lib/trackClient'
@@ -155,25 +155,41 @@ export default function HomePage() {
           </div>
 
           {/* Dashboard preview card -- illustrative, mirrors the real
-              paycheck-breakdown view inside the app. */}
-          <div className="bg-[#0f172a] border border-gray-700 rounded-2xl p-8 shadow-[0_8px_30px_rgba(0,0,0,0.35)]">
-            <div className="text-xs font-bold uppercase tracking-wider text-gray-400 mb-2">{t('home.dashLabel')}</div>
+              paycheck-breakdown view inside the app. Polished per Vince's
+              Aug 23 2026 "make it feel like a real screenshot, not a
+              marketing graphic" pass: deeper shadow, row icons, an
+              on-track indicator, and the numbers that matter (Available,
+              progress %) pulled up to their own visual weight instead of
+              matching the supporting rows. */}
+          <div className="bg-[#0f172a] border border-gray-700 rounded-[20px] p-8 shadow-[0_16px_50px_rgba(0,0,0,0.45)]">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-xs font-bold uppercase tracking-wider text-gray-400">{t('home.dashLabel')}</div>
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-green-500/10 border border-green-500/30 px-2.5 py-1 text-[11px] font-semibold text-green-400">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                {t('home.dashOnTrack')}
+              </div>
+            </div>
             <div className="text-4xl font-extrabold mb-1">$2,450.00</div>
             <div className="text-sm text-gray-400 mb-7">{nextPaycheckLabel}</div>
-            <div className="flex justify-between text-[15px] text-gray-300 py-2">
-              <span>{t('home.dashBills')}</span><span>$1,180</span>
+
+            <div className="flex justify-between items-center text-[15px] text-gray-300 py-2.5 border-b border-white/5">
+              <span className="flex items-center gap-2.5"><Receipt size={15} className="text-gray-500" />{t('home.dashBills')}</span><span>$1,180</span>
             </div>
-            <div className="flex justify-between text-[15px] text-gray-300 py-2">
-              <span>{t('home.dashDebtPayment')}</span><span>$450</span>
+            <div className="flex justify-between items-center text-[15px] text-gray-300 py-2.5 border-b border-white/5">
+              <span className="flex items-center gap-2.5"><TrendingDown size={15} className="text-gray-500" />{t('home.dashDebtPayment')}</span><span>$450</span>
             </div>
-            <div className="flex justify-between text-[15px] text-gray-300 py-2">
-              <span>{t('home.dashSavings')}</span><span>$250</span>
+            <div className="flex justify-between items-center text-[15px] text-gray-300 py-2.5 border-b border-white/5">
+              <span className="flex items-center gap-2.5"><PiggyBank size={15} className="text-gray-500" />{t('home.dashSavings')}</span><span>$250</span>
             </div>
-            <div className="flex justify-between text-[17px] font-bold border-t border-gray-700 mt-1 pt-4">
-              <span>{t('home.dashAvailable')}</span><span>$570</span>
+
+            <div className="flex justify-between items-end pt-5">
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-400">{t('home.dashAvailable')}</span>
+              <span className="text-3xl font-extrabold text-green-400">$570</span>
             </div>
-            <div className="flex justify-between text-xs text-gray-400 mt-6 mb-2">
-              <span>{t('home.dashProgressLabel')}</span><span>68%</span>
+
+            <div className="flex justify-between items-baseline mt-6 mb-2">
+              <span className="text-xs font-bold uppercase tracking-wider text-gray-400">{t('home.dashProgressLabel')}</span>
+              <span className="text-2xl font-extrabold">68%</span>
             </div>
             <div className="bg-white/10 rounded-full h-2.5 overflow-hidden">
               <div className="bg-gradient-to-r from-green-500 to-green-400 h-full rounded-full" style={{ width: '68%' }} />
@@ -224,14 +240,17 @@ export default function HomePage() {
               {t('home.moneyScoreCta')} &rarr;
             </Link>
           </div>
-          <div
-            className="w-[150px] h-[150px] rounded-full flex items-center justify-center shrink-0 mx-auto"
-            style={{ background: 'conic-gradient(#22c55e 0% 78%, rgba(255,255,255,0.08) 78% 100%)' }}
-          >
-            <div className="w-[116px] h-[116px] rounded-full bg-[#020617] flex flex-col items-center justify-center">
-              <div className="text-3xl font-extrabold">78</div>
-              <div className="text-[11px] text-gray-400 uppercase tracking-wide">{t('home.moneyScoreLabel')}</div>
+          <div className="flex flex-col items-center gap-3 shrink-0 mx-auto">
+            <div
+              className="w-[176px] h-[176px] rounded-full flex items-center justify-center"
+              style={{ background: 'conic-gradient(#22c55e 0% 78%, rgba(255,255,255,0.08) 78% 100%)' }}
+            >
+              <div className="w-[138px] h-[138px] rounded-full bg-[#020617] flex flex-col items-center justify-center">
+                <div className="text-[52px] leading-none font-extrabold">78</div>
+                <div className="text-[11px] text-gray-400 uppercase tracking-wide mt-1.5">{t('home.moneyScoreLabel')}</div>
+              </div>
             </div>
+            <div className="text-sm font-semibold text-green-400">{t('home.moneyScoreTrend')}</div>
           </div>
         </div>
       </section>
@@ -249,10 +268,8 @@ export default function HomePage() {
             { n: '03', title: t('home.step3Title'), desc: t('home.step3Desc') },
           ].map((s) => (
             <div key={s.n} className="text-center px-3">
-              <div className="w-[52px] h-[52px] rounded-full border border-gray-700 flex items-center justify-center mx-auto mb-5 font-extrabold text-green-500">
-                {s.n}
-              </div>
-              <h3 className="text-xl font-bold mb-2">{s.title}</h3>
+              <div className="text-xs font-semibold text-gray-500 mb-3 tracking-wide">{s.n}</div>
+              <h3 className="text-2xl font-extrabold mb-2">{s.title}</h3>
               <p className="text-gray-400 text-[15px] leading-relaxed">{s.desc}</p>
             </div>
           ))}
@@ -305,7 +322,12 @@ export default function HomePage() {
               <polyline points="0,15 60,32 120,52 180,75 240,98 300,118 360,130 400,136" fill="none" stroke="#22c55e" strokeWidth="3" strokeLinecap="round" />
               <polyline points="0,15 60,38 120,62 180,82 240,102 300,120 360,132 400,138" fill="none" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" opacity="0.7" />
             </svg>
-            <div className="text-sm text-gray-300 mt-4">Avalanche strategy: debt-free by <span className="text-green-500 font-bold">March 2029</span> -- 7 months sooner.</div>
+            {/* The emotional payoff ("7 months sooner") gets the visual
+                weight here, not the factual line above it -- Vince's Aug 23
+                2026 feedback: "you're selling answers, not data." */}
+            <div className="text-xs text-gray-400 mt-5">Avalanche strategy debt-free date</div>
+            <div className="text-2xl font-extrabold mt-0.5">March 2029</div>
+            <div className="text-sm font-bold text-green-400 mt-1">7 months sooner than Snowball</div>
           </div>
         </div>
 
