@@ -74,6 +74,8 @@ const AUDIT_ACTION_LABELS: Record<string, string> = {
 
 const EVENT_LABELS: Record<string, string> = {
   signup_completed: "Signups",
+  onboarding_completed: "Onboarding completed",
+  checkout_started: "Checkout started",
   subscription_started: "Subscriptions started",
   subscription_canceled: "Subscriptions canceled",
   bank_connected: "Banks connected (Autopilot)",
@@ -121,6 +123,14 @@ export default function AdminPage() {
     byCampaign: Record<string, { signups: number; activated: number; paid: number }>;
     topReferrers: { email: string; count: number }[];
     referralRevenueMonthly: number;
+    productFunnel: {
+      signups: number;
+      onboarded: number;
+      activated: number;
+      checkoutStarted: number;
+      paid: number;
+      returning: number;
+    } | null;
   } | null>(null);
   const [visitors, setVisitors] = useState<{
     uniqueVisitors: { today: number; last7: number; last30: number };
@@ -366,6 +376,39 @@ export default function AdminPage() {
     entries.sort((a, b) => b[1] - a[1]);
     return entries;
   }, [visitors]);
+
+  // The named product funnel from ChatGPT's Aug 23 2026 homepage review:
+  // Visitors -> Start Free -> Sign Up -> Complete Onboarding -> Create
+  // First Paycheck -> Checkout Started -> Paid, with Returning shown
+  // alongside rather than as a linear step (a user can come back before or
+  // after paying). The first two steps are last-30-day, anonymous/session
+  // counts (page_view / cta_clicked); everything from Signed Up onward is
+  // an all-time cohort of the same non-admin profiles from
+  // /api/admin/funnels, so those step-to-step rates are exact, not
+  // estimated -- the jump from "Start Free clicks" to "Signed Up" is the
+  // one directional comparison in this list (different time windows,
+  // anonymous vs. account-based).
+  const productFunnelSteps = useMemo(() => {
+    const startFreeClicks = Object.entries(visitors?.ctaClicks ?? {})
+      .filter(([cta]) => cta.startsWith("get_started"))
+      .reduce((sum, [, n]) => sum + n, 0);
+    const pf = funnels?.productFunnel;
+    const steps = [
+      { key: "visitors", label: "Visitors (30d)", count: visitors?.uniqueVisitors.last30 ?? null },
+      { key: "start_free", label: "Start Free clicked (30d)", count: visitors ? startFreeClicks : null },
+      { key: "signed_up", label: "Signed up", count: pf?.signups ?? null },
+      { key: "onboarded", label: "Completed onboarding", count: pf?.onboarded ?? null },
+      { key: "activated", label: "Created first paycheck", count: pf?.activated ?? null },
+      { key: "checkout_started", label: "Started checkout", count: pf?.checkoutStarted ?? null },
+      { key: "paid", label: "Paid", count: pf?.paid ?? null },
+    ];
+    return steps.map((s, i) => {
+      const prev = i > 0 ? steps[i - 1].count : null;
+      const pct =
+        prev !== null && prev > 0 && s.count !== null ? Math.round((s.count / prev) * 1000) / 10 : null;
+      return { ...s, pctOfPrev: i === 0 ? null : pct };
+    });
+  }, [visitors, funnels]);
 
   // Visitors -> Signups -> Activated -> Paid, per traffic source. Visitors is
   // last-30-days (from the same page_view-derived bySource the "Visitors by
@@ -623,6 +666,59 @@ export default function AdminPage() {
                   </ul>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+
+        {funnels?.productFunnel && (
+          <div className="mt-4 rounded-2xl border border-gray-700 bg-[#0f172a] p-5 shadow-sm">
+            <div className="flex items-center gap-2">
+              <TrendingUp size={16} className="text-emerald-500" />
+              <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">
+                Product funnel
+              </h2>
+            </div>
+            <p className="mt-1 text-xs text-gray-500">
+              Visitor &rarr; Start Free &rarr; Sign Up &rarr; Onboarded &rarr; First Paycheck &rarr;
+              Checkout &rarr; Paid. The first two steps are last-30-day anonymous traffic;
+              everything from "Signed up" onward is an all-time cohort of the same accounts, so
+              those step-to-step rates are exact conversions, not estimates.
+            </p>
+            <div className="mt-4 space-y-2.5">
+              {productFunnelSteps.map((s) => {
+                const max = productFunnelSteps[0]?.count || 1;
+                const widthPct = s.count !== null ? Math.max(2, Math.round((s.count / max) * 100)) : 0;
+                return (
+                  <div key={s.key} className="flex items-center gap-3">
+                    <div className="w-44 shrink-0 text-xs text-gray-400">{s.label}</div>
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-gray-800">
+                      <div
+                        className="h-full rounded-full bg-emerald-500"
+                        style={{ width: `${widthPct}%` }}
+                      />
+                    </div>
+                    <div className="w-16 shrink-0 text-right text-sm font-semibold text-white">
+                      {s.count === null ? (
+                        <span className="text-xs font-normal text-gray-500">--</span>
+                      ) : (
+                        s.count
+                      )}
+                    </div>
+                    <div className="w-14 shrink-0 text-right text-xs text-gray-500">
+                      {s.pctOfPrev === null ? "" : `${s.pctOfPrev}%`}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="mt-4 flex items-center justify-between border-t border-gray-800 pt-3 text-sm">
+              <span className="text-gray-400">Returning (active on a later calendar day)</span>
+              <span className="font-semibold text-white">
+                {funnels.productFunnel.returning}
+                <span className="ml-1 text-xs font-normal text-gray-500">
+                  of {funnels.productFunnel.signups} signups
+                </span>
+              </span>
             </div>
           </div>
         )}

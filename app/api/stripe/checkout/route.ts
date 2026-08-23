@@ -3,6 +3,7 @@ import Stripe from "stripe"
 import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { planForPriceId } from "@/lib/plans"
+import { track } from "@/lib/track"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: "2026-02-25.clover",
@@ -67,6 +68,19 @@ export async function POST(req: Request) {
       client_reference_id: user.id,
       metadata,
       subscription_data: { metadata },
+    })
+
+    // Fires once a real Stripe Checkout Session exists -- the "Checkout
+    // Started" stage between Activated and Paid in the funnel. Deliberately
+    // placed here rather than relying only on UpgradeButton's client-side
+    // trackCta('upgrade'): this fires from every checkout entry point
+    // (UpgradeButton, PaywallOverlay, pricing page), survives ad blockers
+    // that can drop client-side beacons, and only counts a checkout that
+    // actually reached Stripe -- not just a button click. (Aug 23 2026
+    // conversion-optimization pass.)
+    await track("checkout_started", {
+      userId: user.id,
+      metadata: { plan: plan ?? null, priceId },
     })
 
     return NextResponse.json({ url: session.url })

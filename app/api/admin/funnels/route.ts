@@ -26,6 +26,7 @@ export async function GET() {
     incomeRes,
     completedReferralsRes,
     subscriptionStatusRes,
+    checkoutStartedRes,
   ] = await Promise.all([
     sb.from("events").select("user_id").eq("event_name", "signup_completed"),
     sb.from("events").select("user_id").eq("event_name", "subscription_started"),
@@ -33,10 +34,13 @@ export async function GET() {
     sb.from("events").select("metadata").eq("event_name", "money_score_plan_unlocked"),
     sb.from("events").select("id", { count: "exact", head: true }).eq("event_name", "bank_connected"),
     sb.from("events").select("id", { count: "exact", head: true }).eq("event_name", "referral_completed"),
-    sb.from("profiles").select("id, email, utm_source, utm_campaign, utm_content, plan, is_admin"),
+    sb
+      .from("profiles")
+      .select("id, email, utm_source, utm_campaign, utm_content, plan, is_admin, created_at, onboarded, last_active_at"),
     sb.from("income").select("user_id"),
     sb.from("referrals").select("referrer_id, referred_id").eq("status", "completed"),
     sb.from("subscriptions").select("user_id, status"),
+    sb.from("events").select("user_id").eq("event_name", "checkout_started"),
   ]);
 
   // Real "paid" state for the bySource/byCampaign breakdown below (QA fix,
@@ -131,6 +135,44 @@ export async function GET() {
     .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
+  // Named product funnel (Aug 23 2026 conversion-optimization pass, per
+  // ChatGPT's homepage review once the round-3 redesign shipped: "stop
+  // redesigning, start measuring" -- Visitor -> Start Free -> Sign Up ->
+  // Complete Onboarding -> Create First Paycheck -> Return -> Upgrade).
+  // "Visitors" and "Start Free clicks" are anonymous/session-based
+  // (page_view / cta_clicked, see /api/admin/visitors) and merged in
+  // client-side as directional top-of-funnel context; everything from
+  // Signed Up onward here is a real cohort of the same non-admin profiles,
+  // so each step-to-step rate is an exact conversion, not an estimate.
+  // "Onboarded" reads profiles.onboarded directly (set by
+  // /api/onboarding/complete) rather than the onboarding_completed event
+  // alone, so it stays accurate for accounts that onboarded before this
+  // event existed. "Checkout started" = a real Stripe Checkout Session was
+  // created (app/api/stripe/checkout/route.ts), independent of whether it
+  // was ever completed. "Returning" = came back on a later calendar day
+  // than they signed up (profiles.last_active_at, updated on every
+  // dashboard load).
+  const checkoutStartedIds = new Set(
+    (checkoutStartedRes.data || []).map((r: any) => r.user_id).filter(Boolean)
+  );
+  const dayOf = (iso: string) => iso.slice(0, 10);
+  const onboardedCount = funnelProfiles.filter((p: any) => p.onboarded).length;
+  const activatedCount = funnelProfiles.filter((p) => activatedIds.has(p.id)).length;
+  const checkoutStartedCount = funnelProfiles.filter((p) => checkoutStartedIds.has(p.id)).length;
+  const paidCount = funnelProfiles.filter((p) => activeSubUserIds.has(p.id)).length;
+  const returningCount = funnelProfiles.filter(
+    (p: any) => p.last_active_at && p.created_at && dayOf(p.last_active_at) !== dayOf(p.created_at)
+  ).length;
+
+  const productFunnel = {
+    signups: funnelProfiles.length,
+    onboarded: onboardedCount,
+    activated: activatedCount,
+    checkoutStarted: checkoutStartedCount,
+    paid: paidCount,
+    returning: returningCount,
+  };
+
   return NextResponse.json({
     signupToPaid: {
       signups: signupIds.size,
@@ -148,5 +190,6 @@ export async function GET() {
     byCampaign,
     topReferrers,
     referralRevenueMonthly: Math.round(referralRevenueMonthly * 100) / 100,
+    productFunnel,
   });
 }
