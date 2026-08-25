@@ -18,9 +18,25 @@ export default function AchievementsPage() {
 
     const run = async () => {
       try {
-        const res = await fetch("/api/achievements/check", { method: "POST" })
-        const json = await res.json().catch(() => ({}))
-        if (Array.isArray(json?.newlyEarned) && json.newlyEarned.length > 0) celebrate()
+        // Bounded for the same reason as the query below: this fetch had no
+        // timeout at all, so a slow/stuck /api/achievements/check response
+        // (the WebView-hang class of issue lib/withTimeout.ts exists for)
+        // left `earned` at null forever -- the page stuck on "Loading your
+        // badges..." with no way out, even though the withTimeout guard
+        // below looks like it should already prevent exactly that. Caught
+        // live in a screen recording of the app (Aug 25 2026): login -> MFA
+        // -> Dashboard all loaded fine, but the dedicated Achievements page
+        // spun indefinitely because this earlier, unguarded fetch never
+        // resolved and the code never reached the protected block.
+        const res = await withTimeout(
+          fetch("/api/achievements/check", { method: "POST" }),
+          8000,
+          null as Response | null
+        )
+        if (res) {
+          const json = await res.json().catch(() => ({}))
+          if (Array.isArray(json?.newlyEarned) && json.newlyEarned.length > 0) celebrate()
+        }
       } catch {
         // ignore
       }
