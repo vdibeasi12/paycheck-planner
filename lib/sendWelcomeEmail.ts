@@ -5,6 +5,7 @@
 
 import { createClient } from "@supabase/supabase-js"
 import { resend } from "@/lib/email"
+import { addressLine } from "@/lib/emailFooter"
 
 function adminDb() {
   return createClient(
@@ -119,6 +120,7 @@ function welcomeHtml(name: string, referralCode: string | null): string {
             (c) 2026 Paycheck Planner - DiBeasi Global Investments LLC (DBA Paycheck Planner).<br/>
             You're receiving this because you created an account at paycheckplanner.ai.
           </p>
+          ${addressLine()}
         </td></tr>
       </table>
 

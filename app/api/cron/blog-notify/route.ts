@@ -2,6 +2,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { resend } from "@/lib/email"
 import { getAllPosts } from "@/lib/blog"
+import { addressLine } from "@/lib/emailFooter"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -115,6 +116,7 @@ export async function GET(req: Request) {
         '<a style="color:#6b7280;" href="' +
         unsubUrl +
         '">Unsubscribe</a></p>' +
+        addressLine() +
         "</div>"
 
       const result = await resend.emails.send({

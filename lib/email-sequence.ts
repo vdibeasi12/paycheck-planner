@@ -5,6 +5,8 @@
 // next un-sent step once its dayOffset has arrived, using
 // last_sequence_step to track progress per subscriber.
 
+import { addressLine } from "@/lib/emailFooter"
+
 export type SequenceStep = {
   step: number
   dayOffset: number
@@ -28,6 +30,7 @@ function wrap(inner: string, unsubUrl: string): string {
     '<a style="color:#6b7280;" href="' +
     unsubUrl +
     '">Unsubscribe</a></p>' +
+    addressLine() +
     "</div>"
   )
 }

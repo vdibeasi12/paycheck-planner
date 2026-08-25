@@ -20,6 +20,8 @@
 // fire close to on time; the 24hr/3-day steps work fine either way since
 // they only need day-level precision.
 
+import { addressLine } from "@/lib/emailFooter"
+
 export type AbandonedSignupStep = {
   step: number
   hoursOffset: number
@@ -43,6 +45,7 @@ function wrap(inner: string, unsubUrl: string): string {
     '<a style="color:#6b7280;" href="' +
     unsubUrl +
     '">Unsubscribe from these reminders</a></p>' +
+    addressLine() +
     "</div>"
   )
 }

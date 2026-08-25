@@ -1,5 +1,6 @@
 // lib/challenge-email.ts
 import type { ChallengeDay } from "@/lib/challenge-days"
+import { addressLine } from "@/lib/emailFooter"
 
 function escapeHtml(s: any): string {
   return (s == null ? "" : String(s))
@@ -53,6 +54,7 @@ export function challengeEmailHtml(cd: ChallengeDay, appUrl: string, unsubUrl: s
     '<a style="color:#6b7280;" href="' +
     unsubUrl +
     '">Unsubscribe</a></p>' +
+    addressLine() +
     "</div>"
   )
 }

@@ -3,6 +3,7 @@ import { createClient } from "@supabase/supabase-js"
 import { resend } from "@/lib/email"
 import { formatCurrency } from "@/lib/i18n/formatCurrency"
 import { sendPushToUser } from "@/lib/push"
+import { reminderUnsubLinks } from "@/lib/emailFooter"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -52,7 +53,7 @@ export async function GET(req: Request) {
   // who only wants push (email_bill_reminders off) isn't skipped entirely.
   const { data: prefs, error: prefsErr } = await db
     .from("notification_preferences")
-    .select("user_id, email_bill_reminders, push_bill_reminders, reminder_days_before")
+    .select("user_id, email_bill_reminders, push_bill_reminders, reminder_days_before, unsubscribe_token")
     .or("email_bill_reminders.eq.true,push_bill_reminders.eq.true")
 
   if (prefsErr) {
@@ -117,6 +118,11 @@ export async function GET(req: Request) {
           })
           .join("")
 
+        const unsubUrl =
+          APP_URL + "/api/notifications/unsubscribe?type=bills&token=" + encodeURIComponent(pref.unsubscribe_token)
+        const allUrl =
+          APP_URL + "/api/notifications/unsubscribe?type=all&token=" + encodeURIComponent(pref.unsubscribe_token)
+
         const html =
           '<div style="font-family:Arial,Helvetica,sans-serif;color:#e5e7eb;background:#0b1220;padding:24px;border-radius:12px;">' +
           '<h2 style="margin:0 0 8px;color:#34d399;">Upcoming bills</h2>' +
@@ -129,6 +135,7 @@ export async function GET(req: Request) {
           rows +
           "</tbody></table>" +
           '<p style="margin-top:20px;"><a style="color:#34d399;" href="' + APP_URL + '/bills">Review your bills</a></p>' +
+          reminderUnsubLinks(unsubUrl, allUrl) +
           "</div>"
 
         const r = await resend.emails.send({

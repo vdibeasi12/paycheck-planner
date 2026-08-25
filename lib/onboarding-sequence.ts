@@ -7,6 +7,8 @@
 // un-sent step once its dayOffset has arrived, using
 // onboarding_sequence_step on profiles to track progress per user.
 
+import { addressLine } from "@/lib/emailFooter"
+
 export type OnboardingStep = {
   step: number
   dayOffset: number
@@ -30,6 +32,7 @@ function wrap(inner: string, unsubUrl: string): string {
     '<a style="color:#6b7280;" href="' +
     unsubUrl +
     '">Unsubscribe from setup tips</a></p>' +
+    addressLine() +
     "</div>"
   )
 }

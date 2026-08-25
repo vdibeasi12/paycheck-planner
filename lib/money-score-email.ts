@@ -10,6 +10,7 @@ import {
   type MoneyScoreCategoryResult,
   type ScoreBand,
 } from "./money-score"
+import { addressLine } from "@/lib/emailFooter"
 
 const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ||
@@ -40,7 +41,9 @@ function wrap(inner: string): string {
     '<p style="margin-top:28px;font-size:12px;color:#6b7280;border-top:1px solid #1f2937;padding-top:16px;">' +
     "You're getting this because you requested your personalized improvement plan after taking " +
     "the Paycheck Planner Money Quiz." +
-    "</p></div>"
+    "</p>" +
+    addressLine() +
+    "</div>"
   )
 }
 
