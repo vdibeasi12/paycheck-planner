@@ -14,6 +14,7 @@ import {
   Landmark,
   RefreshCw,
   Shield,
+  Wand2,
   Bell,
   X,
   LayoutDashboard,
@@ -76,6 +77,11 @@ const STEP_DEFS: StepDef[] = [
     key: "connect_bank", rank: 3, kind: "data", href: "/account", Icon: Landmark, table: "plaid_items",
     title: "Connect your bank - Autopilot",
     desc: "Securely link an institution so balances and APRs update on their own. Let balances refresh automatically so your plan stays accurate without manual entry.",
+  },
+  {
+    key: "autopilot", rank: 3, kind: "action", href: "/paycheck-autopilot", Icon: Wand2, progressKey: "autopilot_reviewed",
+    title: "Preview Plan Autopilot",
+    desc: "A few days before payday, see your next paycheck plan drafted automatically -- bills, debt, and goals already broken out.",
   },
 ]
 
