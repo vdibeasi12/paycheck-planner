@@ -12,6 +12,9 @@ import PaycheckSurplusPrompt from "@/app/components/PaycheckSurplusPrompt"
 import { computeSafeToSpend } from "@/lib/safeToSpend"
 import { detectClosedCycleSurplus } from "@/lib/paycheckSurplus"
 import { detectStartingCycleSnapshot } from "@/lib/planDrift"
+import { projectPaycheckCycles } from "@/lib/paycheckCycles"
+import { computeCapacityForCycles, generatePaycheckTalk } from "@/lib/paycheckCapacity"
+import PaycheckTalkCard from "@/app/components/PaycheckTalkCard"
 import AchievementsStrip from "@/app/components/AchievementsStrip"
 import ReferralCard from "@/app/components/ReferralCard"
 import { canUseCharts as planCanUseCharts, canUseSnowball as planCanUseSnowball, canUseAI as planCanUseAI } from "@/lib/permissions"
@@ -142,6 +145,16 @@ export default async function DashboardPage() {
   // selects.
   const safeToSpendResult = computeSafeToSpend({ income, bills, debts, goals })
 
+  // Paycheck Capacity / "If This Paycheck Could Talk" (Aug 26 2026): reuses
+  // the same projected cycles Paycheck Shield already computes -- no new
+  // table, nothing persisted. Compares the soonest upcoming paycheck against
+  // the one after it and, when the gap is real, recommends which one should
+  // absorb an optional extra payment. Null when there's no projectable plan
+  // yet (no income/pay date), same condition safeToSpendResult and the
+  // Surplus/Drift detectors below already handle gracefully.
+  const upcomingCycles = projectPaycheckCycles({ income, bills, debts, goals })
+  const paycheckTalk = generatePaycheckTalk(computeCapacityForCycles(upcomingCycles))
+
   // Paycheck Surplus (Aug 26 2026): if a cycle just closed with money still
   // left in it (per the same Safe-to-Spend math above), record one decision
   // row for it -- upsert with ignoreDuplicates so this is a no-op on every
@@ -224,6 +237,7 @@ export default async function DashboardPage() {
       )}
       <PaycheckCountdown result={safeToSpendResult} />
       <WhatIfSpend result={safeToSpendResult} />
+      {paycheckTalk && <PaycheckTalkCard narrative={paycheckTalk} />}
       <SummaryCards netWorth={-totalDebt} totalDebt={totalDebt} monthlyPayments={monthlyPayments} percentPaid={percentPaid} />
       <ReferralCard userId={user.id} />
       <DebtList debts={debts} />

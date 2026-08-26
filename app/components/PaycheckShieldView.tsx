@@ -3,8 +3,20 @@
 import { Shield, TrendingDown } from "lucide-react"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import type { PlanResilienceResult } from "@/lib/planResilience"
+import { capacityForCycle, type CapacityLevel } from "@/lib/paycheckCapacity"
 import StressTestPanel from "./StressTestPanel"
 import StrengthenPaycheckPanel from "./StrengthenPaycheckPanel"
+
+// Paycheck Capacity (Aug 26 2026): a percent-of-paycheck badge alongside the
+// dollar cushion this list already showed -- $200 left over reads very
+// differently on a $500 paycheck than a $3,000 one, and the badge is meant
+// to be the at-a-glance answer to "which of these has room" that the raw
+// dollar figures don't give you without doing the division yourself.
+const CAPACITY_BADGE: Record<CapacityLevel, { dot: string; text: string; label: string }> = {
+  very_tight: { dot: "bg-red-400", text: "text-red-400", label: "Very Tight" },
+  moderate: { dot: "bg-amber-400", text: "text-amber-400", label: "Moderate" },
+  healthy: { dot: "bg-emerald-400", text: "text-emerald-400", label: "Healthy" },
+}
 
 type BillRow = { id: string; name: string; amount: number; due_date: number | null }
 type DebtRow = { id: string; name: string; minimum_payment: number; due_date: number | null }
@@ -107,6 +119,8 @@ export default function PaycheckShieldView({ result, bills, debts }: Props) {
           {upcomingCycles.map((c) => {
             const isWeakest = result.weakestCycle && c.date === result.weakestCycle.date
             const committed = c.billsDue + c.debtsDue + c.goalContribution
+            const capacity = capacityForCycle(c)
+            const badge = CAPACITY_BADGE[capacity.level]
             return (
               <div
                 key={c.date}
@@ -115,6 +129,12 @@ export default function PaycheckShieldView({ result, bills, debts }: Props) {
                 }`}
               >
                 <span className="text-gray-300 w-20">{formatDate(c.date)}</span>
+                <span className="flex items-center gap-1.5 w-28">
+                  <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} />
+                  <span className={`text-xs font-semibold ${badge.text}`}>
+                    {badge.label} &middot; {capacity.capacityPct}%
+                  </span>
+                </span>
                 <span className="text-gray-500 flex-1 text-right pr-4">-{formatMoney(committed)} committed</span>
                 <span className={`font-semibold w-24 text-right ${c.cushion >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                   {formatMoney(c.cushion)}
