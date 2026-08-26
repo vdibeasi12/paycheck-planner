@@ -9,13 +9,14 @@ type TourStep = { element?: string; title: string; description: string }
 
 // Order matches the sidebar's top-to-bottom order exactly (Dashboard,
 // Getting Started, Calendar, Debts, Payoff Plan, Bills, Income, Paycheck
-// Shield, Plan Autopilot, Goals, Achievements, Insights, Analytics, Money
-// Quiz, University, Financial Hub, AI Chat, Account, Feedback, Sign out) so
-// the highlight walks straight down the nav instead of jumping around.
-// Admin is intentionally excluded -- it's only shown to admin accounts and
-// has no data-tour attribute. Paycheck Shield and Plan Autopilot were added
-// Aug 26 2026 -- Shield existed before this tour did and had been missed;
-// Survival Mode is still missing the same way and hasn't been added here.
+// Shield, Plan Autopilot, Plan Drift, Goals, Achievements, Insights,
+// Analytics, Money Quiz, University, Financial Hub, AI Chat, Account,
+// Feedback, Sign out) so the highlight walks straight down the nav instead
+// of jumping around. Admin is intentionally excluded -- it's only shown to
+// admin accounts and has no data-tour attribute. Paycheck Shield, Plan
+// Autopilot, and Plan Drift were added Aug 26 2026 -- Shield existed before
+// this tour did and had been missed; Survival Mode is still missing the
+// same way and hasn't been added here.
 const STEPS: TourStep[] = [
   { title: "Welcome to Paycheck Planner", description: "Here's a quick tour of where everything lives. It takes about a minute." },
   { element: '[data-tour="dash-title"]', title: "Your dashboard", description: "Your money at a glance - safe-to-spend, balances, progress, and what to do with any leftover money all live here." },
@@ -27,6 +28,7 @@ const STEPS: TourStep[] = [
   { element: '[data-tour="nav-income"]', title: "Add your income", description: "Start here. Enter each paycheck and how often it arrives so the budget math is right." },
   { element: '[data-tour="nav-paycheck-shield"]', title: "Paycheck Shield", description: "Stress-test your plan against real-life surprises and see which upcoming paycheck has the least room." },
   { element: '[data-tour="nav-paycheck-autopilot"]', title: "Plan Autopilot", description: "A few days before payday, Autopilot drafts what that paycheck needs to cover -- included with the Autopilot plan." },
+  { element: '[data-tour="nav-plan-drift"]', title: "Plan Drift", description: "See whether you're still following the plan you started this pay period with -- and what's shifted if not." },
   { element: '[data-tour="nav-goals"]', title: "Set your goals", description: "Create savings targets and other financial goals to work toward." },
   { element: '[data-tour="nav-achievements"]', title: "Achievements", description: "Milestones you unlock as you build better money habits." },
   { element: '[data-tour="nav-insights"]', title: "Insights", description: "A closer look at your spending and progress trends." },

@@ -11,6 +11,7 @@ import WhatIfSpend from "@/app/components/WhatIfSpend"
 import PaycheckSurplusPrompt from "@/app/components/PaycheckSurplusPrompt"
 import { computeSafeToSpend } from "@/lib/safeToSpend"
 import { detectClosedCycleSurplus } from "@/lib/paycheckSurplus"
+import { detectStartingCycleSnapshot } from "@/lib/planDrift"
 import AchievementsStrip from "@/app/components/AchievementsStrip"
 import ReferralCard from "@/app/components/ReferralCard"
 import { canUseCharts as planCanUseCharts, canUseSnowball as planCanUseSnowball, canUseAI as planCanUseAI } from "@/lib/permissions"
@@ -169,6 +170,30 @@ export default async function DashboardPage() {
     .order("cycle_date", { ascending: false })
     .limit(1)
     .maybeSingle()
+
+  // Plan Drift (Aug 26 2026): if a cycle just STARTED (the opposite moment
+  // from Surplus above), freeze its computed breakdown as the "original
+  // plan" before the user has a chance to edit anything. Same
+  // upsert-with-ignoreDuplicates pattern -- a no-op on every load after the
+  // first for that cycle. The /plan-drift page reads this back and
+  // recomputes the live version to diff against it.
+  const driftSnapshot = detectStartingCycleSnapshot({ income, bills, debts, goals })
+  if (driftSnapshot) {
+    await supabase
+      .from("paycheck_plan_snapshots")
+      .upsert(
+        {
+          user_id: user.id,
+          cycle_date: driftSnapshot.cycleDate,
+          amount: driftSnapshot.amount,
+          bills_amount: driftSnapshot.billsAmount,
+          debts_amount: driftSnapshot.debtsAmount,
+          goals_amount: driftSnapshot.goalsAmount,
+          flexible_amount: driftSnapshot.flexibleAmount,
+        },
+        { onConflict: "user_id,cycle_date", ignoreDuplicates: true }
+      )
+  }
 
   // Admins act as the top (connected) tier so they can use/test every feature.
   const effectivePlan = profile?.is_admin ? "connected" : plan

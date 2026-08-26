@@ -21,6 +21,7 @@ const PROTECTED = [
   "/survival-mode",
   "/paycheck-shield",
   "/paycheck-autopilot",
+  "/plan-drift",
   "/achievements",
   "/account",
   "/insights",
