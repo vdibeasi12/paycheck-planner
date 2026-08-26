@@ -10,43 +10,35 @@
 // live checking-account connection (Plaid here is Liabilities-only). The
 // "available cash" figure is the amount of the user's most recent paycheck,
 // clearly framed as that in the UI, not a live balance.
+//
+// The shared date/projection primitives (income occurrences, bill/debt
+// due-window sums, per-cycle goal contribution rate) live in
+// lib/paycheckCycles.ts now -- lib/planResilience.ts (Paycheck Shield) builds
+// on the same primitives to project every upcoming paycheck instead of just
+// this one. This file's public API (computeSafeToSpend, whatIfSpend, and the
+// exported types) is unchanged.
 
-import { occurrencesInMonth, billOccurrenceInMonth, type Frequency } from "./schedule"
+import {
+  toISODate,
+  daysBetween,
+  projectIncomeOccurrences,
+  sumDueInWindow,
+  goalContributionRate,
+  type CycleIncome,
+  type CycleBill,
+  type CycleDebt,
+  type CycleGoal,
+} from "./paycheckCycles"
 
-const MS_PER_DAY = 24 * 60 * 60 * 1000
 // How far past/forward we're willing to scan looking for a paycheck date.
-// 3 months comfortably covers even quarterly/annual income entries; goal
-// paycheck-counting below uses its own, longer horizon.
+// 3 months comfortably covers even quarterly/annual income entries.
 const SCAN_MONTHS_BACK = 2
 const SCAN_MONTHS_FORWARD = 3
-// Very-long-horizon goals (deadline further out than this) are excluded from
-// the per-cycle contribution rather than walking hundreds of months of
-// occurrences -- they're not what "safe to spend until payday" is about.
-const GOAL_SCAN_MONTHS_FORWARD = 24
 
-export type STSIncome = {
-  amount: number
-  frequency: string | null
-  next_pay_date: string | null
-  income_type?: string | null
-}
-
-export type STSBill = {
-  amount: number
-  due_date: number | null
-}
-
-export type STSDebt = {
-  minimum_payment: number
-  due_date: number | null
-}
-
-export type STSGoal = {
-  target_amount: number
-  current_amount: number | null
-  deadline: string | null
-  status: string | null
-}
+export type STSIncome = CycleIncome
+export type STSBill = CycleBill
+export type STSDebt = CycleDebt
+export type STSGoal = CycleGoal
 
 export type SafeToSpendResult = {
   hasIncome: boolean
@@ -69,114 +61,6 @@ export type WhatIfVerdict = "fine" | "tight" | "not-recommended"
 export type WhatIfResult = {
   newSafeToSpend: number
   verdict: WhatIfVerdict
-}
-
-function toISODate(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
-}
-
-function addDays(d: Date, days: number): Date {
-  return new Date(d.getTime() + days * MS_PER_DAY)
-}
-
-function daysBetween(fromISO: string, toISO: string): number {
-  const from = new Date(fromISO + "T00:00:00")
-  const to = new Date(toISO + "T00:00:00")
-  return Math.round((to.getTime() - from.getTime()) / MS_PER_DAY)
-}
-
-// Every income occurrence (date + amount) across the given month range,
-// income_type "transfer" excluded -- same convention as the Dashboard's
-// existing monthly total (transfers are money moving between the user's own
-// accounts, not real income).
-function projectIncomeOccurrences(
-  income: STSIncome[],
-  startYear: number,
-  startMonth: number,
-  monthCount: number
-): { date: string; amount: number }[] {
-  const out: { date: string; amount: number }[] = []
-  const real = income.filter((i) => i.income_type !== "transfer" && i.next_pay_date)
-  for (let step = 0; step < monthCount; step++) {
-    const idx = startYear * 12 + startMonth + step
-    const year = Math.floor(idx / 12)
-    const month = idx % 12
-    for (const inc of real) {
-      const dates = occurrencesInMonth(inc.next_pay_date, (inc.frequency || "monthly") as Frequency, year, month)
-      for (const date of dates) {
-        out.push({ date, amount: Number(inc.amount) || 0 })
-      }
-    }
-  }
-  return out.sort((a, b) => a.date.localeCompare(b.date))
-}
-
-// Sum of bill/debt occurrences whose due date falls in (fromISO, toISO] --
-// i.e. still ahead of "today", up to and including the next paycheck date.
-function sumDueInWindow(
-  rows: { amount: number; due_date: number | null }[],
-  fromISO: string,
-  toISO: string
-): number {
-  const from = new Date(fromISO + "T00:00:00")
-  const to = new Date(toISO + "T00:00:00")
-  let total = 0
-  const startIdx = from.getFullYear() * 12 + from.getMonth()
-  const endIdx = to.getFullYear() * 12 + to.getMonth()
-  for (const row of rows) {
-    if (!row.due_date) continue
-    for (let idx = startIdx; idx <= endIdx; idx++) {
-      const year = Math.floor(idx / 12)
-      const month = idx % 12
-      const date = billOccurrenceInMonth(row.due_date, year, month)
-      if (date > fromISO && date <= toISO) {
-        total += Number(row.amount) || 0
-      }
-    }
-  }
-  return total
-}
-
-// Required per-paycheck contribution to hit each goal's deadline, summed.
-// Derived rather than stored -- financial_goals has no explicit "per
-// paycheck" field, so this counts real upcoming paycheck dates (via the same
-// income schedule as everything else) between today and each goal's
-// deadline and divides the remaining amount across them. Goals with no
-// deadline, already funded, not active, or with a deadline further out than
-// GOAL_SCAN_MONTHS_FORWARD don't factor into "safe to spend right now."
-function computeGoalContribution(
-  goals: STSGoal[],
-  income: STSIncome[],
-  todayISOStr: string,
-  todayYear: number,
-  todayMonth: number
-): number {
-  let total = 0
-  for (const g of goals) {
-    if (g.status && g.status !== "active") continue
-    if (!g.deadline) continue
-    const remaining = Number(g.target_amount || 0) - Number(g.current_amount ?? 0)
-    if (remaining <= 0) continue
-    if (g.deadline <= todayISOStr) {
-      // Overdue/imminent goal -- the whole remaining amount is "needed now"
-      // rather than divided across paychecks that no longer exist.
-      total += remaining
-      continue
-    }
-    const idx = todayYear * 12 + todayMonth
-    const deadlineDate = new Date(g.deadline + "T00:00:00")
-    const deadlineIdx = deadlineDate.getFullYear() * 12 + deadlineDate.getMonth()
-    const monthsOut = deadlineIdx - idx
-    if (monthsOut > GOAL_SCAN_MONTHS_FORWARD) continue
-
-    const occurrences = projectIncomeOccurrences(income, todayYear, todayMonth, monthsOut + 1)
-    const uniqueDates = Array.from(new Set(occurrences.map((o) => o.date))).filter(
-      (d) => d > todayISOStr && d <= g.deadline!
-    )
-    const paychecksRemaining = Math.max(1, uniqueDates.length)
-    total += remaining / paychecksRemaining
-  }
-  return total
 }
 
 export function computeSafeToSpend(input: {
@@ -241,13 +125,7 @@ export function computeSafeToSpend(input: {
     todayStr,
     nextPaycheckDate
   )
-  const goalContribution = computeGoalContribution(
-    input.goals,
-    input.income,
-    todayStr,
-    today.getFullYear(),
-    today.getMonth()
-  )
+  const goalContribution = goalContributionRate(input.goals, input.income, todayStr)
 
   const safeToSpend = lastPaycheckAmount - billsDue - debtsDue - goalContribution
   const daysUntilNextPaycheck = Math.max(0, daysBetween(todayStr, nextPaycheckDate))

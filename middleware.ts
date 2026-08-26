@@ -19,6 +19,7 @@ const PROTECTED = [
   "/documents",
   "/goals",
   "/survival-mode",
+  "/paycheck-shield",
   "/achievements",
   "/account",
   "/insights",

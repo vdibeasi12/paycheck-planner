@@ -24,6 +24,7 @@ import {
   Sparkles,
   ShieldCheck,
   ShieldAlert,
+  Shield,
   Settings,
   LogOut,
   LifeBuoy,
@@ -52,7 +53,8 @@ const LINKS = [
   { href: "/income", labelKey: "nav.income", Icon: Wallet },
   { href: "/amortization", labelKey: "nav.payoffPlan", Icon: CalendarClock },
 
-  { href: "/goals", labelKey: "nav.goals", Icon: Target, group: "grow" },
+  { href: "/paycheck-shield", labelKey: "nav.paycheckShield", Icon: Shield, group: "grow" },
+  { href: "/goals", labelKey: "nav.goals", Icon: Target },
   { href: "/achievements", labelKey: "nav.achievements", Icon: Trophy },
   { href: "/money-score", labelKey: "nav.moneyScore", Icon: Gauge },
 
