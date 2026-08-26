@@ -29,6 +29,10 @@
                       "schedule":  "0 11 * * *"
                   },
                   {
+                      "path":  "/api/cron/paycheck-autopilot",
+                      "schedule":  "0 10 * * *"
+                  },
+                  {
                       "path":  "/api/cron/debt-reminder",
                       "schedule":  "0 18 * * *"
                   },

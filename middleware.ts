@@ -20,6 +20,7 @@ const PROTECTED = [
   "/goals",
   "/survival-mode",
   "/paycheck-shield",
+  "/paycheck-autopilot",
   "/achievements",
   "/account",
   "/insights",

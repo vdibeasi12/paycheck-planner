@@ -8,7 +8,9 @@ import PaywallOverlay from "@/app/components/PaywallOverlay"
 import InfoHint from "@/app/components/InfoHint"
 import PaycheckCountdown from "@/app/components/PaycheckCountdown"
 import WhatIfSpend from "@/app/components/WhatIfSpend"
+import PaycheckSurplusPrompt from "@/app/components/PaycheckSurplusPrompt"
 import { computeSafeToSpend } from "@/lib/safeToSpend"
+import { detectClosedCycleSurplus } from "@/lib/paycheckSurplus"
 import AchievementsStrip from "@/app/components/AchievementsStrip"
 import ReferralCard from "@/app/components/ReferralCard"
 import { canUseCharts as planCanUseCharts, canUseSnowball as planCanUseSnowball, canUseAI as planCanUseAI } from "@/lib/permissions"
@@ -124,9 +126,12 @@ export default async function DashboardPage() {
   // undetected duplicate here means that payment is silently counted twice.
   const billDebtOverlaps = findBillDebtOverlaps(bills, debts)
 
+  // id/title added (Aug 26 2026, Paycheck Surplus) so the surplus prompt's
+  // goal picker doesn't need a second query -- every other read of `goals`
+  // below only ever used the four original columns, so this is additive.
   const { data: goalsData } = await supabase
     .from("financial_goals")
-    .select("target_amount, current_amount, deadline, status")
+    .select("id, title, target_amount, current_amount, deadline, status")
     .eq("user_id", user.id)
   const goals = Array.isArray(goalsData) ? goalsData : []
 
@@ -135,6 +140,35 @@ export default async function DashboardPage() {
   // above; bills/income just needed due_date/next_pay_date added to their
   // selects.
   const safeToSpendResult = computeSafeToSpend({ income, bills, debts, goals })
+
+  // Paycheck Surplus (Aug 26 2026): if a cycle just closed with money still
+  // left in it (per the same Safe-to-Spend math above), record one decision
+  // row for it -- upsert with ignoreDuplicates so this is a no-op on every
+  // dashboard load after the first for that cycle, whether or not the user
+  // has already resolved it. Best-effort: a failure here shouldn't break the
+  // dashboard.
+  const surplusDetection = detectClosedCycleSurplus({ income, bills, debts, goals })
+  if (surplusDetection) {
+    await supabase
+      .from("paycheck_surplus_decisions")
+      .upsert(
+        {
+          user_id: user.id,
+          cycle_date: surplusDetection.cycleDate,
+          surplus_amount: surplusDetection.surplusAmount,
+        },
+        { onConflict: "user_id,cycle_date", ignoreDuplicates: true }
+      )
+  }
+
+  const { data: pendingSurplus } = await supabase
+    .from("paycheck_surplus_decisions")
+    .select("id, cycle_date, surplus_amount")
+    .eq("user_id", user.id)
+    .eq("resolved", false)
+    .order("cycle_date", { ascending: false })
+    .limit(1)
+    .maybeSingle()
 
   // Admins act as the top (connected) tier so they can use/test every feature.
   const effectivePlan = profile?.is_admin ? "connected" : plan
@@ -154,6 +188,15 @@ export default async function DashboardPage() {
 
       <AchievementsStrip />
       <BillDebtOverlapWarning overlaps={billDebtOverlaps} />
+      {pendingSurplus && (
+        <PaycheckSurplusPrompt
+          decisionId={pendingSurplus.id}
+          cycleDate={pendingSurplus.cycle_date}
+          surplusAmount={Number(pendingSurplus.surplus_amount) || 0}
+          debts={debts.map((d) => ({ id: d.id, name: d.name }))}
+          goals={goals.map((g) => ({ id: g.id, title: g.title }))}
+        />
+      )}
       <PaycheckCountdown result={safeToSpendResult} />
       <WhatIfSpend result={safeToSpendResult} />
       <SummaryCards netWorth={-totalDebt} totalDebt={totalDebt} monthlyPayments={monthlyPayments} percentPaid={percentPaid} />

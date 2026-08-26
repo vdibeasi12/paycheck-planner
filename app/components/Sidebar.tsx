@@ -25,6 +25,7 @@ import {
   ShieldCheck,
   ShieldAlert,
   Shield,
+  Wand2,
   Settings,
   LogOut,
   LifeBuoy,
@@ -54,6 +55,7 @@ const LINKS = [
   { href: "/amortization", labelKey: "nav.payoffPlan", Icon: CalendarClock },
 
   { href: "/paycheck-shield", labelKey: "nav.paycheckShield", Icon: Shield, group: "grow" },
+  { href: "/paycheck-autopilot", labelKey: "nav.paycheckAutopilot", Icon: Wand2 },
   { href: "/goals", labelKey: "nav.goals", Icon: Target },
   { href: "/achievements", labelKey: "nav.achievements", Icon: Trophy },
   { href: "/money-score", labelKey: "nav.moneyScore", Icon: Gauge },
