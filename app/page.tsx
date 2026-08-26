@@ -129,11 +129,30 @@ export default function HomePage() {
           so wide monitors get ambient light in the gutters instead of empty
           black, while the readable content width is untouched. Purely
           decorative -- pointer-events-none, sits behind everything (z-0). */}
+      {/* Perf fix (Aug 26 2026): these were four 500-600px circles each
+          running a 140px CSS blur filter, stacked across the full ~7800px
+          page height. `filter: blur()` at that radius is one of the more
+          expensive things a browser can paint/composite -- on a mid-range
+          phone it's a real source of scroll jank. Radial gradients produce
+          the same soft-glow look without a blur filter at all, at a
+          fraction of the render cost, so swapping to those here. */}
       <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden="true">
-        <div className="absolute -left-[10%] top-[-5%] w-[600px] h-[600px] rounded-full bg-green-500/10 blur-[140px]" />
-        <div className="absolute -right-[10%] top-[15%] w-[560px] h-[560px] rounded-full bg-blue-500/10 blur-[140px]" />
-        <div className="absolute -left-[8%] top-[60%] w-[500px] h-[500px] rounded-full bg-emerald-500/10 blur-[140px]" />
-        <div className="absolute -right-[8%] top-[85%] w-[500px] h-[500px] rounded-full bg-green-500/10 blur-[140px]" />
+        <div
+          className="absolute -left-[10%] top-[-5%] w-[600px] h-[600px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(34,197,94,0.14) 0%, rgba(34,197,94,0) 70%)' }}
+        />
+        <div
+          className="absolute -right-[10%] top-[15%] w-[560px] h-[560px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(59,130,246,0.14) 0%, rgba(59,130,246,0) 70%)' }}
+        />
+        <div
+          className="absolute -left-[8%] top-[60%] w-[500px] h-[500px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.14) 0%, rgba(16,185,129,0) 70%)' }}
+        />
+        <div
+          className="absolute -right-[8%] top-[85%] w-[500px] h-[500px] rounded-full"
+          style={{ background: 'radial-gradient(circle, rgba(34,197,94,0.14) 0%, rgba(34,197,94,0) 70%)' }}
+        />
       </div>
 
       {/* Hero Section -- Aug 2026 composition rebuild: genuine split-screen.

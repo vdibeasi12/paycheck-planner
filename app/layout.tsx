@@ -50,8 +50,11 @@ export const metadata: Metadata = {
     canonical: "/",
   },
   openGraph: {
-    title: "Paycheck Planner - Take Control of Your Finances",
-    description: "Free AI-powered financial planning tools to eliminate debt and achieve financial freedom.",
+    // Was a different tagline than the <title>/meta description above --
+    // fixed Aug 26 2026 so the tab title, search snippet, and social share
+    // card all say the same thing instead of drifting into two brand lines.
+    title: "Paycheck Planner - Debt Payoff & Financial Planning Tools",
+    description: "Free AI-powered financial planning tools to eliminate debt, track bills, and achieve financial freedom. Compare debt payoff strategies and get personalized recommendations.",
     url: "https://paycheckplanner.ai",
     siteName: "Paycheck Planner",
     images: [
