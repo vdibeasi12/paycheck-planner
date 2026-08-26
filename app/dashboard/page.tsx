@@ -6,7 +6,9 @@ import DebtList from "@/app/components/DebtList"
 import DebtStrategyRace from "@/app/components/DebtStrategyRace"
 import PaywallOverlay from "@/app/components/PaywallOverlay"
 import InfoHint from "@/app/components/InfoHint"
-import SafeToSpend from "@/app/components/SafeToSpend"
+import PaycheckCountdown from "@/app/components/PaycheckCountdown"
+import WhatIfSpend from "@/app/components/WhatIfSpend"
+import { computeSafeToSpend } from "@/lib/safeToSpend"
 import AchievementsStrip from "@/app/components/AchievementsStrip"
 import ReferralCard from "@/app/components/ReferralCard"
 import { canUseCharts as planCanUseCharts, canUseSnowball as planCanUseSnowball, canUseAI as planCanUseAI } from "@/lib/permissions"
@@ -96,21 +98,18 @@ export default async function DashboardPage() {
 
   const { data: incomeData } = await supabase
     .from("income")
-    .select("amount, frequency, income_type")
+    .select("amount, frequency, income_type, next_pay_date")
     .eq("user_id", user.id)
   const income = Array.isArray(incomeData) ? incomeData : []
   // "transfer" rows are money moving between the user's own accounts (e.g. a
-  // CSV-detected "Transfer from Chime Checking Account"), not real income --
-  // counting them here is what previously inflated the dashboard's income
-  // total (and therefore Safe-to-Spend) well past what the user actually
-  // earns. See app/income/page.tsx for where income_type is set.
-  const monthlyIncome = income
-    .filter((i) => i.income_type !== "transfer")
-    .reduce((sum, i) => sum + (Number(i.amount) || 0) * monthlyFactor(i.frequency), 0)
+  // CSV-detected "Transfer from Chime Checking Account"), not real income.
+  // lib/safeToSpend.ts applies this same exclusion internally, so it's not
+  // re-filtered here -- the raw `income` array (with next_pay_date) is
+  // passed straight into computeSafeToSpend below.
 
   const { data: billsData } = await supabase
     .from("bills")
-    .select("id, name, amount, frequency")
+    .select("id, name, amount, frequency, due_date")
     .eq("user_id", user.id)
   const bills = Array.isArray(billsData) ? billsData : []
   const monthlyBills = bills.reduce(
@@ -124,6 +123,18 @@ export default async function DashboardPage() {
   // separately everywhere (including Safe-to-Spend below), so an
   // undetected duplicate here means that payment is silently counted twice.
   const billDebtOverlaps = findBillDebtOverlaps(bills, debts)
+
+  const { data: goalsData } = await supabase
+    .from("financial_goals")
+    .select("target_amount, current_amount, deadline, status")
+    .eq("user_id", user.id)
+  const goals = Array.isArray(goalsData) ? goalsData : []
+
+  // Paycheck-cycle Safe-to-Spend (lib/safeToSpend.ts) -- replaces the old
+  // flat "this calendar month" version. Same debts/income already fetched
+  // above; bills/income just needed due_date/next_pay_date added to their
+  // selects.
+  const safeToSpendResult = computeSafeToSpend({ income, bills, debts, goals })
 
   // Admins act as the top (connected) tier so they can use/test every feature.
   const effectivePlan = profile?.is_admin ? "connected" : plan
@@ -143,7 +154,8 @@ export default async function DashboardPage() {
 
       <AchievementsStrip />
       <BillDebtOverlapWarning overlaps={billDebtOverlaps} />
-      <SafeToSpend monthlyIncome={monthlyIncome} monthlyBills={monthlyBills} monthlyDebt={monthlyPayments} />
+      <PaycheckCountdown result={safeToSpendResult} />
+      <WhatIfSpend result={safeToSpendResult} />
       <SummaryCards netWorth={-totalDebt} totalDebt={totalDebt} monthlyPayments={monthlyPayments} percentPaid={percentPaid} />
       <ReferralCard userId={user.id} />
       <DebtList debts={debts} />

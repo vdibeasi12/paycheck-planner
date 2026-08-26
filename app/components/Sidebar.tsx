@@ -26,6 +26,7 @@ import {
   ShieldAlert,
   Settings,
   LogOut,
+  LifeBuoy,
 } from "lucide-react"
 import Logo from "./Logo"
 import GettingStartedModal from "./GettingStartedModal"
@@ -37,6 +38,7 @@ import { hardSignOut } from "@/lib/signOut"
 
 const LINKS = [
   { href: "/dashboard", labelKey: "nav.dashboard", Icon: LayoutDashboard },
+  { href: "/survival-mode", labelKey: "nav.survivalMode", Icon: LifeBuoy },
   { href: "/calendar", labelKey: "nav.calendar", Icon: Calendar },
   { href: "/debts", labelKey: "nav.debts", Icon: CreditCard },
   { href: "/amortization", labelKey: "nav.payoffPlan", Icon: CalendarClock },
