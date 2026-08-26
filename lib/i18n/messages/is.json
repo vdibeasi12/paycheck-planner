@@ -22,7 +22,11 @@
     "admin": "Stjórnandi",
     "gettingStarted": "Fyrstu skref",
     "feedback": "Ábendingar",
-    "signOut": "Skrá út"
+    "signOut": "Skrá út",
+    "groupMoney": "Peningar",
+    "groupGrow": "Vöxtur",
+    "groupReports": "Skýrslur",
+    "groupLearn": "Fræðsla"
   },
   "selector": {
     "language": "Tungumál",

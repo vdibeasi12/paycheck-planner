@@ -36,29 +36,47 @@ import { useLocale } from "@/lib/i18n/LocaleProvider"
 import { supabase } from "@/lib/supabase/client"
 import { hardSignOut } from "@/lib/signOut"
 
+// Grouped + ordered by how often a typical user actually opens each page --
+// Money first (checked every visit or close to it), then Grow (progress /
+// gamification, checked periodically), Reports (deeper breakdowns, occasional
+// check-ins), Learn (educational content, visited occasionally), then two
+// ungrouped utility links that don't fit a content category. `group` is only
+// set on the first item of each cluster -- renderLinks() below reads it to
+// print a small section header there.
 const LINKS = [
-  { href: "/dashboard", labelKey: "nav.dashboard", Icon: LayoutDashboard },
+  { href: "/dashboard", labelKey: "nav.dashboard", Icon: LayoutDashboard, group: "money" },
   { href: "/survival-mode", labelKey: "nav.survivalMode", Icon: LifeBuoy },
-  { href: "/calendar", labelKey: "nav.calendar", Icon: Calendar },
-  { href: "/debts", labelKey: "nav.debts", Icon: CreditCard },
-  { href: "/amortization", labelKey: "nav.payoffPlan", Icon: CalendarClock },
   { href: "/bills", labelKey: "nav.bills", Icon: Receipt },
+  { href: "/debts", labelKey: "nav.debts", Icon: CreditCard },
+  { href: "/calendar", labelKey: "nav.calendar", Icon: Calendar },
   { href: "/income", labelKey: "nav.income", Icon: Wallet },
-  { href: "/goals", labelKey: "nav.goals", Icon: Target },
+  { href: "/amortization", labelKey: "nav.payoffPlan", Icon: CalendarClock },
+
+  { href: "/goals", labelKey: "nav.goals", Icon: Target, group: "grow" },
   { href: "/achievements", labelKey: "nav.achievements", Icon: Trophy },
-  { href: "/insights", labelKey: "nav.insights", Icon: BarChart3 },
-  { href: "/analytics", labelKey: "nav.analytics", Icon: PieChart },
+  { href: "/money-score", labelKey: "nav.moneyScore", Icon: Gauge },
+
   // Report was collapsed into a "Download PDF summary" action on the Payoff
   // Plan page (/amortization) -- no separate Report link/page anymore.
-  { href: "/money-score", labelKey: "nav.moneyScore", Icon: Gauge },
-  { href: "/university", labelKey: "nav.university", Icon: GraduationCap },
+  { href: "/insights", labelKey: "nav.insights", Icon: BarChart3, group: "reports" },
+  { href: "/analytics", labelKey: "nav.analytics", Icon: PieChart },
+
   // Calculators and the 30-Day Challenge are deliberately not linked here --
   // Financial Hub already surfaces both as cards, and duplicating them in
   // the sidebar just adds clutter. Reach them via Financial Hub instead.
-  { href: "/blog", labelKey: "nav.financialHub", Icon: BookOpen },
+  { href: "/blog", labelKey: "nav.financialHub", Icon: BookOpen, group: "learn" },
+  { href: "/university", labelKey: "nav.university", Icon: GraduationCap },
+
   { href: "/ai-chat", labelKey: "nav.aiChat", Icon: MessageSquare },
   { href: "/account", labelKey: "nav.account", Icon: Settings },
 ]
+
+const GROUP_LABEL_KEYS: Record<string, string> = {
+  money: "nav.groupMoney",
+  grow: "nav.groupGrow",
+  reports: "nav.groupReports",
+  learn: "nav.groupLearn",
+}
 
 export default function Sidebar() {
   const pathname = usePathname()
@@ -144,10 +162,15 @@ export default function Sidebar() {
 
   const renderLinks = (onNavigate?: () => void) => (
     <nav className="flex flex-col gap-1 px-3">
-      {LINKS.map(({ href, labelKey, Icon }) => {
+      {LINKS.map(({ href, labelKey, Icon, group }) => {
         const active = isActive(href)
         return (
           <Fragment key={href}>
+            {group && (
+              <div className="mt-3 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 first:mt-0">
+                {t(GROUP_LABEL_KEYS[group])}
+              </div>
+            )}
             <Link
               href={href}
               onClick={onNavigate}

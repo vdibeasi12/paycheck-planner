@@ -22,7 +22,11 @@
     "admin": "Administrator",
     "gettingStarted": "Erste Schritte",
     "feedback": "Feedback",
-    "signOut": "Abmelden"
+    "signOut": "Abmelden",
+    "groupMoney": "Geld",
+    "groupGrow": "Wachstum",
+    "groupReports": "Berichte",
+    "groupLearn": "Lernen"
   },
   "selector": {
     "language": "Sprache",
