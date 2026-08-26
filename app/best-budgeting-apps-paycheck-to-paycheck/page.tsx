@@ -60,12 +60,30 @@ export default function BestBudgetingAppsRoundupPage() {
             shows an actual debt-free date. If your budgeting problem is "make it to the next
             paycheck," this is the app built around that exact problem.
           </p>
-          <Link
-            href="/signup"
-            className="mt-4 inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-6 py-3 text-sm font-semibold text-black hover:bg-emerald-400"
-          >
-            Start free <ArrowRight size={15} />
-          </Link>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Link
+              href="/signup"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-500 px-6 py-3 text-sm font-semibold text-black hover:bg-emerald-400"
+            >
+              Start free <ArrowRight size={15} />
+            </Link>
+            <Link
+              href="/calculators/paycheck"
+              className="inline-flex items-center gap-1.5 rounded-lg border border-gray-700 px-6 py-3 text-sm font-semibold text-white hover:border-gray-500"
+            >
+              Try the free paycheck calculator
+            </Link>
+          </div>
+          <p className="mt-4 text-sm text-gray-400">
+            New to budgeting by paycheck instead of by month?{" "}
+            <Link
+              href="/university/budgeting/why-paycheck-based-budgeting-works"
+              className="text-emerald-400 hover:underline"
+            >
+              Read why paycheck-based budgeting works
+            </Link>{" "}
+            in Paycheck Planner University.
+          </p>
         </div>
 
         <div className="mt-10 space-y-4">

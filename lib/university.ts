@@ -385,3 +385,46 @@ export function isCourseUnlocked(slug: string, completedKeys: Set<string>): bool
   if (idx === -1) return false
   return getUnlockedMap(completedKeys)[idx] ?? false
 }
+
+// Cross-links each lesson to the one Paycheck Planner calculator (lib/calculators.ts)
+// that's most directly relevant, so every lesson page can offer a "Try it"
+// link instead of dead-ending at prev/next-lesson navigation only. Reverse
+// of CalculatorMeta.relatedLessons in lib/calculators.ts -- kept as a
+// separate map (rather than a field on UniversityLesson) so it doesn't
+// require touching all 30 lesson entries above. Credit-course lessons and a
+// couple of Financial Freedom lessons are intentionally omitted -- there's
+// no calculator that's a genuine topical match, and a forced link would be
+// worse than none.
+const LESSON_RELATED_CALCULATOR: Record<string, string> = {
+  "budgeting.why-paycheck-based-budgeting-works": "50-30-20-budget",
+  "budgeting.needs-vs-wants-the-real-breakdown": "50-30-20-budget",
+  "budgeting.building-your-first-paycheck-budget": "50-30-20-budget",
+  "budgeting.mapping-bills-to-paychecks": "biweekly-budget",
+  "budgeting.adjusting-when-a-paycheck-falls-short": "emergency-fund",
+
+  "paychecks.what-actually-comes-out-of-your-paycheck": "paycheck",
+  "paychecks.gross-pay-vs-net-pay-the-number-that-matters": "paycheck",
+  "paychecks.reading-your-pay-stub-without-getting-lost": "paycheck",
+  "paychecks.automating-bills-and-savings-around-your-pay-schedule": "biweekly-budget",
+  "paychecks.what-to-do-when-your-pay-changes": "monthly-budget",
+
+  "debt.why-minimum-payments-keep-you-in-debt-longer": "debt-payoff",
+  "debt.debt-snowball-vs-debt-avalanche": "debt-payoff",
+  "debt.calculating-your-real-debt-free-date": "debt-payoff",
+  "debt.finding-extra-money-for-principal": "monthly-budget",
+  "debt.staying-out-of-debt-once-youre-out": "emergency-fund",
+
+  "saving.why-you-need-an-emergency-fund-first": "emergency-fund",
+  "saving.how-big-should-your-emergency-fund-be": "emergency-fund",
+  "saving.automating-savings-so-its-not-a-decision": "biweekly-budget",
+  "saving.balancing-saving-with-paying-off-debt": "savings-goal",
+  "saving.setting-a-savings-goal-youll-actually-hit": "savings-goal",
+
+  "financial-freedom.turning-a-vague-goal-into-a-number-and-a-date": "savings-goal",
+  "financial-freedom.what-changes-once-youre-debt-free": "savings-goal",
+  "financial-freedom.building-the-next-five-years-not-just-the-next-paycheck": "savings-goal",
+}
+
+export function getRelatedCalculatorSlug(courseSlug: string, lessonSlug: string): string | undefined {
+  return LESSON_RELATED_CALCULATOR[lessonKey(courseSlug, lessonSlug)]
+}

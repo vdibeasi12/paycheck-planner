@@ -114,12 +114,15 @@ export default async function UniversityPage() {
               </div>
             )
 
-            return unlocked ? (
+            // Locked courses still link through to /university/[course] --
+            // that page now renders the full lesson list even when locked
+            // (only progress-tracking requires an account), so this keeps
+            // every course and lesson reachable via on-site navigation
+            // instead of only being findable through the sitemap.
+            return (
               <Link key={course.slug} href={`/university/${course.slug}`}>
                 {cardBody}
               </Link>
-            ) : (
-              <div key={course.slug}>{cardBody}</div>
             )
           })}
         </div>

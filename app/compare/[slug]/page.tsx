@@ -107,6 +107,25 @@ export default async function ComparisonPage({
         </div>
         <p className="mt-2 text-xs text-gray-600">{c.pricingNote}</p>
 
+        {/* Every comparison table above includes a debt-payoff-planning row
+            -- this gives Google (and readers) a direct path to the two
+            pages that actually back that claim up, instead of leaving it
+            as a table cell with nowhere to go. */}
+        <div className="mt-6 flex flex-wrap gap-3 text-sm">
+          <Link
+            href="/calculators/debt-payoff"
+            className="rounded-lg border border-gray-800 bg-[#0f172a] px-4 py-2 text-emerald-400 transition hover:border-gray-700"
+          >
+            Try the free debt payoff calculator &rarr;
+          </Link>
+          <Link
+            href="/university/debt/debt-snowball-vs-debt-avalanche"
+            className="rounded-lg border border-gray-800 bg-[#0f172a] px-4 py-2 text-emerald-400 transition hover:border-gray-700"
+          >
+            Snowball vs. avalanche, explained &rarr;
+          </Link>
+        </div>
+
         {/* Who's actually best served by which -- the other half of not
             being a dishonest page. */}
         <div className="mt-8 grid gap-4 sm:grid-cols-2">

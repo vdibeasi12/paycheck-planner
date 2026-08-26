@@ -3,6 +3,7 @@ import Link from "next/link"
 import { notFound } from "next/navigation"
 import { CALCULATORS, getCalculatorMeta } from "@/lib/calculators"
 import { getAllPosts } from "@/lib/blog"
+import { getLesson } from "@/lib/university"
 import PaycheckCalculator from "@/app/components/calculators/PaycheckCalculator"
 import FiftyThirtyTwentyCalculator from "@/app/components/calculators/FiftyThirtyTwentyCalculator"
 import BiweeklyBudgetCalculator from "@/app/components/calculators/BiweeklyBudgetCalculator"
@@ -60,6 +61,13 @@ export default async function CalculatorPage({
     .filter((p) => p.relatedCalculator === slug)
     .slice(0, 3)
 
+  // Reverse of the "Try it" link we add on each University lesson (see
+  // app/university/[course]/[lesson]/page.tsx) -- same relatedLessons idea
+  // as relatedCalculator above, just for University instead of the blog.
+  const relatedLessons = (meta.relatedLessons ?? [])
+    .map(({ course, lesson }) => getLesson(course, lesson))
+    .filter((found): found is NonNullable<typeof found> => Boolean(found))
+
   return (
     <div className="min-h-screen bg-[#020617] py-12 text-white">
       <div className="mx-auto max-w-2xl px-6">
@@ -84,6 +92,26 @@ export default async function CalculatorPage({
             Try Paycheck Planner free
           </Link>
         </div>
+
+        {relatedLessons.length > 0 && (
+          <div className="mt-10">
+            <p className="mb-3 text-sm font-semibold uppercase tracking-wide text-gray-500">
+              Learn more in Paycheck Planner University
+            </p>
+            <div className="space-y-3">
+              {relatedLessons.map(({ course, lesson }) => (
+                <Link
+                  key={`${course.slug}/${lesson.slug}`}
+                  href={`/university/${course.slug}/${lesson.slug}`}
+                  className="block rounded-xl border border-gray-800 bg-[#0f172a] p-4 transition hover:border-gray-700"
+                >
+                  <p className="font-semibold text-white">{lesson.title}</p>
+                  <p className="mt-1 text-sm text-gray-400">{lesson.summary}</p>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
 
         {relatedPosts.length > 0 && (
           <div className="mt-10">

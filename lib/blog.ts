@@ -65,7 +65,9 @@ This is not the mathematically optimal approach. It will, in almost every case, 
 
 If you're confident you'll stay disciplined either way, the avalanche saves you real money. If you've started and stopped debt payoff before, the snowball's early wins might be what actually gets you to the finish line. Both are dramatically better than no plan at all.
 
-Paycheck Planner runs both strategies side by side against your actual debts, so you can see your real payoff date and real total interest under each approach before you commit to one.`,
+Paycheck Planner runs both strategies side by side against your actual debts, so you can see your real payoff date and real total interest under each approach before you commit to one.
+
+Want the short version, plus why minimum payments make this decision matter more than it seems? See [Why minimum payments keep you in debt longer than you think](/university/debt/why-minimum-payments-keep-you-in-debt-longer) in Paycheck Planner University.`,
   },
   {
     slug: "how-long-to-pay-off-credit-card-debt",
@@ -87,7 +89,7 @@ Take a $5,000 balance at 22% APR with a minimum payment formula common among maj
 
 **1. Your balance.** Obviously the starting point, but also the one thing a payoff calculator can't change for you.
 
-**2. Your interest rate.** Sometimes you can lower this -- a balance transfer to a 0% intro APR card, a hardship program with your issuer, or simply paying off the highest-rate card first if you're juggling several (see: the debt avalanche method). Even a few points of rate reduction meaningfully shortens the timeline.
+**2. Your interest rate.** Sometimes you can lower this -- a balance transfer to a 0% intro APR card, a hardship program with your issuer, or simply paying off the highest-rate card first if you're juggling several (see: [the debt avalanche method](/university/debt/debt-snowball-vs-debt-avalanche)). Even a few points of rate reduction meaningfully shortens the timeline.
 
 **3. Your monthly payment.** This is the lever with the most immediate impact, and it's fully in your control starting today.
 
@@ -107,7 +109,9 @@ The jump from "minimum" to "$150 fixed" is the single biggest change you can mak
 2. Decide on a fixed monthly amount you can commit to -- more than the minimum, even by $50, changes the math meaningfully.
 3. If you're carrying more than one card, decide whether you're going avalanche (highest rate first) or snowball (smallest balance first).
 
-Paycheck Planner's payoff calculator does this math for you against your real balances and rates, so you can see your actual payoff date -- not a rough estimate -- before you commit to a monthly number.`,
+Paycheck Planner's payoff calculator does this math for you against your real balances and rates, so you can see your actual payoff date -- not a rough estimate -- before you commit to a monthly number.
+
+For more on turning that estimate into a real target, see [Calculating your real debt-free date](/university/debt/calculating-your-real-debt-free-date) in Paycheck Planner University.`,
   },
   {
     slug: "budgeting-biweekly-paycheck-monthly-bills",

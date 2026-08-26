@@ -201,6 +201,20 @@ function SalaryPage({ amount }: { amount: number }) {
             The 30% housing affordability rule suggests spending up to <strong className="text-white">{money(recommendedHousing)}</strong> per
             month on rent or mortgage on a {money(amount)} salary.
           </p>
+          <p className="mt-2 text-sm text-gray-400">
+            Want to test different percentages against your own numbers? Use the free{" "}
+            <Link href="/calculators/50-30-20-budget" className="text-emerald-400 hover:underline">
+              50/30/20 budget calculator
+            </Link>
+            . New to budgeting by paycheck?{" "}
+            <Link
+              href="/university/budgeting/building-your-first-paycheck-budget"
+              className="text-emerald-400 hover:underline"
+            >
+              Start with Building your first paycheck budget
+            </Link>{" "}
+            in Paycheck Planner University.
+          </p>
         </section>
 
         {/* Debt payoff example */}
@@ -403,11 +417,32 @@ function DebtPage({ amount }: { amount: number }) {
           </div>
         </section>
 
+        <section className="mb-8 rounded-2xl border border-gray-800 bg-[#0f172a] p-6">
+          <h2 className="mb-3 text-xl font-bold">Keep learning</h2>
+          <div className="space-y-2 text-sm">
+            <Link
+              href="/university/debt/calculating-your-real-debt-free-date"
+              className="block text-emerald-400 hover:underline"
+            >
+              Calculating your real debt-free date &rarr;
+            </Link>
+            <Link
+              href="/university/debt/finding-extra-money-for-principal"
+              className="block text-emerald-400 hover:underline"
+            >
+              Finding extra money for principal &rarr;
+            </Link>
+          </div>
+        </section>
+
         <div className="mb-10 rounded-2xl border border-emerald-500/30 bg-emerald-500/10 p-6 text-center">
           <p className="font-semibold text-white">Have more than one debt?</p>
           <p className="mt-1 text-sm text-gray-400">
-            Paycheck Planner compares Snowball vs. Avalanche across all your real debts and builds your full payoff
-            plan automatically.
+            Paycheck Planner compares{" "}
+            <Link href="/university/debt/debt-snowball-vs-debt-avalanche" className="text-white underline hover:text-emerald-300">
+              Snowball vs. Avalanche
+            </Link>{" "}
+            across all your real debts and builds your full payoff plan automatically.
           </p>
           <Link
             href="/signup"
