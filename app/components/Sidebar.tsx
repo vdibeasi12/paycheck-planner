@@ -167,41 +167,13 @@ export default function Sidebar() {
 
   const renderLinks = (onNavigate?: () => void) => (
     <nav className="flex flex-col gap-1 px-3">
-      {/* Account + Sign out sit at the very top, above Getting Started
-          (Vince, Aug 27 2026) -- Account is where people manage their
-          payment plan, so it shouldn't be buried at the bottom of a long,
-          scrollable nav list. Previously both lived at/near the end of the
-          sidebar (Account was the last item in LINKS, Sign out was dead
-          last after the divider). */}
-      <Link
-        href="/account"
-        onClick={onNavigate}
-        data-tour="nav-account"
-        aria-current={isActive("/account") ? "page" : undefined}
-        className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition ${
-          isActive("/account")
-            ? "bg-green-500/15 text-green-400"
-            : "text-gray-300 hover:bg-white/5 hover:text-white"
-        }`}
-      >
-        <Settings size={20} className={isActive("/account") ? "text-green-400" : "text-gray-400"} />
-        {t("nav.account")}
-      </Link>
-
-      <button
-        onClick={() => {
-          onNavigate?.()
-          signOut()
-        }}
-        data-tour="nav-sign-out"
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-gray-400 transition hover:bg-white/5 hover:text-white"
-      >
-        <LogOut size={20} className="text-gray-500" />
-        {t("nav.signOut")}
-      </button>
-
-      <div className="my-1 border-t border-gray-800" />
-
+      {/* Account + Sign out moved out of this list entirely and up next to
+          the language/currency widget at the top of the screen (Vince, Aug
+          27 2026) -- see the fixed top-right widget (desktop) and mobile
+          top bar below. Account is where people manage their payment plan,
+          so it needed to be somewhere always visible, not just reachable
+          by scrolling this nav (it used to be the last item in LINKS, with
+          Sign out dead last after the divider). */}
       {/* Getting Started sits above Dashboard (Vince, Aug 27 2026) -- it's
           the first thing a still-onboarding user should see, and previously
           it rendered directly under the Dashboard link where it read as a
@@ -288,8 +260,32 @@ export default function Sidebar() {
         <Link href="/dashboard" className="flex items-center" aria-label="Paycheck Planner home">
           <Logo size="md" />
         </Link>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <LocaleCurrencySelector inline />
+          {/* Account + Sign out live right next to the language/currency
+              selector (Vince, Aug 27 2026) -- always visible up top instead
+              of buried in the nav list below. */}
+          <Link
+            href="/account"
+            data-tour="nav-account"
+            aria-label={t("nav.account")}
+            title={t("nav.account")}
+            aria-current={isActive("/account") ? "page" : undefined}
+            className={`rounded-lg p-2 transition ${
+              isActive("/account") ? "text-green-400" : "text-gray-200 hover:text-white"
+            }`}
+          >
+            <Settings size={22} />
+          </Link>
+          <button
+            onClick={signOut}
+            data-tour="nav-sign-out"
+            aria-label={t("nav.signOut")}
+            title={t("nav.signOut")}
+            className="rounded-lg p-2 text-gray-200 transition hover:text-white"
+          >
+            <LogOut size={22} />
+          </button>
           <button
             onClick={() => setOpen(true)}
             className="-mr-2 p-2 text-gray-200"
@@ -300,9 +296,36 @@ export default function Sidebar() {
         </div>
       </header>
 
-      {/* Top-right language/currency widget (desktop only) */}
-      <div className="fixed top-4 right-4 z-50 hidden rounded-lg border border-gray-800 bg-[#0b1220]/95 px-2.5 py-2 shadow-lg backdrop-blur md:block">
-        <LocaleCurrencySelector inline />
+      {/* Top-right widget (desktop only): language/currency selector plus
+          Account + Sign out (Vince, Aug 27 2026) -- Account is where people
+          manage their payment plan, so it lives somewhere always visible at
+          the top of the screen rather than requiring a scroll down the
+          sidebar's nav list. */}
+      <div className="fixed top-4 right-4 z-50 hidden items-center gap-2 md:flex">
+        <div className="rounded-lg border border-gray-800 bg-[#0b1220]/95 px-2.5 py-2 shadow-lg backdrop-blur">
+          <LocaleCurrencySelector inline />
+        </div>
+        <Link
+          href="/account"
+          data-tour="nav-account"
+          aria-label={t("nav.account")}
+          title={t("nav.account")}
+          aria-current={isActive("/account") ? "page" : undefined}
+          className={`flex items-center justify-center rounded-lg border border-gray-800 bg-[#0b1220]/95 p-2.5 shadow-lg backdrop-blur transition hover:bg-white/5 ${
+            isActive("/account") ? "text-green-400" : "text-gray-300 hover:text-white"
+          }`}
+        >
+          <Settings size={18} />
+        </Link>
+        <button
+          onClick={signOut}
+          data-tour="nav-sign-out"
+          aria-label={t("nav.signOut")}
+          title={t("nav.signOut")}
+          className="flex items-center justify-center rounded-lg border border-gray-800 bg-[#0b1220]/95 p-2.5 text-gray-300 shadow-lg backdrop-blur transition hover:bg-white/5 hover:text-white"
+        >
+          <LogOut size={18} />
+        </button>
       </div>
 
       {/* Desktop fixed sidebar */}

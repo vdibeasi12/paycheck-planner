@@ -7,8 +7,11 @@ import { isNativeApp } from "@/lib/platform"
 
 type TourStep = { element?: string; title: string; description: string }
 
-// Order matches the sidebar's top-to-bottom order exactly (Account, Sign
-// out, Getting Started, Dashboard, Calendar, Debts, Payoff Plan, Bills,
+// Order starts with Account + Sign out (Aug 27 2026, Vince) -- these now
+// live in the always-visible top-right widget next to the language/currency
+// selector, not in the sidebar nav list, so they're covered first, right
+// after the welcome step. The rest matches the sidebar's top-to-bottom order
+// exactly (Getting Started, Dashboard, Calendar, Debts, Payoff Plan, Bills,
 // Income, Paycheck Shield, Plan Autopilot, Plan Drift, Goals, Achievements,
 // Insights, Analytics, Money Quiz, University, Financial Hub, AI Chat,
 // Feedback) so the highlight walks straight down the nav instead of jumping
@@ -16,8 +19,7 @@ type TourStep = { element?: string; title: string; description: string }
 // accounts and has no data-tour attribute. Paycheck Shield, Plan Autopilot,
 // and Plan Drift were added Aug 26 2026 -- Shield existed before this tour
 // did and had been missed; Survival Mode is still missing the same way and
-// hasn't been added here. Account + Sign out moved to the top of the
-// sidebar Aug 27 2026 (Vince) -- moved here to match.
+// hasn't been added here.
 const STEPS: TourStep[] = [
   { title: "Welcome to Paycheck Planner", description: "Here's a quick tour of where everything lives. It takes about a minute." },
   { element: '[data-tour="nav-account"]', title: "Account settings", description: "Manage your plan, security (2FA), notifications, and connected credit cards." },
