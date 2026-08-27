@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { createClient as createUserClient } from "@/lib/supabase/server"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
-import { plaid, PLAID_ENABLED, planCanUsePlaid, syncBalancesForItem } from "@/lib/plaid"
+import { plaid, PLAID_ENABLED, planCanUsePlaid, syncBalancesForItem, syncLiabilitiesForItem } from "@/lib/plaid"
 import { checkAal2Status } from "@/lib/adminGuard"
 import { CountryCode } from "plaid"
 import { track } from "@/lib/track"
@@ -170,111 +170,45 @@ export async function POST(req: Request) {
       throw new Error("store item: " + itemErr.message)
     }
 
-    // 4) Pull liabilities (the response also carries the accounts). Not
-    // every connected account supports Liabilities -- a plain checking/
+    // 4) Mirror accounts + liabilities + debts for this item using the SAME
+    // shared helper the manual "Refresh from bank" button (/api/plaid/sync)
+    // and the Plaid webhook already use (syncLiabilitiesForItem in
+    // lib/plaid.ts). Previously this route re-implemented its own inline
+    // version of this pull that wrote plaid_accounts + plaid_liabilities but
+    // never mirrored into the `debts` table -- so a brand-new bank
+    // connection's cards/loans never showed up on the Debts page or
+    // Dashboard until the user manually clicked "Refresh from bank" (or
+    // Plaid's LIABILITIES webhook eventually fired, often hours later).
+    // Bug fixed 2026-08-27: call the shared helper here too so newly
+    // connected debts appear immediately, matching sync/webhook behavior.
+    //
+    // Not every connected account supports Liabilities -- a plain checking/
     // savings-only bank connected via the "bank" (balance-only) purpose
-    // won't -- so this is best-effort: fall back to a plain accounts list
-    // when Liabilities isn't available for this item, and skip building
-    // liability rows below (the existing liabilities?.field ?? [] guards
-    // already handle liabilities being empty).
-    let accounts: any[] = []
-    let liabilities: any = null
+    // won't -- so this is still best-effort: liabilitiesGet throwing inside
+    // syncLiabilitiesForItem just means there's nothing to mirror into
+    // debts for this item, which is expected. syncBalancesForItem below
+    // still runs regardless and picks up any depository (checking/savings)
+    // accounts either way.
+    let accountCount = 0
+    let liabilityCount = 0
+    let debtCount = 0
     try {
-      const liab = await plaid.liabilitiesGet({ access_token: accessToken })
-      accounts = liab.data.accounts
-      liabilities = liab.data.liabilities
+      const r = await syncLiabilitiesForItem(sb, user.id, accessToken, itemId)
+      accountCount = r.accounts
+      liabilityCount = r.liabilities
+      debtCount = r.debts
     } catch (liabErr) {
       console.error(
         "Plaid liabilities not available for this item (expected for balance-only accounts):",
         (liabErr as any)?.response?.data || (liabErr as any)?.message || liabErr
       )
-      const acctsRes = await plaid.accountsGet({ access_token: accessToken })
-      accounts = acctsRes.data.accounts
-    }
-
-    const balanceFor = (accountId: string) =>
-      accounts.find((x) => x.account_id === accountId)?.balances?.current ?? null
-
-    // 5) Upsert accounts.
-    for (const a of accounts) {
-      await sb.from("plaid_accounts").upsert(
-        {
-          user_id: user.id,
-          item_id: itemId,
-          account_id: a.account_id,
-          name: a.name,
-          official_name: a.official_name ?? null,
-          mask: a.mask ?? null,
-          type: a.type ?? null,
-          subtype: a.subtype ?? null,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "account_id" }
-      )
-    }
-
-    // 6) Build liability rows (credit cards + student + mortgage).
-    const rows: Record<string, unknown>[] = []
-    for (const c of liabilities?.credit ?? []) {
-      if (!c.account_id) continue
-      rows.push({
-        user_id: user.id,
-        account_id: c.account_id,
-        liability_type: "credit",
-        last_statement_balance: c.last_statement_balance ?? null,
-        current_balance: balanceFor(c.account_id),
-        apr_percentage: c.aprs?.[0]?.apr_percentage ?? null,
-        minimum_payment: c.minimum_payment_amount ?? null,
-        next_payment_due_date: c.next_payment_due_date ?? null,
-        origination_date: null,
-        updated_at: new Date().toISOString(),
-      })
-    }
-    for (const s of liabilities?.student ?? []) {
-      if (!s.account_id) continue
-      rows.push({
-        user_id: user.id,
-        account_id: s.account_id,
-        liability_type: "student",
-        last_statement_balance: s.last_statement_balance ?? null,
-        current_balance: balanceFor(s.account_id),
-        apr_percentage: s.interest_rate_percentage ?? null,
-        minimum_payment: s.minimum_payment_amount ?? null,
-        next_payment_due_date: s.next_payment_due_date ?? null,
-        origination_date: s.origination_date ?? null,
-        updated_at: new Date().toISOString(),
-      })
-    }
-    for (const m of liabilities?.mortgage ?? []) {
-      if (!m.account_id) continue
-      rows.push({
-        user_id: user.id,
-        account_id: m.account_id,
-        liability_type: "mortgage",
-        last_statement_balance: null,
-        current_balance: balanceFor(m.account_id),
-        apr_percentage: m.interest_rate?.percentage ?? null,
-        minimum_payment: m.next_monthly_payment ?? null,
-        next_payment_due_date: m.next_payment_due_date ?? null,
-        origination_date: m.origination_date ?? null,
-        updated_at: new Date().toISOString(),
-      })
-    }
-
-    // Replace prior liability rows for these accounts, then insert fresh.
-    const accountIds = accounts.map((a) => a.account_id)
-    if (accountIds.length > 0) {
-      await sb.from("plaid_liabilities").delete().in("account_id", accountIds)
-    }
-    if (rows.length > 0) {
-      const { error: liErr } = await sb.from("plaid_liabilities").insert(rows)
-      if (liErr) throw new Error("store liabilities: " + liErr.message)
     }
 
     let assetCount = 0
     try {
       const balResult = await syncBalancesForItem(sb, user.id, accessToken, itemId)
       assetCount = balResult.assets
+      accountCount = Math.max(accountCount, balResult.accounts)
     } catch (balErr) {
       console.error(
         "Plaid balance sync error:",
@@ -284,14 +218,15 @@ export async function POST(req: Request) {
 
     await track("bank_connected", {
       userId: user.id,
-      metadata: { purpose, institution: institutionName, accounts: accounts.length },
+      metadata: { purpose, institution: institutionName, accounts: accountCount },
     })
 
     return NextResponse.json({
       ok: true,
       institution: institutionName,
-      accounts: accounts.length,
-      liabilities: rows.length,
+      accounts: accountCount,
+      liabilities: liabilityCount,
+      debts: debtCount,
       assets: assetCount,
     })
   } catch (err) {
