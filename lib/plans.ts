@@ -137,12 +137,11 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
     rows: [
       // Renamed from "Bank account sync (Plaid)" (Aug 15) -- don't expose the
       // vendor name in pricing copy; keeps this row accurate no matter which
-      // aggregator/product powers it under the hood.
-      { label: "Automatic bank account sync", free: false, starter: false, premium: false, connected: true },
-      // New: connecting a bank is no longer limited to accounts that carry
-      // a loan/credit card balance -- plain checking/savings accounts can
-      // connect too, with balances refreshing automatically.
-      { label: "Checking & savings balance sync", free: false, starter: false, premium: false, connected: true },
+      // aggregator/product powers it under the hood. Renamed again Aug 27:
+      // this is a credit-card (Plaid Liabilities) connection, not a bank/
+      // checking-savings one -- the separate "Checking & savings balance
+      // sync" row was removed the same day since the app can't do that.
+      { label: "Automatic credit card sync", free: false, starter: false, premium: false, connected: true },
       { label: "Auto-import debts, balances & APRs", free: false, starter: false, premium: false, connected: true },
       { label: "Auto income, bills & safe-to-spend", free: false, starter: false, premium: false, connected: true },
       { label: "Recurring-charge detector", free: false, starter: false, premium: false, connected: true },

@@ -40,7 +40,7 @@ export default function DeleteAccountInfoPage() {
               <li>Income, bills, debts, goals, and payoff plan history</li>
               <li>Uploaded documents and notification settings</li>
               <li>
-                Any connected bank accounts: access is revoked directly with Plaid
+                Any connected credit card accounts: access is revoked directly with Plaid
                 before your data is removed, so the connection is fully severed, not
                 just hidden
               </li>

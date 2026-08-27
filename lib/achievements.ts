@@ -38,7 +38,7 @@ export const BADGES: Badge[] = [
   { key: "halfway_there", title: "Halfway There", description: "Paid down 50 percent of a debt.", icon: "TrendingDown", trackable: false },
   { key: "on_a_roll", title: "On a Roll", description: "Seven day activity streak.", icon: "Flame", trackable: false },
   { key: "streak_master", title: "Streak Master", description: "Thirty day activity streak.", icon: "Award", trackable: false },
-  { key: "autopilot_on", title: "Autopilot On", description: "Connected your bank with Plaid.", icon: "Plane", trackable: false },
+  { key: "autopilot_on", title: "Autopilot On", description: "Connected your credit card with Plaid.", icon: "Plane", trackable: false },
 ];
 
 export type Stats = {

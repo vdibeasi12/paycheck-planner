@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   if (itemId) read = read.eq("item_id", itemId)
   const { data: items, error } = await read
   if (error) {
-    return NextResponse.json({ error: "Could not load linked banks." }, { status: 500 })
+    return NextResponse.json({ error: "Could not load linked credit cards." }, { status: 500 })
   }
 
   for (const it of items ?? []) {

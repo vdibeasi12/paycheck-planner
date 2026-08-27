@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePlaidLink } from "react-plaid-link";
-import { Landmark, RefreshCw, Loader2, ShieldCheck } from "lucide-react";
+import { CreditCard, RefreshCw, Loader2, ShieldCheck } from "lucide-react";
 import { trackCta } from "@/lib/trackClient";
 
 type Props = {
@@ -78,13 +78,13 @@ export default function PlaidConnectButton({ onLinked, itemId, label, purpose = 
           });
           const data = await res.json().catch(() => ({}));
           if (!res.ok) {
-            setErr(data?.error || "Could not link your bank.");
+            setErr(data?.error || "Could not link your credit card.");
             return;
           }
         }
         onLinked?.();
       } catch {
-        setErr(itemId ? "Could not refresh this connection." : "Could not link your bank.");
+        setErr(itemId ? "Could not refresh this connection." : "Could not link your credit card.");
       } finally {
         setBusy(false);
       }
@@ -104,8 +104,8 @@ export default function PlaidConnectButton({ onLinked, itemId, label, purpose = 
         <div>
           <p className="text-amber-200">
             {mfaRequired === "setup"
-              ? "Autopilot requires two-factor authentication. Set it up to connect your bank."
-              : "Verify your two-factor code, then come back to connect your bank."}
+              ? "Autopilot requires two-factor authentication. Set it up to connect your credit card."
+              : "Verify your two-factor code, then come back to connect your credit card."}
           </p>
           <Link
             href={mfaRequired === "setup" ? "/mfa/setup" : "/mfa"}
@@ -136,9 +136,9 @@ export default function PlaidConnectButton({ onLinked, itemId, label, purpose = 
         ) : itemId ? (
           <RefreshCw size={16} />
         ) : (
-          <Landmark size={16} />
+          <CreditCard size={16} />
         )}
-        {label || (itemId ? "Reconnect" : "Connect bank")}
+        {label || (itemId ? "Reconnect" : "Connect a credit card")}
       </button>
       {err && <p className="mt-2 text-sm text-rose-500">{err}</p>}
     </div>

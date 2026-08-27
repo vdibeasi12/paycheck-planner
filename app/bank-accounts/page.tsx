@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import ConnectedBankAccounts from "@/components/ConnectedBankAccounts"
-import { Landmark } from "lucide-react"
+import { CreditCard } from "lucide-react"
 
 export default async function BankAccountsPage() {
   const supabase = await createClient()
@@ -17,11 +17,11 @@ export default async function BankAccountsPage() {
   return (
     <div className="mx-auto max-w-3xl px-4 py-8">
       <div className="mb-6 flex items-center gap-3">
-        <Landmark size={28} className="text-emerald-500" />
+        <CreditCard size={28} className="text-emerald-500" />
         <div>
-          <h1 className="text-3xl font-bold text-white">Bank Accounts</h1>
+          <h1 className="text-3xl font-bold text-white">Credit Cards</h1>
           <p className="mt-1 text-gray-400">
-            Connect checking and savings accounts to track their balances automatically.
+            Connect a credit card to track its balance automatically.
           </p>
         </div>
       </div>

@@ -747,7 +747,7 @@ export default function DebtsPage() {
                         ? (includedMissingMinCount === includedItems.length
                             ? 'None of the debts in this plan have a minimum payment on file yet'
                             : includedMissingMinCount + ' of ' + includedItems.length + ' debts in this plan have no minimum payment on file yet') +
-                          ' (common right after connecting a bank) -- add an extra monthly payment above, or edit these debts below to add their real minimum payments.'
+                          ' (common right after connecting a credit card) -- add an extra monthly payment above, or edit these debts below to add their real minimum payments.'
                         : "At the current minimums, payments don't cover the interest that accrues, so balances won't fall -- add an extra monthly payment to see a payoff date."}
                     </p>
                   )}

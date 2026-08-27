@@ -37,7 +37,7 @@ const STEPS: TourStep[] = [
   { element: '[data-tour="nav-university"]', title: "Paycheck Planner University", description: "Short lessons on budgeting, paychecks, debt payoff, saving, credit, and financial freedom. Finish a course to unlock the next one." },
   { element: '[data-tour="nav-blog"]', title: "Financial Hub", description: "Articles, free calculators, and the 30-Day Challenge live here." },
   { element: '[data-tour="nav-ai-chat"]', title: "AI insights", description: "Ask questions about your numbers in plain English. Included with Accelerate and Autopilot." },
-  { element: '[data-tour="nav-account"]', title: "Account settings", description: "Manage your plan, security (2FA), notifications, and connected banks." },
+  { element: '[data-tour="nav-account"]', title: "Account settings", description: "Manage your plan, security (2FA), notifications, and connected credit cards." },
   { element: '[data-tour="nav-feedback"]', title: "Send feedback", description: "Tell us what's working or what you'd like to see next." },
   { element: '[data-tour="nav-sign-out"]', title: "Sign out", description: "Sign out of your account from here anytime." },
   { title: "You're all set", description: "Add your income and debts to see your payoff date. You can reopen this tour anytime from Getting Started." },

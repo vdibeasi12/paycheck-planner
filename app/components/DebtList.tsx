@@ -68,7 +68,7 @@ export default function DebtList({ debts }: { debts: Debt[] | null | undefined }
         <div className="py-8 text-center">
           <p className="text-gray-300">No debts added yet</p>
           <p className="mt-1 text-sm text-gray-500">
-            Add a debt or connect a bank to start building your payoff plan.
+            Add a debt or connect a credit card to start building your payoff plan.
           </p>
           <Link
             href="/debts"

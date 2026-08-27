@@ -55,7 +55,7 @@ export default function BestBudgetingAppsRoundupPage() {
           <p className="font-semibold text-white">Our pick: Paycheck Planner</p>
           <p className="mt-2 text-sm text-gray-300">
             Built specifically around when your paychecks land -- biweekly, weekly, or irregular
-            -- rather than a generic monthly calendar. Free tier includes bank-linked balances and
+            -- rather than a generic monthly calendar. Free tier includes credit-card-linked balances and
             unlimited budget categories, with a built-in debt snowball/avalanche comparison that
             shows an actual debt-free date. If your budgeting problem is "make it to the next
             paycheck," this is the app built around that exact problem.

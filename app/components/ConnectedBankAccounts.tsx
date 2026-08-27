@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Landmark, RefreshCw, Loader2, Unplug, Wallet } from "lucide-react"
+import { CreditCard, RefreshCw, Loader2, Unplug, Wallet } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import PlaidConnectButton from "@/components/PlaidConnectButton"
@@ -128,11 +128,11 @@ export default function ConnectedBankAccounts() {
 
       <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-6 shadow-sm">
         <div className="flex items-center gap-2">
-          <Landmark size={20} className="text-emerald-500" />
-          <h2 className="text-lg font-semibold text-white">Connected bank accounts</h2>
+          <CreditCard size={20} className="text-emerald-500" />
+          <h2 className="text-lg font-semibold text-white">Connected credit cards</h2>
         </div>
         <p className="mt-1 text-sm text-gray-400">
-          Link a checking or savings account to track its balance automatically. Synced balances
+          Link a credit card to track its balance automatically. Synced balances
           count toward your net worth.
         </p>
 
@@ -145,7 +145,7 @@ export default function ConnectedBankAccounts() {
               >
                 <div>
                   <p className="text-sm font-medium text-white">
-                    {b.institution_name || "Linked bank"}
+                    {b.institution_name || "Linked credit card"}
                   </p>
                   <p className="text-xs text-gray-400">
                     {b.accounts} account{b.accounts === 1 ? "" : "s"}
@@ -199,7 +199,7 @@ export default function ConnectedBankAccounts() {
         )}
 
         <div className="mt-4 flex flex-wrap items-center gap-3">
-          <PlaidConnectButton purpose="bank" onLinked={load} label="Connect bank account" />
+          <PlaidConnectButton purpose="bank" onLinked={load} label="Connect a credit card" />
           {banks.length > 0 && (
             <button
               type="button"
@@ -219,11 +219,11 @@ export default function ConnectedBankAccounts() {
 
         {!enabled && (
           <p className="mt-3 text-xs text-gray-500">
-            Bank syncing is being finalized and will be available shortly.
+            Credit card syncing is being finalized and will be available shortly.
           </p>
         )}
         {banks.length === 0 && enabled && (
-          <p className="mt-3 text-xs text-gray-500">No bank accounts connected yet.</p>
+          <p className="mt-3 text-xs text-gray-500">No credit cards connected yet.</p>
         )}
         {msg && (
           <p className={"mt-3 text-sm " + (msg.kind === "ok" ? "text-emerald-400" : "text-rose-400")}>

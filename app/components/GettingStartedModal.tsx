@@ -11,7 +11,6 @@ import {
   Receipt,
   CalendarClock,
   MessageSquare,
-  Landmark,
   RefreshCw,
   Shield,
   Wand2,
@@ -74,8 +73,8 @@ const STEP_DEFS: StepDef[] = [
     desc: "Ask a question in plain English and get answers tied to your numbers.",
   },
   {
-    key: "connect_bank", rank: 3, kind: "data", href: "/account", Icon: Landmark, table: "plaid_items",
-    title: "Connect your bank - Autopilot",
+    key: "connect_bank", rank: 3, kind: "data", href: "/account", Icon: CreditCard, table: "plaid_items",
+    title: "Connect your credit card - Autopilot",
     desc: "Securely link an institution so balances and APRs update on their own. Let balances refresh automatically so your plan stays accurate without manual entry.",
   },
   {

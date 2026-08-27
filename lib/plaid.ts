@@ -268,7 +268,7 @@ async function applyBalanceSync(
     )
 
     const balance = a.balances?.available ?? a.balances?.current ?? 0
-    const name = a.official_name || a.name || "Bank account"
+    const name = a.official_name || a.name || "Credit card account"
 
     const { data: existing } = await sb
       .from("assets")

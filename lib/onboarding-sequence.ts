@@ -114,12 +114,12 @@ export const SEQUENCE: OnboardingStep[] = [
     step: 4,
     dayOffset: 14,
     subject: "Put your money on autopilot",
-    preview: "Bank sync, AI insights, and one less thing to think about.",
+    preview: "Credit card sync, AI insights, and one less thing to think about.",
     bodyHtml: (unsubUrl) =>
       wrap(
         '<h2 style="color:#ffffff;margin-top:0;">Two weeks in</h2>' +
           '<p style="color:#9ca3af;">By now your paycheck, bills, and debt plan should all be set up. The ' +
-          "next step is making it automatic: connect your bank so balances and due dates update themselves, " +
+          "next step is making it automatic: connect your credit card so balances and due dates update themselves, " +
           "and get AI-powered guidance based on your real numbers instead of general advice.</p>" +
           cta("See Paycheck Planner plans", APP_URL + "/pricing") +
           '<p style="color:#9ca3af;margin-top:24px;">Know someone else who\'d want this? Your referral link is ' +

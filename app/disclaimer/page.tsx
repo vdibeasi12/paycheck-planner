@@ -58,12 +58,12 @@ export default function DisclaimerPage() {
           </section>
 
           <section>
-            <h2 className="text-2xl font-bold text-white mb-4">Bank Connections (when available)</h2>
+            <h2 className="text-2xl font-bold text-white mb-4">Credit Card Connections (when available)</h2>
             <p>
-              If you connect a financial account through the Autopilot tier, access is read-only and
+              If you connect a credit card through the Autopilot tier, access is read-only and
               provided through Plaid Inc. Paycheck Planner does not move money, initiate transfers or
-              payments, or store your banking credentials. Imported figures are estimates for
-              planning and may differ from your institution's records; always verify with your bank.
+              payments, or store your credit card login credentials. Imported figures are estimates for
+              planning and may differ from your card issuer's records; always verify with your card issuer.
             </p>
           </section>
 

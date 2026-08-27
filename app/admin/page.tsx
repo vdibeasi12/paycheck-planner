@@ -78,7 +78,7 @@ const EVENT_LABELS: Record<string, string> = {
   checkout_started: "Checkout started",
   subscription_started: "Subscriptions started",
   subscription_canceled: "Subscriptions canceled",
-  bank_connected: "Banks connected (Autopilot)",
+  bank_connected: "Credit cards connected (Autopilot)",
   money_score_completed: "Money Quiz completed",
   money_score_plan_unlocked: "Money Quiz plans unlocked",
   lead_magnet_subscribed: "Lead magnet signups",
@@ -807,7 +807,7 @@ export default function AdminPage() {
                 </p>
               </div>
               <div className="rounded-xl border border-gray-800 px-3 py-2">
-                <p className="text-xs text-gray-500">Banks connected (Autopilot), all-time</p>
+                <p className="text-xs text-gray-500">Credit cards connected (Autopilot), all-time</p>
                 <p className="mt-1 text-lg font-semibold text-white">{funnels.bankConnectedTotal}</p>
               </div>
               <div className="rounded-xl border border-gray-800 px-3 py-2">

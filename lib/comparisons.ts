@@ -53,13 +53,13 @@ export const COMPARISONS: ComparisonMeta[] = [
       { feature: "Starting price", paycheckPlanner: "$3.99/mo (Momentum)", competitor: "$9.08/mo billed annually, or $14.99/mo" },
       { feature: "Core method", paycheckPlanner: "Paycheck-based cash flow + debt payoff planning", competitor: "Zero-based envelope budgeting (\"give every dollar a job\")" },
       { feature: "Debt payoff planning", paycheckPlanner: "Built-in snowball/avalanche comparison with a payoff date", competitor: "Debt tools available, but budgeting-category-first, not payoff-date-first" },
-      { feature: "Bank sync", paycheckPlanner: "Yes (Plaid, liabilities)", competitor: "Yes (US/Canada/UK/EU; file import elsewhere)" },
+      { feature: "Account sync", paycheckPlanner: "Yes (Plaid, credit cards/liabilities)", competitor: "Yes (US/Canada/UK/EU; file import elsewhere)" },
       { feature: "Built for biweekly/irregular pay", paycheckPlanner: "Yes -- purpose-built around paycheck timing", competitor: "Not specifically -- built around monthly category budgets" },
     ],
     pricingNote:
       "YNAB pricing and trial terms as of August 2026, per ynab.com/pricing. Paycheck Planner pricing per paycheckplanner.ai/pricing.",
     seoDescription:
-      "Paycheck Planner vs YNAB: an honest comparison of pricing, bank sync, and budgeting philosophy -- zero-based envelope budgeting vs paycheck-based cash flow and debt payoff planning.",
+      "Paycheck Planner vs YNAB: an honest comparison of pricing, account sync, and budgeting philosophy -- zero-based envelope budgeting vs paycheck-based cash flow and debt payoff planning.",
   },
   {
     slug: "everydollar",
@@ -74,9 +74,9 @@ export const COMPARISONS: ComparisonMeta[] = [
     bestForCompetitor:
       "Someone already following (or wanting to follow) Dave Ramsey's Baby Steps specifically, who values live coaching access and doesn't mind manual entry unless they upgrade to Premium for bank sync.",
     bestForPaycheckPlanner:
-      "Someone who wants bank-linked debt tracking on the free tier from day one, and wants their budget built around when paychecks actually land rather than a generic monthly calendar.",
+      "Someone who wants credit-card-linked debt tracking on the free tier from day one, and wants their budget built around when paychecks actually land rather than a generic monthly calendar.",
     rows: [
-      { feature: "Free tier bank sync", paycheckPlanner: "Yes, included free", competitor: "No -- bank sync requires Premium" },
+      { feature: "Free tier account sync", paycheckPlanner: "Yes, included free", competitor: "No -- bank sync requires Premium" },
       { feature: "Starting paid price", paycheckPlanner: "$3.99/mo (Momentum)", competitor: "$6.67/mo billed annually ($79.99/yr), or $17.99/mo" },
       { feature: "Core method", paycheckPlanner: "Paycheck-based cash flow + debt payoff planning", competitor: "Zero-based monthly budgeting, Ramsey Baby Steps-aligned" },
       { feature: "Debt strategy comparison", paycheckPlanner: "Snowball vs avalanche, with payoff date + interest saved", competitor: "Baby Steps debt snowball, not a payoff-date calculator" },
@@ -86,7 +86,7 @@ export const COMPARISONS: ComparisonMeta[] = [
     pricingNote:
       "EveryDollar pricing and features as of August 2026, per Ramsey Solutions' own EveryDollar pages. Paycheck Planner pricing per paycheckplanner.ai/pricing.",
     seoDescription:
-      "Paycheck Planner vs EveryDollar: free bank sync and paycheck-based debt payoff planning compared against EveryDollar's free manual budgeting and paid Ramsey-method coaching.",
+      "Paycheck Planner vs EveryDollar: free credit card sync and paycheck-based debt payoff planning compared against EveryDollar's free manual budgeting and paid Ramsey-method coaching.",
   },
   {
     slug: "rocket-money",
@@ -130,7 +130,7 @@ export const COMPARISONS: ComparisonMeta[] = [
     bestForPaycheckPlanner:
       "Someone who wants their debts and balances tracked automatically instead of typed in by hand, and wants a computed debt-freedom date rather than an envelope balance.",
     rows: [
-      { feature: "Bank sync", paycheckPlanner: "Yes (Plaid, liabilities)", competitor: "No -- manual entry, optional statement import" },
+      { feature: "Account sync", paycheckPlanner: "Yes (Plaid, credit cards/liabilities)", competitor: "No -- manual entry, optional statement import" },
       { feature: "Free tier limits", paycheckPlanner: "Unlimited budget categories", competitor: "20 envelopes, 2 devices, 1 year of history" },
       { feature: "Plus/paid price", paycheckPlanner: "$3.99/mo (Momentum)", competitor: "$7/mo or $60/yr" },
       { feature: "Debt payoff planning", paycheckPlanner: "Snowball/avalanche comparison with a payoff date", competitor: "Envelope-based saving toward debt, not a payoff-date calculator" },
@@ -140,7 +140,7 @@ export const COMPARISONS: ComparisonMeta[] = [
     pricingNote:
       "Goodbudget pricing and limits as of August 2026, per goodbudget.com and its published plan comparison. Paycheck Planner pricing per paycheckplanner.ai/pricing.",
     seoDescription:
-      "Paycheck Planner vs Goodbudget: automatic bank-linked debt tracking and paycheck-based budgeting compared against Goodbudget's manual, no-bank-connection envelope system.",
+      "Paycheck Planner vs Goodbudget: automatic credit-card-linked debt tracking and paycheck-based budgeting compared against Goodbudget's manual, no-bank-connection envelope system.",
   },
 ]
 

@@ -18,7 +18,7 @@ function serviceClient() {
 export async function POST(req: Request) {
   if (!PLAID_ENABLED) {
     return NextResponse.json(
-      { error: "Bank linking is not available yet." },
+      { error: "Credit card linking is not available yet." },
       { status: 503 }
     )
   }
@@ -38,7 +38,7 @@ export async function POST(req: Request) {
     .single()
   if (!planCanUsePlaid(profile?.plan)) {
     return NextResponse.json(
-      { error: "Bank sync is an Autopilot feature." },
+      { error: "Credit card sync is an Autopilot feature." },
       { status: 403 }
     )
   }
@@ -52,8 +52,8 @@ export async function POST(req: Request) {
       {
         error:
           aal2 === "not_enrolled"
-            ? "Autopilot requires two-factor authentication. Set it up to connect your bank."
-            : "Please verify your two-factor code, then try connecting your bank again.",
+            ? "Autopilot requires two-factor authentication. Set it up to connect your credit card."
+            : "Please verify your two-factor code, then try connecting your credit card again.",
         code: aal2 === "not_enrolled" ? "mfa_setup_required" : "mfa_step_up_required",
       },
       { status: 403 }
@@ -124,7 +124,7 @@ export async function POST(req: Request) {
         }
         return NextResponse.json(
           {
-            error: `${institutionName || "This bank"} is already connected. Disconnect it first if you want to relink it.`,
+            error: `${institutionName || "This account"} is already connected. Disconnect it first if you want to relink it.`,
           },
           { status: 409 }
         )
@@ -162,7 +162,7 @@ export async function POST(req: Request) {
         }
         return NextResponse.json(
           {
-            error: `${institutionName || "This bank"} is already connected. Disconnect it first if you want to relink it.`,
+            error: `${institutionName || "This account"} is already connected. Disconnect it first if you want to relink it.`,
           },
           { status: 409 }
         )
@@ -231,6 +231,6 @@ export async function POST(req: Request) {
     })
   } catch (err) {
     console.error("Plaid exchange error:", (err as any)?.response?.data || (err as any)?.message || err)
-    return NextResponse.json({ error: "Could not link your bank." }, { status: 500 })
+    return NextResponse.json({ error: "Could not link your credit card." }, { status: 500 })
   }
 }

@@ -93,12 +93,12 @@ export default function TermsPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-white mb-3">6. Bank Connections (when available)</h2>
+            <h2 className="text-xl font-bold text-white mb-3">6. Credit Card Connections (when available)</h2>
             <p>
-              The Autopilot tier, when launched, will let you connect financial accounts through
+              The Autopilot tier, when launched, will let you connect a credit card through
               Plaid Inc. to import read-only account information such as balances and liabilities.
-              The Service does not move money, initiate payments or transfers, or store your bank
-              login credentials. You may disconnect linked accounts at any time. See our Privacy
+              The Service does not move money, initiate payments or transfers, or store your credit
+              card login credentials. You may disconnect linked accounts at any time. See our Privacy
               Policy for details.
             </p>
           </section>

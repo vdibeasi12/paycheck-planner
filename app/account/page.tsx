@@ -170,7 +170,7 @@ export default function AccountPage() {
           <SubscriptionCard userId={accountUser?.id} />
         </SectionErrorBoundary>
 
-        <SectionErrorBoundary label="Bank connections">
+        <SectionErrorBoundary label="Credit card connections">
           <BankConnections />
         </SectionErrorBoundary>
 

@@ -17,7 +17,7 @@ function serviceClient() {
 // linked. Pulls fresh data from Plaid and mirrors it into their debts.
 export async function POST() {
   if (!PLAID_ENABLED) {
-    return NextResponse.json({ error: "Bank sync is not available yet." }, { status: 503 })
+    return NextResponse.json({ error: "Credit card sync is not available yet." }, { status: 503 })
   }
 
   const userClient = await createUserClient()
@@ -36,7 +36,7 @@ export async function POST() {
   // Admins act as the top (connected) tier.
   const effectivePlan = profile?.is_admin ? "connected" : profile?.plan
   if (!planCanUsePlaid(effectivePlan)) {
-    return NextResponse.json({ error: "Bank sync is an Autopilot feature." }, { status: 403 })
+    return NextResponse.json({ error: "Credit card sync is an Autopilot feature." }, { status: 403 })
   }
 
   const sb = serviceClient()

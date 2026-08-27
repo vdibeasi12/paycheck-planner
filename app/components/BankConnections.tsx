@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useState } from "react"
-import { Landmark, RefreshCw, Loader2, Unplug } from "lucide-react"
+import { CreditCard, RefreshCw, Loader2, Unplug } from "lucide-react"
 import PlaidConnectButton from "@/components/PlaidConnectButton"
 
 type Bank = {
@@ -53,7 +53,7 @@ export default function BankConnections() {
       } else {
         setMsg({
           kind: "ok",
-          text: `Updated ${data.debts ?? 0} debt(s) from ${data.items ?? 0} bank(s).`,
+          text: `Updated ${data.debts ?? 0} debt(s) from ${data.items ?? 0} credit card(s).`,
         })
         await load()
       }
@@ -92,14 +92,14 @@ export default function BankConnections() {
   return (
     <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-6 shadow-sm">
       <div className="flex items-center gap-2">
-        <Landmark size={20} className="text-emerald-500" />
-        <h2 className="text-lg font-semibold text-white">Bank connections</h2>
+        <CreditCard size={20} className="text-emerald-500" />
+        <h2 className="text-lg font-semibold text-white">Credit card connections</h2>
       </div>
       <p className="mt-1 text-sm text-gray-400">
-        Link a bank to import loans and credit cards automatically, and to view
-        balances on any account -- checking and savings included. We only ever
-        view balances, never move money. Balances refresh daily and flow into
-        your debts, payoff plan, and full financial picture.
+        Link a credit card to import its balance, APR, and minimum payment
+        automatically. We only ever view balances, never move money. Balances
+        refresh daily and flow into your debts, payoff plan, and full
+        financial picture.
       </p>
 
       {banks.length > 0 && (
@@ -111,7 +111,7 @@ export default function BankConnections() {
             >
               <div>
                 <p className="text-sm font-medium text-white">
-                  {b.institution_name || "Linked bank"}
+                  {b.institution_name || "Linked credit card"}
                 </p>
                 <p className="text-xs text-gray-400">
                   {b.accounts} account{b.accounts === 1 ? "" : "s"}
@@ -159,18 +159,18 @@ export default function BankConnections() {
             ) : (
               <RefreshCw size={16} />
             )}
-            Refresh from bank
+            Refresh from credit card
           </button>
         )}
       </div>
 
       {!enabled && (
         <p className="mt-3 text-xs text-gray-500">
-          Bank syncing is being finalized and will be available shortly.
+          Credit card syncing is being finalized and will be available shortly.
         </p>
       )}
       {banks.length === 0 && enabled && (
-        <p className="mt-3 text-xs text-gray-500">No banks connected yet.</p>
+        <p className="mt-3 text-xs text-gray-500">No credit cards connected yet.</p>
       )}
       {msg && (
         <p

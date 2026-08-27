@@ -63,11 +63,11 @@ export default function PrivacyPage() {
           </section>
 
           <section>
-            <h2 className="text-xl font-bold text-white mb-3">4. Bank Connections and Plaid</h2>
+            <h2 className="text-xl font-bold text-white mb-3">4. Credit Card Connections and Plaid</h2>
             <p>
-              If you choose to connect a financial account through the Autopilot tier (when
+              If you choose to connect a credit card through the Autopilot tier (when
               launched), we use Plaid Inc. to access read-only information such as balances and
-              liabilities. We do not move money, initiate payments, or store your online banking
+              liabilities. We do not move money, initiate payments, or store your credit card login
               credentials; your credentials are entered with Plaid, not with us. You can disconnect a
               linked account at any time, which stops further access, and you can delete your account
               to remove the imported data. Plaid's use of your information is governed by Plaid's own
