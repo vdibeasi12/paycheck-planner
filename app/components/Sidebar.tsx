@@ -74,7 +74,6 @@ const LINKS = [
   { href: "/university", labelKey: "nav.university", Icon: GraduationCap },
 
   { href: "/ai-chat", labelKey: "nav.aiChat", Icon: MessageSquare },
-  { href: "/account", labelKey: "nav.account", Icon: Settings },
 ]
 
 const GROUP_LABEL_KEYS: Record<string, string> = {
@@ -168,6 +167,41 @@ export default function Sidebar() {
 
   const renderLinks = (onNavigate?: () => void) => (
     <nav className="flex flex-col gap-1 px-3">
+      {/* Account + Sign out sit at the very top, above Getting Started
+          (Vince, Aug 27 2026) -- Account is where people manage their
+          payment plan, so it shouldn't be buried at the bottom of a long,
+          scrollable nav list. Previously both lived at/near the end of the
+          sidebar (Account was the last item in LINKS, Sign out was dead
+          last after the divider). */}
+      <Link
+        href="/account"
+        onClick={onNavigate}
+        data-tour="nav-account"
+        aria-current={isActive("/account") ? "page" : undefined}
+        className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition ${
+          isActive("/account")
+            ? "bg-green-500/15 text-green-400"
+            : "text-gray-300 hover:bg-white/5 hover:text-white"
+        }`}
+      >
+        <Settings size={20} className={isActive("/account") ? "text-green-400" : "text-gray-400"} />
+        {t("nav.account")}
+      </Link>
+
+      <button
+        onClick={() => {
+          onNavigate?.()
+          signOut()
+        }}
+        data-tour="nav-sign-out"
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-gray-400 transition hover:bg-white/5 hover:text-white"
+      >
+        <LogOut size={20} className="text-gray-500" />
+        {t("nav.signOut")}
+      </button>
+
+      <div className="my-1 border-t border-gray-800" />
+
       {/* Getting Started sits above Dashboard (Vince, Aug 27 2026) -- it's
           the first thing a still-onboarding user should see, and previously
           it rendered directly under the Dashboard link where it read as a
@@ -243,18 +277,6 @@ export default function Sidebar() {
       >
         <MessageSquarePlus size={20} className="text-gray-400" />
         {t("nav.feedback")}
-      </button>
-
-      <button
-        onClick={() => {
-          onNavigate?.()
-          signOut()
-        }}
-        data-tour="nav-sign-out"
-        className="mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-gray-400 transition hover:bg-white/5 hover:text-white"
-      >
-        <LogOut size={20} className="text-gray-500" />
-        {t("nav.signOut")}
       </button>
     </nav>
   )

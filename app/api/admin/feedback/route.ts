@@ -10,7 +10,7 @@ export async function GET() {
   const sb = serviceClient();
   const { data, error } = await sb
     .from("feedback")
-    .select("id, created_at, email, sentiment, message, status")
+    .select("id, created_at, email, sentiment, message, status, type")
     .order("created_at", { ascending: false })
     .limit(300);
 

@@ -7,18 +7,21 @@ import { isNativeApp } from "@/lib/platform"
 
 type TourStep = { element?: string; title: string; description: string }
 
-// Order matches the sidebar's top-to-bottom order exactly (Dashboard,
-// Getting Started, Calendar, Debts, Payoff Plan, Bills, Income, Paycheck
-// Shield, Plan Autopilot, Plan Drift, Goals, Achievements, Insights,
-// Analytics, Money Quiz, University, Financial Hub, AI Chat, Account,
-// Feedback, Sign out) so the highlight walks straight down the nav instead
-// of jumping around. Admin is intentionally excluded -- it's only shown to
-// admin accounts and has no data-tour attribute. Paycheck Shield, Plan
-// Autopilot, and Plan Drift were added Aug 26 2026 -- Shield existed before
-// this tour did and had been missed; Survival Mode is still missing the
-// same way and hasn't been added here.
+// Order matches the sidebar's top-to-bottom order exactly (Account, Sign
+// out, Getting Started, Dashboard, Calendar, Debts, Payoff Plan, Bills,
+// Income, Paycheck Shield, Plan Autopilot, Plan Drift, Goals, Achievements,
+// Insights, Analytics, Money Quiz, University, Financial Hub, AI Chat,
+// Feedback) so the highlight walks straight down the nav instead of jumping
+// around. Admin is intentionally excluded -- it's only shown to admin
+// accounts and has no data-tour attribute. Paycheck Shield, Plan Autopilot,
+// and Plan Drift were added Aug 26 2026 -- Shield existed before this tour
+// did and had been missed; Survival Mode is still missing the same way and
+// hasn't been added here. Account + Sign out moved to the top of the
+// sidebar Aug 27 2026 (Vince) -- moved here to match.
 const STEPS: TourStep[] = [
   { title: "Welcome to Paycheck Planner", description: "Here's a quick tour of where everything lives. It takes about a minute." },
+  { element: '[data-tour="nav-account"]', title: "Account settings", description: "Manage your plan, security (2FA), notifications, and connected credit cards." },
+  { element: '[data-tour="nav-sign-out"]', title: "Sign out", description: "Sign out of your account from here anytime." },
   { element: '[data-tour="dash-title"]', title: "Your dashboard", description: "Your money at a glance - safe-to-spend, balances, progress, and what to do with any leftover money all live here." },
   { element: '[data-tour="nav-getting-started"]', title: "Getting Started checklist", description: "Reopen this anytime to see what's left to set up for your plan." },
   { element: '[data-tour="nav-calendar"]', title: "Your calendar", description: "Bills, debts, and income all in one month view, with your next 30 days always visible alongside it." },
@@ -37,9 +40,7 @@ const STEPS: TourStep[] = [
   { element: '[data-tour="nav-university"]', title: "Paycheck Planner University", description: "Short lessons on budgeting, paychecks, debt payoff, saving, credit, and financial freedom. Finish a course to unlock the next one." },
   { element: '[data-tour="nav-blog"]', title: "Financial Hub", description: "Articles, free calculators, and the 30-Day Challenge live here." },
   { element: '[data-tour="nav-ai-chat"]', title: "AI insights", description: "Ask questions about your numbers in plain English. Included with Accelerate and Autopilot." },
-  { element: '[data-tour="nav-account"]', title: "Account settings", description: "Manage your plan, security (2FA), notifications, and connected credit cards." },
-  { element: '[data-tour="nav-feedback"]', title: "Send feedback", description: "Tell us what's working or what you'd like to see next." },
-  { element: '[data-tour="nav-sign-out"]', title: "Sign out", description: "Sign out of your account from here anytime." },
+  { element: '[data-tour="nav-feedback"]', title: "Send feedback", description: "Tell us what's working, or a feature you'd like to see next." },
   { title: "You're all set", description: "Add your income and debts to see your payoff date. You can reopen this tour anytime from Getting Started." },
 ]
 

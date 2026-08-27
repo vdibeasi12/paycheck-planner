@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState } from "react"
-import { ThumbsUp, ThumbsDown, MessageSquare, Loader2, Check, RotateCcw, Trash2 } from "lucide-react"
+import { ThumbsUp, ThumbsDown, MessageSquare, Lightbulb, Loader2, Check, RotateCcw, Trash2 } from "lucide-react"
 
 type Row = {
   id: string
@@ -10,13 +10,22 @@ type Row = {
   sentiment: "like" | "dislike" | null
   message: string
   status: "open" | "resolved"
+  // Rows written before Aug 27 2026 predate this column at the DB layer but
+  // are backfilled to "feedback" by the migration's DEFAULT, so this should
+  // never actually be missing -- optional here only as a defensive fallback
+  // in case the API response is stale.
+  type?: "feedback" | "feature_request"
 }
 
 type Filter = "all" | "open" | "resolved"
+type KindFilter = "all" | "feedback" | "feature_request"
 
 export default function AdminFeedback() {
   const [rows, setRows] = useState<Row[] | null>(null)
   const [filter, setFilter] = useState<Filter>("open")
+  // Defaults to "Feature requests" -- Vince added this filter specifically
+  // to see what people are asking for, so that's the useful landing view.
+  const [kindFilter, setKindFilter] = useState<KindFilter>("feature_request")
   const [busyId, setBusyId] = useState<string | null>(null)
 
   useEffect(() => {
@@ -35,12 +44,22 @@ export default function AdminFeedback() {
     }
   }, [rows])
 
-  const shown = useMemo(() => {
+  const kindCounts = useMemo(() => {
     const all = rows || []
-    if (filter === "open") return all.filter((r) => r.status !== "resolved")
-    if (filter === "resolved") return all.filter((r) => r.status === "resolved")
+    return {
+      all: all.length,
+      feedback: all.filter((r) => (r.type || "feedback") === "feedback").length,
+      feature_request: all.filter((r) => r.type === "feature_request").length,
+    }
+  }, [rows])
+
+  const shown = useMemo(() => {
+    let all = rows || []
+    if (filter === "open") all = all.filter((r) => r.status !== "resolved")
+    else if (filter === "resolved") all = all.filter((r) => r.status === "resolved")
+    if (kindFilter !== "all") all = all.filter((r) => (r.type || "feedback") === kindFilter)
     return all
-  }, [rows, filter])
+  }, [rows, filter, kindFilter])
 
   async function setStatus(id: string, status: "open" | "resolved") {
     setBusyId(id)
@@ -93,9 +112,23 @@ export default function AdminFeedback() {
     </button>
   )
 
+  const KindTab = ({ id, label, n }: { id: KindFilter; label: string; n: number }) => (
+    <button
+      type="button"
+      onClick={() => setKindFilter(id)}
+      className={`rounded-full px-3 py-1 text-xs font-medium transition ${
+        kindFilter === id
+          ? "bg-amber-500/20 text-amber-300"
+          : "bg-[#1a233a] text-gray-400 hover:text-gray-200"
+      }`}
+    >
+      {label} {n}
+    </button>
+  )
+
   return (
     <div className="mt-8">
-      <div className="mb-3 flex flex-wrap items-center gap-2">
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <MessageSquare size={18} className="text-emerald-400" />
         <h2 className="text-lg font-bold text-white">Feedback</h2>
         <div className="ml-2 flex items-center gap-2">
@@ -104,6 +137,12 @@ export default function AdminFeedback() {
           <Tab id="all" label="All" n={counts.all} />
         </div>
       </div>
+      <div className="mb-3 flex flex-wrap items-center gap-2">
+        <span className="text-xs text-gray-500">Type:</span>
+        <KindTab id="feature_request" label="Feature requests" n={kindCounts.feature_request} />
+        <KindTab id="feedback" label="General feedback" n={kindCounts.feedback} />
+        <KindTab id="all" label="All" n={kindCounts.all} />
+      </div>
 
       {rows === null ? (
         <div className="flex items-center gap-2 text-gray-400">
@@ -111,7 +150,9 @@ export default function AdminFeedback() {
         </div>
       ) : shown.length === 0 ? (
         <p className="rounded-2xl border border-gray-700 bg-[#0f172a] p-6 text-center text-gray-400">
-          {filter === "resolved"
+          {kindFilter === "feature_request"
+            ? "No feature requests yet."
+            : filter === "resolved"
             ? "Nothing resolved yet."
             : filter === "open"
             ? "No open feedback. Nice."
@@ -130,6 +171,11 @@ export default function AdminFeedback() {
             >
               <div className="mb-1 flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
+                  {r.type === "feature_request" && (
+                    <span className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+                      <Lightbulb size={11} /> Feature request
+                    </span>
+                  )}
                   {r.sentiment === "like" && <ThumbsUp size={15} className="text-emerald-400" />}
                   {r.sentiment === "dislike" && <ThumbsDown size={15} className="text-rose-400" />}
                   <span className="text-sm font-medium text-gray-200">{r.email || "Unknown"}</span>
