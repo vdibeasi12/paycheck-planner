@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase/client'
-import { Plus, Trash2, CreditCard, Pencil, Check, X, Lock, Camera } from 'lucide-react'
+import { Plus, Trash2, CreditCard, Pencil, Check, X, Lock, Camera, ChevronDown } from 'lucide-react'
 import { getMaxDebts } from '@/lib/permissions'
 import SmartCapture from '../components/SmartCapture'
 import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
@@ -87,61 +87,56 @@ export default function DebtsPage() {
     })
   }
   const includeAllDebts = () => setExcludedIds(new Set())
-  const includeCreditCardsOnly = () =>
-    setExcludedIds(
-      new Set(items.filter((d) => (d.debt_type || '').toLowerCase() !== 'credit_card').map((d) => d.id))
-    )
-  const excludeLongTermDebts = () =>
-    setExcludedIds(
-      new Set(
-        items
-          .filter((d) => ['mortgage', 'auto'].includes((d.debt_type || '').toLowerCase()))
-          .map((d) => d.id)
-      )
-    )
 
   // Debts actually counted in the plan preview + top stat tiles below.
   // QA fix (Aug 27 2026): the "Total Balance / Min per month / Avg APR"
   // tiles used to always sum every debt regardless of this selection, so
-  // picking "Credit cards only" changed the plan preview underneath but left
-  // the tiles above it showing the full portfolio's numbers -- confusing
-  // since they're right next to each other (Vince, Aug 27 2026).
+  // picking a filter changed the plan preview underneath but left the tiles
+  // above it showing the full portfolio's numbers -- confusing since they're
+  // right next to each other (Vince, Aug 27 2026).
   const includedItems = useMemo(
     () => items.filter((d) => !excludedIds.has(d.id)),
     [items, excludedIds]
   )
 
-  // Which quick-filter preset (if any) matches the current selection, so the
-  // buttons can show which one is active -- previously none of them ever
-  // looked pressed, which read as the buttons being stuck even when the
-  // selection was changing correctly underneath.
-  const setsEqual = (a: Set<string>, b: Set<string>) =>
-    a.size === b.size && [...a].every((id) => b.has(id))
-  const nonCreditCardIdSet = useMemo(
-    () => new Set(items.filter((d) => (d.debt_type || '').toLowerCase() !== 'credit_card').map((d) => d.id)),
-    [items]
-  )
-  const longTermIdSet = useMemo(
-    () =>
-      new Set(
-        items
-          .filter((d) => ['mortgage', 'auto'].includes((d.debt_type || '').toLowerCase()))
-          .map((d) => d.id)
-      ),
-    [items]
-  )
-  const activePreset: 'all' | 'creditCards' | 'excludeLongTerm' | 'custom' = useMemo(() => {
-    if (excludedIds.size === 0) return 'all'
-    if (setsEqual(excludedIds, nonCreditCardIdSet)) return 'creditCards'
-    if (setsEqual(excludedIds, longTermIdSet)) return 'excludeLongTerm'
-    return 'custom'
-  }, [excludedIds, nonCreditCardIdSet, longTermIdSet])
-
-  const presetButtonClass = (preset: 'all' | 'creditCards' | 'excludeLongTerm') =>
-    'rounded-md border px-2.5 py-1 text-xs font-medium transition ' +
-    (activePreset === preset
-      ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300'
-      : 'border-gray-700 text-gray-300 hover:bg-[#1a233a]')
+  // QA fix (Aug 27 2026): the old "Credit cards only" / "Exclude mortgage &
+  // auto" presets were two fixed, overlapping shortcuts -- for an account
+  // whose non-mortgage/non-auto debts happen to ALL be credit cards (Vince's
+  // own), the two necessarily produced the identical selection, which read
+  // as a bug ("they do the same thing") rather than the expected outcome.
+  // Replaced with one "Filter by type" dropdown driven directly by whatever
+  // debt types actually exist on the account -- explicit, doesn't silently
+  // coincide with itself, and covers types the old presets never did
+  // (student loan, personal loan, etc). Per-debt checkboxes below still give
+  // full manual control on top of this.
+  const typeGroups = useMemo(() => {
+    const map = new Map<string, { label: string; ids: string[] }>()
+    for (const d of items) {
+      const key = (d.debt_type || '').toLowerCase()
+      if (!map.has(key)) map.set(key, { label: DEBT_TYPES.find((t) => t.value === key)?.label ?? 'Not set', ids: [] })
+      map.get(key)!.ids.push(d.id)
+    }
+    return Array.from(map.values())
+  }, [items])
+  const isGroupIncluded = (ids: string[]) => ids.every((id) => !excludedIds.has(id))
+  const toggleGroup = (ids: string[]) => {
+    setExcludedIds((prev) => {
+      const next = new Set(prev)
+      const allIn = ids.every((id) => !next.has(id))
+      ids.forEach((id) => (allIn ? next.add(id) : next.delete(id)))
+      return next
+    })
+  }
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false)
+  const typeMenuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!typeMenuOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (typeMenuRef.current && !typeMenuRef.current.contains(e.target as Node)) setTypeMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [typeMenuOpen])
 
   // Debts with no minimum payment on file -- almost always a data gap (e.g.
   // a freshly bank-synced card before its first statement posts) rather
@@ -584,23 +579,46 @@ export default function DebtsPage() {
                         Debts in this plan
                       </label>
                       <div className="flex flex-wrap gap-2">
-                        <button type="button" onClick={includeAllDebts} className={presetButtonClass('all')}>
+                        <button
+                          type="button"
+                          onClick={includeAllDebts}
+                          className={
+                            'rounded-md border px-2.5 py-1 text-xs font-medium transition ' +
+                            (excludedIds.size === 0
+                              ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300'
+                              : 'border-gray-700 text-gray-300 hover:bg-[#1a233a]')
+                          }
+                        >
                           All debts
                         </button>
-                        <button
-                          type="button"
-                          onClick={includeCreditCardsOnly}
-                          className={presetButtonClass('creditCards')}
-                        >
-                          Credit cards only
-                        </button>
-                        <button
-                          type="button"
-                          onClick={excludeLongTermDebts}
-                          className={presetButtonClass('excludeLongTerm')}
-                        >
-                          Exclude mortgage &amp; auto
-                        </button>
+                        <div className="relative" ref={typeMenuRef}>
+                          <button
+                            type="button"
+                            onClick={() => setTypeMenuOpen((o) => !o)}
+                            className="flex items-center gap-1.5 rounded-md border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 transition hover:bg-[#1a233a]"
+                          >
+                            Filter by type
+                            <ChevronDown size={12} className={typeMenuOpen ? 'rotate-180 transition' : 'transition'} />
+                          </button>
+                          {typeMenuOpen && (
+                            <div className="absolute right-0 z-20 mt-1 w-60 rounded-lg border border-gray-700 bg-[#0f172a] p-2 shadow-xl">
+                              {typeGroups.map((g) => (
+                                <label
+                                  key={g.label}
+                                  className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-200 hover:bg-[#1a233a]"
+                                >
+                                  <input
+                                    type="checkbox"
+                                    checked={isGroupIncluded(g.ids)}
+                                    onChange={() => toggleGroup(g.ids)}
+                                  />
+                                  <span className="flex-1">{g.label}</span>
+                                  <span className="text-xs text-gray-500">{g.ids.length}</span>
+                                </label>
+                              ))}
+                            </div>
+                          )}
+                        </div>
                       </div>
                     </div>
                     <p className="mt-1.5 text-xs text-gray-500">

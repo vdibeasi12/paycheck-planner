@@ -36,7 +36,14 @@ export default function SurvivalModeView({ result }: Props) {
   const cantProject = !result.hasIncome || result.missingPayDate || !result.nextPaycheckDate
 
   return (
-    <div className="max-w-2xl mx-auto px-6 py-10">
+    // QA fix (Aug 27 2026): this page used to cap at max-w-2xl while every
+    // other logged-in page (Dashboard included) caps at max-w-6xl -- on a
+    // normal desktop window that made Survival Mode look like a tiny,
+    // half-built page next to the Dashboard it's one click away from.
+    // Widened to match, and the stat grid below now spreads across a full
+    // row on larger screens instead of staying a small 2-column block
+    // floating in the middle of a much wider page.
+    <div className="max-w-6xl mx-auto px-6 py-10">
       <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-white">
         <ArrowLeft size={16} />
         Back to Dashboard
@@ -58,7 +65,7 @@ export default function SurvivalModeView({ result }: Props) {
         </p>
       ) : (
         <>
-          <div className="mt-8 grid grid-cols-2 gap-3">
+          <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Stat label="Last paycheck" value={formatMoney(result.lastPaycheckAmount)} />
             <Stat
               label="Days until payday"

@@ -169,24 +169,45 @@ export async function syncLiabilitiesForItem(
 
   // 4) Mirror into `debts`. Update in place by plaid_account_id (preserving
   //    original_balance); insert if new.
+  //
+  // QA fix (Aug 27 2026): a real production bug found while chasing "I
+  // edited the APR/minimum payment and it's not sticking" -- this update
+  // used to unconditionally overwrite interest_rate/minimum_payment with
+  // whatever Plaid returned, INCLUDING null/0 when Plaid simply doesn't
+  // have that data for an account yet (common right after connecting,
+  // before a statement posts -- see the "credit_card"/"student_loan" note
+  // above, same underlying accounts). That meant every automated sync (this
+  // daily cron, the webhook, or even the user's own "Refresh from bank"
+  // click) would silently blank back out any value the user had just typed
+  // in manually on the Debts page, or any real number Plaid had provided on
+  // a previous sync. Fixed: Plaid's data still wins whenever Plaid actually
+  // has it (a real improvement worth applying), but a null APR or a $0/null
+  // minimum payment from Plaid now leaves whatever's already on the debt
+  // row untouched -- whether that's a prior good Plaid value or something
+  // the user entered by hand. balance/name/due date still always sync from
+  // Plaid since those are reliably reported.
   let debtCount = 0
   for (const sp of specs) {
     const dueDay = sp.due ? new Date(sp.due).getUTCDate() : null
     const { data: existing } = await sb
       .from("debts")
-      .select("id")
+      .select("id, interest_rate, minimum_payment")
       .eq("user_id", userId)
       .eq("plaid_account_id", sp.account_id)
       .maybeSingle()
 
     if (existing?.id) {
+      const existingRate = existing.interest_rate != null ? Number(existing.interest_rate) : null
+      const existingMin = existing.minimum_payment != null ? Number(existing.minimum_payment) : null
+      const nextRate = sp.apr != null ? sp.apr : existingRate
+      const nextMin = sp.min != null && sp.min > 0 ? sp.min : existingMin
       await sb
         .from("debts")
         .update({
           name: nameFor(sp.account_id),
           balance: sp.balance,
-          interest_rate: sp.apr,
-          minimum_payment: sp.min,
+          interest_rate: nextRate,
+          minimum_payment: nextMin,
           due_date: dueDay,
           debt_type: sp.debt_type,
           source: "plaid",

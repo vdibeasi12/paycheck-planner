@@ -1,19 +1,13 @@
 "use client"
 
-import { useMemo, useState } from "react"
-import { Download, FileText, Loader2, CalendarClock, TrendingDown, AlertTriangle, ListChecks } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Download, FileText, Loader2, CalendarClock, TrendingDown, AlertTriangle, ListChecks, ChevronDown } from "lucide-react"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import { useLocale } from "@/lib/i18n/LocaleProvider"
 import { generatePayoffPlanPdf } from "@/lib/generatePayoffPlanPdf"
 import type { Debt, Strategy, DebtRow, Sim, AvalancheCriterion } from "@/lib/payoffSimulate"
 import { simulate, monthLabel, strategiesTie, strategyOrder, MORTGAGE_DEBT_TYPE } from "@/lib/payoffSimulate"
 import { debtTypeLabel } from "@/lib/debtTypes"
-
-// "auto" isn't exported as a shared constant like MORTGAGE_DEBT_TYPE is
-// (nothing in the simulation engine itself treats it specially), but the
-// "Exclude mortgage & auto" quick filter below needs it to match
-// lib/debtTypes.ts's canonical value.
-const AUTO_DEBT_TYPE = "auto"
 
 type Props = {
   debts: Debt[]
@@ -89,58 +83,45 @@ export default function AmortizationSchedule({ debts }: Props) {
     })
   }
   const selectAllDebts = () => setSelectedIds(new Set(debts.map((d) => d.id)))
-  const selectCreditCardsOnly = () =>
-    setSelectedIds(
-      new Set(debts.filter((d) => (d.debt_type || "").toLowerCase() === "credit_card").map((d) => d.id))
-    )
-  const excludeLongTermDebts = () =>
-    setSelectedIds(
-      new Set(
-        debts
-          .filter((d) => {
-            const t = (d.debt_type || "").toLowerCase()
-            return t !== MORTGAGE_DEBT_TYPE && t !== AUTO_DEBT_TYPE
-          })
-          .map((d) => d.id)
-      )
-    )
 
-  // Which quick-filter preset (if any) matches the current selection, so the
-  // buttons can show which one is active. QA fix (Aug 27 2026): previously
-  // none of these buttons ever looked pressed/active, so clicking "Credit
-  // cards only" and then "All debts" gave no visual confirmation anything
-  // changed -- it read as the buttons being stuck even though the selection
-  // was updating underneath (Vince, Aug 27 2026).
-  const setsEqual = (a: Set<string>, b: Set<string>) =>
-    a.size === b.size && [...a].every((id) => b.has(id))
-  const creditCardIdSet = useMemo(
-    () => new Set(debts.filter((d) => (d.debt_type || "").toLowerCase() === "credit_card").map((d) => d.id)),
-    [debts]
-  )
-  const longTermExcludedIdSet = useMemo(
-    () =>
-      new Set(
-        debts
-          .filter((d) => {
-            const t = (d.debt_type || "").toLowerCase()
-            return t !== MORTGAGE_DEBT_TYPE && t !== AUTO_DEBT_TYPE
-          })
-          .map((d) => d.id)
-      ),
-    [debts]
-  )
-  const activePreset: "all" | "creditCards" | "excludeLongTerm" | "custom" = useMemo(() => {
-    if (selectedIds.size === debts.length) return "all"
-    if (setsEqual(selectedIds, creditCardIdSet)) return "creditCards"
-    if (setsEqual(selectedIds, longTermExcludedIdSet)) return "excludeLongTerm"
-    return "custom"
-  }, [selectedIds, debts.length, creditCardIdSet, longTermExcludedIdSet])
-
-  const presetButtonClass = (preset: "all" | "creditCards" | "excludeLongTerm") =>
-    "rounded-md border px-2.5 py-1 text-xs font-medium transition " +
-    (activePreset === preset
-      ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
-      : "border-gray-700 text-gray-300 hover:bg-[#1a233a]")
+  // QA fix (Aug 27 2026): the old "Credit cards only" / "Exclude mortgage &
+  // auto" presets were two fixed, overlapping shortcuts -- for anyone whose
+  // non-mortgage/non-auto debts happen to ALL be credit cards (Vince's own
+  // account), the two buttons necessarily produced the identical selection,
+  // which read as a bug ("they do the same thing") rather than the expected
+  // outcome. Replaced with one "Filter by type" dropdown driven directly by
+  // whatever debt types actually exist on the account -- explicit, doesn't
+  // silently coincide with itself, and covers types the old presets never
+  // did (student loan, personal loan, etc). Individual per-debt checkboxes
+  // below still give full manual control on top of this.
+  const typeGroups = useMemo(() => {
+    const map = new Map<string, { label: string; ids: string[] }>()
+    for (const d of debts) {
+      const key = (d.debt_type || "").toLowerCase()
+      if (!map.has(key)) map.set(key, { label: debtTypeLabel(d.debt_type), ids: [] })
+      map.get(key)!.ids.push(d.id)
+    }
+    return Array.from(map.values())
+  }, [debts])
+  const isGroupSelected = (ids: string[]) => ids.every((id) => selectedIds.has(id))
+  const toggleGroup = (ids: string[]) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      const allIn = ids.every((id) => next.has(id))
+      ids.forEach((id) => (allIn ? next.delete(id) : next.add(id)))
+      return next
+    })
+  }
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false)
+  const typeMenuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!typeMenuOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (typeMenuRef.current && !typeMenuRef.current.contains(e.target as Node)) setTypeMenuOpen(false)
+    }
+    document.addEventListener("mousedown", onClick)
+    return () => document.removeEventListener("mousedown", onClick)
+  }, [typeMenuOpen])
 
   // Debts with no minimum payment on file -- almost always means we don't
   // have real data for that debt yet (freshly bank-synced accounts can land
@@ -268,19 +249,46 @@ export default function AmortizationSchedule({ debts }: Props) {
             </h3>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button type="button" onClick={selectAllDebts} className={presetButtonClass("all")}>
-              All debts
-            </button>
-            <button type="button" onClick={selectCreditCardsOnly} className={presetButtonClass("creditCards")}>
-              Credit cards only
-            </button>
             <button
               type="button"
-              onClick={excludeLongTermDebts}
-              className={presetButtonClass("excludeLongTerm")}
+              onClick={selectAllDebts}
+              className={
+                "rounded-md border px-2.5 py-1 text-xs font-medium transition " +
+                (selectedIds.size === debts.length
+                  ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+                  : "border-gray-700 text-gray-300 hover:bg-[#1a233a]")
+              }
             >
-              Exclude mortgage &amp; auto
+              All debts
             </button>
+            <div className="relative" ref={typeMenuRef}>
+              <button
+                type="button"
+                onClick={() => setTypeMenuOpen((o) => !o)}
+                className="flex items-center gap-1.5 rounded-md border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 transition hover:bg-[#1a233a]"
+              >
+                Filter by type
+                <ChevronDown size={12} className={typeMenuOpen ? "rotate-180 transition" : "transition"} />
+              </button>
+              {typeMenuOpen && (
+                <div className="absolute right-0 z-20 mt-1 w-60 rounded-lg border border-gray-700 bg-[#0f172a] p-2 shadow-xl">
+                  {typeGroups.map((g) => (
+                    <label
+                      key={g.label}
+                      className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-200 hover:bg-[#1a233a]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={isGroupSelected(g.ids)}
+                        onChange={() => toggleGroup(g.ids)}
+                      />
+                      <span className="flex-1">{g.label}</span>
+                      <span className="text-xs text-gray-500">{g.ids.length}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </div>
         <div className="grid gap-2 sm:grid-cols-2">
