@@ -239,7 +239,6 @@ export default async function DashboardPage() {
       <WhatIfSpend result={safeToSpendResult} />
       {paycheckTalk && <PaycheckTalkCard narrative={paycheckTalk} />}
       <SummaryCards netWorth={-totalDebt} totalDebt={totalDebt} monthlyPayments={monthlyPayments} percentPaid={percentPaid} />
-      <ReferralCard userId={user.id} />
       <DebtList debts={debts} />
 
       {/* CHARTS */}
@@ -309,6 +308,13 @@ export default async function DashboardPage() {
           />
         )}
       </div>
+
+      {/* Referrals moved to the bottom of the page (Vince, Aug 27 2026) --
+          it used to sit between the summary cards and the debt list, which
+          broke up the "here's where you stand" flow with a share prompt
+          before the user had even seen their own numbers. It's still on
+          every dashboard load, just after everything else. */}
+      <ReferralCard userId={user.id} />
 
     </div>
   )

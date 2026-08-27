@@ -100,6 +100,59 @@ export default function DebtsPage() {
       )
     )
 
+  // Debts actually counted in the plan preview + top stat tiles below.
+  // QA fix (Aug 27 2026): the "Total Balance / Min per month / Avg APR"
+  // tiles used to always sum every debt regardless of this selection, so
+  // picking "Credit cards only" changed the plan preview underneath but left
+  // the tiles above it showing the full portfolio's numbers -- confusing
+  // since they're right next to each other (Vince, Aug 27 2026).
+  const includedItems = useMemo(
+    () => items.filter((d) => !excludedIds.has(d.id)),
+    [items, excludedIds]
+  )
+
+  // Which quick-filter preset (if any) matches the current selection, so the
+  // buttons can show which one is active -- previously none of them ever
+  // looked pressed, which read as the buttons being stuck even when the
+  // selection was changing correctly underneath.
+  const setsEqual = (a: Set<string>, b: Set<string>) =>
+    a.size === b.size && [...a].every((id) => b.has(id))
+  const nonCreditCardIdSet = useMemo(
+    () => new Set(items.filter((d) => (d.debt_type || '').toLowerCase() !== 'credit_card').map((d) => d.id)),
+    [items]
+  )
+  const longTermIdSet = useMemo(
+    () =>
+      new Set(
+        items
+          .filter((d) => ['mortgage', 'auto'].includes((d.debt_type || '').toLowerCase()))
+          .map((d) => d.id)
+      ),
+    [items]
+  )
+  const activePreset: 'all' | 'creditCards' | 'excludeLongTerm' | 'custom' = useMemo(() => {
+    if (excludedIds.size === 0) return 'all'
+    if (setsEqual(excludedIds, nonCreditCardIdSet)) return 'creditCards'
+    if (setsEqual(excludedIds, longTermIdSet)) return 'excludeLongTerm'
+    return 'custom'
+  }, [excludedIds, nonCreditCardIdSet, longTermIdSet])
+
+  const presetButtonClass = (preset: 'all' | 'creditCards' | 'excludeLongTerm') =>
+    'rounded-md border px-2.5 py-1 text-xs font-medium transition ' +
+    (activePreset === preset
+      ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300'
+      : 'border-gray-700 text-gray-300 hover:bg-[#1a233a]')
+
+  // Debts with no minimum payment on file -- almost always a data gap (e.g.
+  // a freshly bank-synced card before its first statement posts) rather
+  // than a genuine $0 minimum. Flagged on each row and folded into the
+  // preview widget's messaging so it's clear why a plan can't be built,
+  // instead of just showing dashes.
+  const noMinPaymentIds = useMemo(
+    () => new Set(items.filter((d) => Math.max(0, Number(d.minimum_payment) || 0) <= 0).map((d) => d.id)),
+    [items]
+  )
+
   async function loadPlan() {
     try {
       const { data: userAuth } = await supabase.auth.getUser()
@@ -285,11 +338,11 @@ export default function DebtsPage() {
   const unlimited = !isFinite(maxDebts) || maxDebts >= 999999
   const atLimit = !unlimited && items.length >= maxDebts
 
-  const totalBalance = items.reduce((sum, d) => sum + (Number(d.balance) || 0), 0)
-  const totalMin = items.reduce((sum, d) => sum + (Number(d.minimum_payment) || 0), 0)
+  const totalBalance = includedItems.reduce((sum, d) => sum + (Number(d.balance) || 0), 0)
+  const totalMin = includedItems.reduce((sum, d) => sum + (Number(d.minimum_payment) || 0), 0)
   const avgApr =
     totalBalance > 0
-      ? items.reduce((sum, d) => sum + (Number(d.balance) || 0) * (Number(d.interest_rate) || 0), 0) /
+      ? includedItems.reduce((sum, d) => sum + (Number(d.balance) || 0) * (Number(d.interest_rate) || 0), 0) /
         totalBalance
       : 0
 
@@ -458,6 +511,14 @@ export default function DebtsPage() {
 
           {/* List */}
           <div className="lg:col-span-2">
+            {excludedIds.size > 0 && (
+              <p className="mb-2 text-xs text-gray-500">
+                Showing totals for {includedItems.length} of {items.length} debts (filtered below) --{' '}
+                <button type="button" onClick={includeAllDebts} className="font-medium text-emerald-400 hover:underline">
+                  show all
+                </button>
+              </p>
+            )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-4 mb-6">
               <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4 min-w-0">
                 <p className="text-gray-400 text-sm">Total Balance</p>
@@ -474,7 +535,6 @@ export default function DebtsPage() {
             </div>
 
             {items.length > 0 && (() => {
-              const includedItems = items.filter((d) => !excludedIds.has(d.id))
               const start = new Date()
               const sim = simulate(
                 includedItems.map((d) => ({
@@ -503,6 +563,19 @@ export default function DebtsPage() {
                     })
                   : '-'
               const tied = strategiesTie(includedItems, avalancheCriterion)
+              // Always-computable fallback numbers -- shown instead of blank
+              // dashes when the combined minimums can't amortize yet
+              // (missing bank data is the usual cause -- see noMinPaymentIds).
+              const includedMinTotal = includedItems.reduce((sum, d) => {
+                const min = Math.max(0, Number(d.minimum_payment) || 0)
+                const escrow = Math.max(0, Number(d.escrow_payment) || 0)
+                return sum + Math.max(0, min - escrow)
+              }, 0)
+              const includedInterestMonthly = includedItems.reduce((sum, d) => {
+                const rate = Math.max(0, Number(d.interest_rate) || 0) / 100 / 12
+                return sum + Math.max(0, Number(d.balance) || 0) * rate
+              }, 0)
+              const includedMissingMinCount = includedItems.filter((d) => noMinPaymentIds.has(d.id)).length
               return (
                 <div className="mb-6 flex flex-wrap items-end gap-4 rounded-lg border border-gray-700 bg-[#0f172a] p-4">
                   <div className="w-full">
@@ -511,24 +584,20 @@ export default function DebtsPage() {
                         Debts in this plan
                       </label>
                       <div className="flex flex-wrap gap-2">
-                        <button
-                          type="button"
-                          onClick={includeAllDebts}
-                          className="rounded-md border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 hover:bg-[#1a233a]"
-                        >
+                        <button type="button" onClick={includeAllDebts} className={presetButtonClass('all')}>
                           All debts
                         </button>
                         <button
                           type="button"
                           onClick={includeCreditCardsOnly}
-                          className="rounded-md border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 hover:bg-[#1a233a]"
+                          className={presetButtonClass('creditCards')}
                         >
                           Credit cards only
                         </button>
                         <button
                           type="button"
                           onClick={excludeLongTermDebts}
-                          className="rounded-md border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 hover:bg-[#1a233a]"
+                          className={presetButtonClass('excludeLongTerm')}
                         >
                           Exclude mortgage &amp; auto
                         </button>
@@ -633,18 +702,37 @@ export default function DebtsPage() {
                     </div>
                   </div>
 
-                  <div className="ml-auto flex gap-6">
+                  <div className="ml-auto flex flex-wrap gap-6">
+                    <div>
+                      <p className="text-xs uppercase tracking-wide text-gray-400">Min payment</p>
+                      <p className="text-lg font-bold text-blue-400">{formatMoney(Math.round(includedMinTotal))}</p>
+                    </div>
                     <div>
                       <p className="text-xs uppercase tracking-wide text-gray-400">Debt-free</p>
                       <p className="text-lg font-bold text-emerald-400">{debtFreeLabel}</p>
                     </div>
                     <div>
-                      <p className="text-xs uppercase tracking-wide text-gray-400">Total interest</p>
+                      <p className="text-xs uppercase tracking-wide text-gray-400">
+                        {sim.nonAmortizing ? 'Interest accruing' : 'Total interest'}
+                      </p>
                       <p className="text-lg font-bold text-white">
-                        {sim.nonAmortizing ? '-' : formatMoney(Math.round(sim.totalInterest))}
+                        {sim.nonAmortizing
+                          ? formatMoney(Math.round(includedInterestMonthly)) + '/mo'
+                          : formatMoney(Math.round(sim.totalInterest))}
                       </p>
                     </div>
                   </div>
+
+                  {sim.nonAmortizing && (
+                    <p className="w-full text-xs text-amber-300">
+                      {includedMinTotal + extra <= 0
+                        ? (includedMissingMinCount === includedItems.length
+                            ? 'None of the debts in this plan have a minimum payment on file yet'
+                            : includedMissingMinCount + ' of ' + includedItems.length + ' debts in this plan have no minimum payment on file yet') +
+                          ' (common right after connecting a bank) -- add an extra monthly payment above, or edit these debts below to add their real minimum payments.'
+                        : "At the current minimums, payments don't cover the interest that accrues, so balances won't fall -- add an extra monthly payment to see a payoff date."}
+                    </p>
+                  )}
                 </div>
               )
             })()}
@@ -772,6 +860,14 @@ export default function DebtsPage() {
                             {excludedIds.has(d.id) && (
                               <span className="rounded-full bg-gray-700/60 px-2 py-0.5 text-xs font-medium text-gray-400">
                                 not in plan
+                              </span>
+                            )}
+                            {noMinPaymentIds.has(d.id) && (
+                              <span
+                                className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-300"
+                                title="No minimum payment on file yet -- edit this debt to add one."
+                              >
+                                no min. payment on file
                               </span>
                             )}
                           </h3>

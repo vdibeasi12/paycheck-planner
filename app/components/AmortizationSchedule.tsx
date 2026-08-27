@@ -105,9 +105,83 @@ export default function AmortizationSchedule({ debts }: Props) {
       )
     )
 
+  // Which quick-filter preset (if any) matches the current selection, so the
+  // buttons can show which one is active. QA fix (Aug 27 2026): previously
+  // none of these buttons ever looked pressed/active, so clicking "Credit
+  // cards only" and then "All debts" gave no visual confirmation anything
+  // changed -- it read as the buttons being stuck even though the selection
+  // was updating underneath (Vince, Aug 27 2026).
+  const setsEqual = (a: Set<string>, b: Set<string>) =>
+    a.size === b.size && [...a].every((id) => b.has(id))
+  const creditCardIdSet = useMemo(
+    () => new Set(debts.filter((d) => (d.debt_type || "").toLowerCase() === "credit_card").map((d) => d.id)),
+    [debts]
+  )
+  const longTermExcludedIdSet = useMemo(
+    () =>
+      new Set(
+        debts
+          .filter((d) => {
+            const t = (d.debt_type || "").toLowerCase()
+            return t !== MORTGAGE_DEBT_TYPE && t !== AUTO_DEBT_TYPE
+          })
+          .map((d) => d.id)
+      ),
+    [debts]
+  )
+  const activePreset: "all" | "creditCards" | "excludeLongTerm" | "custom" = useMemo(() => {
+    if (selectedIds.size === debts.length) return "all"
+    if (setsEqual(selectedIds, creditCardIdSet)) return "creditCards"
+    if (setsEqual(selectedIds, longTermExcludedIdSet)) return "excludeLongTerm"
+    return "custom"
+  }, [selectedIds, debts.length, creditCardIdSet, longTermExcludedIdSet])
+
+  const presetButtonClass = (preset: "all" | "creditCards" | "excludeLongTerm") =>
+    "rounded-md border px-2.5 py-1 text-xs font-medium transition " +
+    (activePreset === preset
+      ? "border-emerald-500 bg-emerald-500/15 text-emerald-300"
+      : "border-gray-700 text-gray-300 hover:bg-[#1a233a]")
+
+  // Debts with no minimum payment on file -- almost always means we don't
+  // have real data for that debt yet (freshly bank-synced accounts can land
+  // with balance but no reported minimum payment/APR until a statement
+  // posts), not that the minimum genuinely is $0. Surfaced both as a badge
+  // in the checklist below and folded into the non-amortizing message so
+  // it's obvious *why* a plan can't be built instead of just showing blanks.
+  const noMinPaymentIds = useMemo(
+    () => new Set(debts.filter((d) => Math.max(0, Number(d.minimum_payment) || 0) <= 0).map((d) => d.id)),
+    [debts]
+  )
+
   const hasMortgage = useMemo(
     () => selectedDebts.some((d) => (d.debt_type || "").toLowerCase() === MORTGAGE_DEBT_TYPE),
     [selectedDebts]
+  )
+
+  // Always-computable numbers for the debts currently in the plan -- these
+  // don't depend on the month-by-month simulation succeeding, so they can
+  // still show real figures (instead of blank dashes) even when the combined
+  // minimum payments can't amortize the balances yet.
+  const selectedMinTotal = useMemo(
+    () =>
+      selectedDebts.reduce((sum, d) => {
+        const min = Math.max(0, Number(d.minimum_payment) || 0)
+        const escrow = Math.max(0, Number(d.escrow_payment) || 0)
+        return sum + Math.max(0, min - escrow)
+      }, 0),
+    [selectedDebts]
+  )
+  const selectedInterestMonthly = useMemo(
+    () =>
+      selectedDebts.reduce((sum, d) => {
+        const rate = Math.max(0, Number(d.interest_rate) || 0) / 100 / 12
+        return sum + Math.max(0, Number(d.balance) || 0) * rate
+      }, 0),
+    [selectedDebts]
+  )
+  const selectedMissingMinCount = useMemo(
+    () => selectedDebts.filter((d) => noMinPaymentIds.has(d.id)).length,
+    [selectedDebts, noMinPaymentIds]
   )
 
   const start = useMemo(() => new Date(), [])
@@ -194,24 +268,16 @@ export default function AmortizationSchedule({ debts }: Props) {
             </h3>
           </div>
           <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              onClick={selectAllDebts}
-              className="rounded-md border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 hover:bg-[#1a233a]"
-            >
+            <button type="button" onClick={selectAllDebts} className={presetButtonClass("all")}>
               All debts
             </button>
-            <button
-              type="button"
-              onClick={selectCreditCardsOnly}
-              className="rounded-md border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 hover:bg-[#1a233a]"
-            >
+            <button type="button" onClick={selectCreditCardsOnly} className={presetButtonClass("creditCards")}>
               Credit cards only
             </button>
             <button
               type="button"
               onClick={excludeLongTermDebts}
-              className="rounded-md border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 hover:bg-[#1a233a]"
+              className={presetButtonClass("excludeLongTerm")}
             >
               Exclude mortgage &amp; auto
             </button>
@@ -233,6 +299,14 @@ export default function AmortizationSchedule({ debts }: Props) {
               <span className="shrink-0 rounded-full bg-[#1a233a] px-2 py-0.5 text-[11px] font-medium text-gray-400">
                 {debtTypeLabel(d.debt_type)}
               </span>
+              {noMinPaymentIds.has(d.id) && (
+                <span
+                  className="shrink-0 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-300"
+                  title="No minimum payment on file for this debt yet -- edit it on the Debts page to add one."
+                >
+                  no min. payment on file
+                </span>
+              )}
               <span className="shrink-0 text-sm text-gray-400">{fmt(d.balance)}</span>
             </label>
           ))}
@@ -387,14 +461,51 @@ export default function AmortizationSchedule({ debts }: Props) {
       </div>
 
       {sim.nonAmortizing && (
-        <div className="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
-          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-400" />
-          <span>
-            At the current payments, your total monthly payment does not cover the interest that
-            accrues, so the balances never fall. Add an extra monthly payment to see a payoff
-            schedule.
-          </span>
-        </div>
+        <>
+          <div className="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
+            <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-400" />
+            {selectedMinTotal + extra <= 0 ? (
+              <span>
+                {selectedMissingMinCount === selectedDebts.length
+                  ? "None of the debts in this plan have a minimum payment on file yet"
+                  : selectedMissingMinCount + " of " + selectedDebts.length + " debts in this plan have no minimum payment on file yet"}
+                {" "}(common right after connecting a bank, before your first statement posts) -- there's nothing to
+                simulate with a $0 budget. Add an extra monthly payment above, or{" "}
+                <a href="/debts" className="font-medium underline hover:text-amber-100">
+                  edit these debts
+                </a>{" "}
+                to add their real minimum payments.
+              </span>
+            ) : (
+              <span>
+                At the current payments, your total monthly payment does not cover the interest that
+                accrues, so the balances never fall. Add an extra monthly payment to see a payoff
+                schedule.
+              </span>
+            )}
+          </div>
+
+          {/* Fallback numbers -- even when a full schedule can't be built,
+              these two are always knowable and answer "what am I actually
+              paying / accruing right now" instead of leaving the page blank. */}
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div className="rounded-2xl border border-gray-700 bg-gradient-to-br from-[#0f172a] to-[#0b1220] p-5">
+              <div className="flex items-center gap-2 text-gray-400">
+                <span className="text-xs font-medium uppercase tracking-wide">Minimum payments</span>
+              </div>
+              <p className="mt-2 text-2xl font-bold text-white">{fmt0(selectedMinTotal)}</p>
+              <p className="text-sm text-gray-400">per month, across the debts in this plan</p>
+            </div>
+            <div className="rounded-2xl border border-gray-700 bg-gradient-to-br from-[#0f172a] to-[#0b1220] p-5">
+              <div className="flex items-center gap-2 text-gray-400">
+                <TrendingDown size={16} className="text-amber-400" />
+                <span className="text-xs font-medium uppercase tracking-wide">Interest accruing</span>
+              </div>
+              <p className="mt-2 text-2xl font-bold text-amber-300">{fmt0(selectedInterestMonthly)}</p>
+              <p className="text-sm text-gray-400">per month, at today's balances</p>
+            </div>
+          </div>
+        </>
       )}
 
       {sim.capped && (

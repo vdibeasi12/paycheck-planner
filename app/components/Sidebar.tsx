@@ -168,6 +168,22 @@ export default function Sidebar() {
 
   const renderLinks = (onNavigate?: () => void) => (
     <nav className="flex flex-col gap-1 px-3">
+      {/* Getting Started sits above Dashboard (Vince, Aug 27 2026) -- it's
+          the first thing a still-onboarding user should see, and previously
+          it rendered directly under the Dashboard link where it read as a
+          Dashboard sub-item rather than its own top-level entry. */}
+      <button
+        onClick={() => {
+          onNavigate?.()
+          setGsOpen(true)
+        }}
+        data-tour="nav-getting-started"
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-gray-300 transition hover:bg-white/5 hover:text-white"
+      >
+        <Sparkles size={20} className="text-gray-400" />
+        {t("nav.gettingStarted")}
+      </button>
+
       {LINKS.map(({ href, labelKey, Icon, group }) => {
         const active = isActive(href)
         return (
@@ -191,20 +207,6 @@ export default function Sidebar() {
               <Icon size={20} className={active ? "text-green-400" : "text-gray-400"} />
               {t(labelKey)}
             </Link>
-
-            {href === "/dashboard" && (
-              <button
-                onClick={() => {
-                  onNavigate?.()
-                  setGsOpen(true)
-                }}
-                data-tour="nav-getting-started"
-                className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-gray-300 transition hover:bg-white/5 hover:text-white"
-              >
-                <Sparkles size={20} className="text-gray-400" />
-                {t("nav.gettingStarted")}
-              </button>
-            )}
           </Fragment>
         )
       })}
