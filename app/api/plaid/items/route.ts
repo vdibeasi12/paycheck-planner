@@ -43,7 +43,7 @@ export async function GET(req: Request) {
   const sb = serviceClient()
   let query = sb
     .from("plaid_items")
-    .select("item_id, institution_name, status, updated_at, product")
+    .select("item_id, institution_name, status, updated_at, product, new_accounts_available")
     .eq("user_id", user.id)
     .order("updated_at", { ascending: false })
   if (productFilter) {
@@ -58,6 +58,7 @@ export async function GET(req: Request) {
     updated_at: string | null
     accounts: number
     product: string
+    new_accounts_available: boolean
   }[] = []
   for (const it of items ?? []) {
     const { count } = await sb
@@ -71,6 +72,7 @@ export async function GET(req: Request) {
       updated_at: it.updated_at,
       accounts: count ?? 0,
       product: it.product,
+      new_accounts_available: !!it.new_accounts_available,
     })
   }
 

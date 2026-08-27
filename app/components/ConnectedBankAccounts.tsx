@@ -12,6 +12,7 @@ type Bank = {
   status: string | null
   updated_at: string | null
   accounts: number
+  new_accounts_available: boolean
 }
 
 type BankAsset = {
@@ -149,11 +150,15 @@ export default function ConnectedBankAccounts() {
                   <p className="text-xs text-gray-400">
                     {b.accounts} account{b.accounts === 1 ? "" : "s"}
                     {b.status && b.status !== "active" ? " - " + b.status : ""}
+                    {b.new_accounts_available ? " - new account available" : ""}
                   </p>
                 </div>
                 <div className="flex items-center gap-2">
                   {b.status && b.status !== "active" && (
                     <PlaidConnectButton itemId={b.item_id} label="Reconnect" onLinked={load} />
+                  )}
+                  {b.status === "active" && b.new_accounts_available && (
+                    <PlaidConnectButton itemId={b.item_id} label="Add new accounts" onLinked={load} />
                   )}
                   <button
                     type="button"

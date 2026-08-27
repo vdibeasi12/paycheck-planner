@@ -91,6 +91,16 @@ export async function POST(req: Request) {
             .from("plaid_items")
             .update({ status, updated_at: new Date().toISOString() })
             .eq("item_id", itemId)
+        } else if (type === "ITEM" && code === "NEW_ACCOUNTS_AVAILABLE") {
+          // The institution has account(s) (e.g. a newly opened card) this
+          // Item hasn't been granted access to yet. Nothing to sync until
+          // the user re-runs Link in update mode and selects the new
+          // account(s) -- see /api/plaid/reconnect, which does the actual
+          // sync once that happens. Just flag it so the UI can prompt.
+          await sb
+            .from("plaid_items")
+            .update({ new_accounts_available: true, updated_at: new Date().toISOString() })
+            .eq("item_id", itemId)
         }
       } catch (e) {
         console.error("Plaid webhook handling error:", e)
