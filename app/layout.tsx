@@ -151,6 +151,7 @@ export default async function RootLayout({
       <head>
         <meta charSet="utf-8" />
         <link rel="icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="theme-color" content="#020617" />
         <StructuredData />
       </head>
