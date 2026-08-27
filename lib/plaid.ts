@@ -96,7 +96,13 @@ export async function syncLiabilitiesForItem(
     })
     specs.push({
       account_id: c.account_id,
-      debt_type: "credit",
+      // "credit_card" to match lib/debtTypes.ts's canonical DEBT_TYPES value
+      // -- this used to be the bare Plaid liability_type "credit", which
+      // isn't in DEBT_TYPES at all, so every Plaid-synced credit card's
+      // badge silently fell back to showing the literal word "credit"
+      // instead of "Credit card" anywhere debtTypeLabel()/DEBT_TYPES.find()
+      // looked it up (Debts page, Dashboard). Fixed 2026-08-27.
+      debt_type: "credit_card",
       balance: Number(balanceFor(c.account_id) ?? c.last_statement_balance ?? 0),
       apr: c.aprs?.[0]?.apr_percentage ?? null,
       min: c.minimum_payment_amount ?? null,
@@ -119,7 +125,9 @@ export async function syncLiabilitiesForItem(
     })
     specs.push({
       account_id: s.account_id,
-      debt_type: "student",
+      // "student_loan" to match lib/debtTypes.ts -- same fix as credit_card
+      // above, was the bare Plaid liability_type "student".
+      debt_type: "student_loan",
       balance: Number(balanceFor(s.account_id) ?? s.last_statement_balance ?? 0),
       apr: s.interest_rate_percentage ?? null,
       min: s.minimum_payment_amount ?? null,

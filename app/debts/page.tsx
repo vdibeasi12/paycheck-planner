@@ -69,6 +69,36 @@ export default function DebtsPage() {
   const [avalancheCriterion, setAvalancheCriterion] = useState<AvalancheCriterion>('balance')
   const [extraText, setExtraText] = useState('0')
   const extra = Math.max(0, Number(extraText) || 0)
+  // Which debts count toward the quick payoff-plan preview below. Tracked as
+  // an "excluded" set (rather than "included") so a debt loaded or added
+  // later is included by default without needing to sync a second piece of
+  // state -- nothing in this set means everything counts, same as before
+  // this existed. A mortgage or car loan that's years away can be unchecked
+  // here so the preview reflects just the debts someone's actually focused
+  // on right now (e.g. credit cards). The full debt list below is always
+  // shown regardless of this -- it only affects the plan preview.
+  const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set())
+  const toggleIncluded = (id: string) => {
+    setExcludedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+  const includeAllDebts = () => setExcludedIds(new Set())
+  const includeCreditCardsOnly = () =>
+    setExcludedIds(
+      new Set(items.filter((d) => (d.debt_type || '').toLowerCase() !== 'credit_card').map((d) => d.id))
+    )
+  const excludeLongTermDebts = () =>
+    setExcludedIds(
+      new Set(
+        items
+          .filter((d) => ['mortgage', 'auto'].includes((d.debt_type || '').toLowerCase()))
+          .map((d) => d.id)
+      )
+    )
 
   async function loadPlan() {
     try {
@@ -444,9 +474,10 @@ export default function DebtsPage() {
             </div>
 
             {items.length > 0 && (() => {
+              const includedItems = items.filter((d) => !excludedIds.has(d.id))
               const start = new Date()
               const sim = simulate(
-                items.map((d) => ({
+                includedItems.map((d) => ({
                   id: d.id,
                   name: d.name,
                   balance: Number(d.balance) || 0,
@@ -465,15 +496,52 @@ export default function DebtsPage() {
                 // Payoff Plan page (app/components/AmortizationSchedule.tsx).
               )
               const debtFreeLabel =
-                sim.months > 0 && !sim.nonAmortizing
+                includedItems.length > 0 && sim.months > 0 && !sim.nonAmortizing
                   ? new Date(start.getFullYear(), start.getMonth() + sim.months - 1, 1).toLocaleDateString('en-US', {
                       month: 'short',
                       year: 'numeric',
                     })
                   : '-'
-              const tied = strategiesTie(items, avalancheCriterion)
+              const tied = strategiesTie(includedItems, avalancheCriterion)
               return (
                 <div className="mb-6 flex flex-wrap items-end gap-4 rounded-lg border border-gray-700 bg-[#0f172a] p-4">
+                  <div className="w-full">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <label className="block text-xs font-medium uppercase tracking-wide text-gray-400">
+                        Debts in this plan
+                      </label>
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={includeAllDebts}
+                          className="rounded-md border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 hover:bg-[#1a233a]"
+                        >
+                          All debts
+                        </button>
+                        <button
+                          type="button"
+                          onClick={includeCreditCardsOnly}
+                          className="rounded-md border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 hover:bg-[#1a233a]"
+                        >
+                          Credit cards only
+                        </button>
+                        <button
+                          type="button"
+                          onClick={excludeLongTermDebts}
+                          className="rounded-md border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 hover:bg-[#1a233a]"
+                        >
+                          Exclude mortgage &amp; auto
+                        </button>
+                      </div>
+                    </div>
+                    <p className="mt-1.5 text-xs text-gray-500">
+                      {includedItems.length} of {items.length} debt{items.length === 1 ? '' : 's'} included
+                      {includedItems.length !== items.length
+                        ? ' -- uncheck a debt below to leave it out. Excluded debts keep their own minimum payment, they just aren’t part of this plan.'
+                        : ' -- uncheck any debt below to leave it out of this plan.'}
+                    </p>
+                  </div>
+
                   <div>
                     <label className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-400">
                       Strategy
@@ -586,7 +654,13 @@ export default function DebtsPage() {
             ) : items.length > 0 ? (
               <div className="space-y-3">
                 {sortedItems.map((d, idx) => (
-                  <div key={d.id} className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
+                  <div
+                    key={d.id}
+                    className={
+                      'bg-[#0f172a] border border-gray-700 rounded-lg p-4' +
+                      (excludedIds.has(d.id) ? ' opacity-60' : '')
+                    }
+                  >
                     {editingId === d.id ? (
                       <div className="space-y-3">
                         <input
@@ -679,6 +753,13 @@ export default function DebtsPage() {
                       <div className="flex items-center justify-between">
                         <div>
                           <h3 className="font-semibold text-lg flex items-center gap-2">
+                            <input
+                              type="checkbox"
+                              checked={!excludedIds.has(d.id)}
+                              onChange={() => toggleIncluded(d.id)}
+                              title="Include in payoff plan preview above"
+                              className="shrink-0"
+                            />
                             <span className="flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500/15 text-xs font-bold text-emerald-400">
                               {idx + 1}
                             </span>
@@ -686,6 +767,11 @@ export default function DebtsPage() {
                             {d.debt_type && (
                               <span className="rounded-full bg-[#1a233a] px-2 py-0.5 text-xs font-medium text-gray-400">
                                 {DEBT_TYPES.find((t) => t.value === d.debt_type)?.label ?? d.debt_type}
+                              </span>
+                            )}
+                            {excludedIds.has(d.id) && (
+                              <span className="rounded-full bg-gray-700/60 px-2 py-0.5 text-xs font-medium text-gray-400">
+                                not in plan
                               </span>
                             )}
                           </h3>

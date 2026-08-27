@@ -1,12 +1,19 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { Download, FileText, Loader2, CalendarClock, TrendingDown, AlertTriangle } from "lucide-react"
+import { Download, FileText, Loader2, CalendarClock, TrendingDown, AlertTriangle, ListChecks } from "lucide-react"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import { useLocale } from "@/lib/i18n/LocaleProvider"
 import { generatePayoffPlanPdf } from "@/lib/generatePayoffPlanPdf"
 import type { Debt, Strategy, DebtRow, Sim, AvalancheCriterion } from "@/lib/payoffSimulate"
 import { simulate, monthLabel, strategiesTie, strategyOrder, MORTGAGE_DEBT_TYPE } from "@/lib/payoffSimulate"
+import { debtTypeLabel } from "@/lib/debtTypes"
+
+// "auto" isn't exported as a shared constant like MORTGAGE_DEBT_TYPE is
+// (nothing in the simulation engine itself treats it specially), but the
+// "Exclude mortgage & auto" quick filter below needs it to match
+// lib/debtTypes.ts's canonical value.
+const AUTO_DEBT_TYPE = "auto"
 
 type Props = {
   debts: Debt[]
@@ -61,20 +68,60 @@ export default function AmortizationSchedule({ debts }: Props) {
   // redirect by default (see lib/payoffSimulate.ts) -- this is the opt-in.
   const [includeMortgageInExtra, setIncludeMortgageInExtra] = useState(false)
 
+  // Which debts actually feed the plan below. Defaults to everything, so
+  // nothing changes for anyone who never touches this -- but a mortgage or
+  // car loan that's going to take years can be unchecked so the plan (and
+  // its "debt-free" date/interest total) reflects, say, just the credit
+  // cards someone is actually trying to focus on right now.
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(
+    () => new Set(debts.map((d) => d.id))
+  )
+  const selectedDebts = useMemo(
+    () => debts.filter((d) => selectedIds.has(d.id)),
+    [debts, selectedIds]
+  )
+  const toggleDebt = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+  const selectAllDebts = () => setSelectedIds(new Set(debts.map((d) => d.id)))
+  const selectCreditCardsOnly = () =>
+    setSelectedIds(
+      new Set(debts.filter((d) => (d.debt_type || "").toLowerCase() === "credit_card").map((d) => d.id))
+    )
+  const excludeLongTermDebts = () =>
+    setSelectedIds(
+      new Set(
+        debts
+          .filter((d) => {
+            const t = (d.debt_type || "").toLowerCase()
+            return t !== MORTGAGE_DEBT_TYPE && t !== AUTO_DEBT_TYPE
+          })
+          .map((d) => d.id)
+      )
+    )
+
   const hasMortgage = useMemo(
-    () => debts.some((d) => (d.debt_type || "").toLowerCase() === MORTGAGE_DEBT_TYPE),
-    [debts]
+    () => selectedDebts.some((d) => (d.debt_type || "").toLowerCase() === MORTGAGE_DEBT_TYPE),
+    [selectedDebts]
   )
 
   const start = useMemo(() => new Date(), [])
   const sim = useMemo(
-    () => simulate(debts, strategy, extra, start, avalancheCriterion, includeMortgageInExtra),
-    [debts, strategy, extra, start, avalancheCriterion, includeMortgageInExtra]
+    () => simulate(selectedDebts, strategy, extra, start, avalancheCriterion, includeMortgageInExtra),
+    [selectedDebts, strategy, extra, start, avalancheCriterion, includeMortgageInExtra]
   )
-  const tied = useMemo(() => strategiesTie(debts, avalancheCriterion), [debts, avalancheCriterion])
+  const tied = useMemo(
+    () => strategiesTie(selectedDebts, avalancheCriterion),
+    [selectedDebts, avalancheCriterion]
+  )
   const orderedDebts = useMemo(
-    () => strategyOrder(debts, strategy, avalancheCriterion),
-    [debts, strategy, avalancheCriterion]
+    () => strategyOrder(selectedDebts, strategy, avalancheCriterion),
+    [selectedDebts, strategy, avalancheCriterion]
   )
 
   const download = () => {
@@ -137,6 +184,74 @@ export default function AmortizationSchedule({ debts }: Props) {
 
   return (
     <div className="space-y-6">
+      {/* Debt selection -- which debts this plan actually accounts for. */}
+      <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-5">
+        <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <ListChecks size={16} className="text-emerald-400" />
+            <h3 className="text-sm font-medium uppercase tracking-wide text-gray-400">
+              Debts in this plan
+            </h3>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={selectAllDebts}
+              className="rounded-md border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 hover:bg-[#1a233a]"
+            >
+              All debts
+            </button>
+            <button
+              type="button"
+              onClick={selectCreditCardsOnly}
+              className="rounded-md border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 hover:bg-[#1a233a]"
+            >
+              Credit cards only
+            </button>
+            <button
+              type="button"
+              onClick={excludeLongTermDebts}
+              className="rounded-md border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 hover:bg-[#1a233a]"
+            >
+              Exclude mortgage &amp; auto
+            </button>
+          </div>
+        </div>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {debts.map((d) => (
+            <label
+              key={d.id}
+              className="flex cursor-pointer items-center gap-2.5 rounded-lg border border-gray-800 bg-[#0b1220] px-3 py-2"
+            >
+              <input
+                type="checkbox"
+                checked={selectedIds.has(d.id)}
+                onChange={() => toggleDebt(d.id)}
+                className="shrink-0"
+              />
+              <span className="min-w-0 flex-1 truncate text-sm text-gray-200">{d.name}</span>
+              <span className="shrink-0 rounded-full bg-[#1a233a] px-2 py-0.5 text-[11px] font-medium text-gray-400">
+                {debtTypeLabel(d.debt_type)}
+              </span>
+              <span className="shrink-0 text-sm text-gray-400">{fmt(d.balance)}</span>
+            </label>
+          ))}
+        </div>
+        <p className="mt-2 text-xs text-gray-500">
+          {selectedDebts.length} of {debts.length} debt{debts.length === 1 ? "" : "s"} included in this
+          plan{selectedDebts.length !== debts.length ? " -- everything else keeps its own minimum payment, untouched by this plan." : ""}
+        </p>
+      </div>
+
+      {selectedDebts.length === 0 && (
+        <div className="flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 p-4 text-sm text-amber-200">
+          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-amber-400" />
+          <span>Select at least one debt above to see a payoff plan.</span>
+        </div>
+      )}
+
+      {selectedDebts.length > 0 && (
+        <>
       {/* Controls */}
       <div className="flex flex-wrap items-end gap-4">
         <div>
@@ -408,6 +523,8 @@ export default function AmortizationSchedule({ debts }: Props) {
               </table>
             </div>
           </div>
+        </>
+      )}
         </>
       )}
     </div>
