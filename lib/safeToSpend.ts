@@ -60,6 +60,10 @@ export type WhatIfVerdict = "fine" | "tight" | "not-recommended"
 
 export type WhatIfResult = {
   newSafeToSpend: number
+  // Same day-count the Daily limit card on Survival Mode uses -- null when
+  // there's no meaningful "days until payday" to spread the remainder over
+  // (e.g. payday is today).
+  newDailyLimit: number | null
   verdict: WhatIfVerdict
 }
 
@@ -150,11 +154,19 @@ export function computeSafeToSpend(input: {
 // Safe-to-Spend number, no state changes. Verdict thresholds: still >= 20%
 // of the original safe-to-spend left over is "fine"; still non-negative but
 // under that cushion is "tight"; below zero is "not recommended."
+//
+// `amount` can be a single purchase or the summed total of several planned
+// purchases (the Survival Mode "financial shopping cart" widget) -- the math
+// is the same either way, it's just a subtraction against safeToSpend.
 export function whatIfSpend(result: SafeToSpendResult, amount: number): WhatIfResult {
   const newSafeToSpend = result.safeToSpend - amount
   const cushion = result.safeToSpend * 0.2
   let verdict: WhatIfVerdict = "fine"
   if (newSafeToSpend < 0) verdict = "not-recommended"
   else if (newSafeToSpend < cushion) verdict = "tight"
-  return { newSafeToSpend, verdict }
+
+  const days = result.daysUntilNextPaycheck
+  const newDailyLimit = days != null && days > 0 ? newSafeToSpend / days : null
+
+  return { newSafeToSpend, newDailyLimit, verdict }
 }
