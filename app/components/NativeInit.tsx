@@ -151,5 +151,33 @@ export default function NativeInit() {
     }
   }, [])
 
+  // Status bar setup (Vince, Aug 27 2026): @capacitor/status-bar has been a
+  // dependency since the app was scaffolded (see package.json) but was never
+  // actually called anywhere -- the app has been running on each platform's
+  // default status-bar behavior this whole time. That default overlays the
+  // webview with a translucent status bar. Harmless on our own pages (we
+  // never render anything at literal y=0), but Plaid Link's own
+  // connect/reconnect screen is a full-screen overlay whose internal layout
+  // we don't control -- it's Plaid's hosted content, not ours -- and its own
+  // top bar (back/close, search for another institution) was landing right
+  // under that overlapping status bar: present and rendered, just physically
+  // covered by system chrome and untappable, with no way to scroll past it.
+  // Turning overlay off pins the entire webview -- and anything full-screen
+  // inside it, including third-party overlays like Plaid's -- below the
+  // status bar instead of underneath it.
+  useEffect(() => {
+    if (!isNativeApp()) return
+    ;(async () => {
+      try {
+        const { StatusBar, Style } = await import("@capacitor/status-bar")
+        await StatusBar.setOverlaysWebView({ overlay: false })
+        await StatusBar.setStyle({ style: Style.Dark }) // light icons, for our dark theme
+        await StatusBar.setBackgroundColor({ color: "#020617" }) // Android only; iOS no-ops
+      } catch {
+        /* status bar plugin unavailable on this platform/version -- no-op */
+      }
+    })()
+  }, [])
+
   return null
 }
