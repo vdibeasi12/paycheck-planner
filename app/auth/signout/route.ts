@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   const formData = await request.formData().catch(() => null)
   const next = safeRedirect(
     (formData?.get("next") as string | null) ?? null,
-    "/login"
+    "/"
   )
   return NextResponse.redirect(new URL(next, request.url), { status: 303 })
 }
