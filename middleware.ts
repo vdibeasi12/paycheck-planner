@@ -68,33 +68,47 @@ export async function middleware(request: NextRequest) {
     return redirectResponse
   }
 
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll()
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) =>
-            request.cookies.set(name, value)
-          )
-          response = NextResponse.next({ request })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            response.cookies.set(name, value, options)
-          )
-        },
-      },
-    }
-  )
-
   // IMPORTANT: this call refreshes the auth session on every request and
   // writes the refreshed cookies onto `response`. This is what keeps users
   // logged in reliably in the wrapped mobile app.
-  const {
-    data: { user },
-  } = await supabase.auth.getUser()
+  //
+  // Wrapped in try/catch (added Aug 28 2026): middleware runs on nearly
+  // every route (see matcher below), so an uncaught throw here -- e.g. a
+  // transient Supabase network blip -- would 500 the ENTIRE site until it
+  // passed, for every visitor. Fail OPEN instead: treat an auth-check
+  // failure as "not logged in". Worst case a genuinely logged-in user hits
+  // a protected route during the blip and gets bounced to /login to
+  // re-authenticate, instead of every request site-wide failing outright
+  // (this is the same defensive pattern app/layout.tsx already uses around
+  // its own Supabase call).
+  let user: any = null
+  try {
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          getAll() {
+            return request.cookies.getAll()
+          },
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) =>
+              request.cookies.set(name, value)
+            )
+            response = NextResponse.next({ request })
+            cookiesToSet.forEach(({ name, value, options }) =>
+              response.cookies.set(name, value, options)
+            )
+          },
+        },
+      }
+    )
+
+    const { data } = await supabase.auth.getUser()
+    user = data?.user ?? null
+  } catch (error) {
+    user = null
+  }
 
   const isProtected = PROTECTED.some(
     (p) => path === p || path.startsWith(p + "/")
