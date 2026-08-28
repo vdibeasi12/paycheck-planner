@@ -20,6 +20,12 @@ const config: CapacitorConfig = {
     // Only allow HTTPS. Leave false unless you are testing against a local
     // http:// dev server (then set true AND use your machine's LAN IP).
     cleartext: false,
+    // If the WebView fails to load `url` above (no connection, DNS hiccup,
+    // server unreachable, etc.) Capacitor shows this bundled page from webDir
+    // instead of the bare native "This page couldn't load" error screen.
+    // Added Aug 28, 2026 to fix reports of a blank/broken-looking app on
+    // Android when the device briefly has no connectivity.
+    errorPath: 'index.html',
   },
 
   ios: {

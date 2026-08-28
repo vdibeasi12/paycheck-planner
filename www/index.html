@@ -24,12 +24,56 @@
       }
       h1 { font-size: 20px; margin: 0; }
       p { color: #94a3b8; margin: 0; max-width: 320px; }
+      button {
+        margin-top: 12px;
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: none;
+        background: #3b82f6;
+        color: #fff;
+        font-size: 15px;
+        font-weight: 600;
+      }
+      button:active { background: #2563eb; }
+      #status { font-size: 13px; color: #64748b; margin-top: 4px; }
     </style>
   </head>
   <body>
     <div class="wrap">
-      <h1>You're offline</h1>
-      <p>Paycheck Planner needs an internet connection. Reconnect and reopen the app.</p>
+      <h1>Couldn't load Paycheck Planner</h1>
+      <p>Check your connection, then try again. This can also happen briefly if our server is restarting.</p>
+      <button id="retryBtn">Try Again</button>
+      <p id="status"></p>
     </div>
+    <script>
+      // This page is Capacitor's server.errorPath fallback -- it's shown
+      // in place of the native "This page couldn't load" screen whenever
+      // the WebView fails to load https://paycheckplanner.ai. It has no
+      // access to Capacitor plugins (Android), so this stays plain JS.
+      // Added Aug 28, 2026.
+      var APP_URL = 'https://paycheckplanner.ai';
+      var statusEl = document.getElementById('status');
+
+      function retry() {
+        window.location.href = APP_URL;
+      }
+
+      document.getElementById('retryBtn').addEventListener('click', retry);
+
+      // Auto-retry as soon as the device reports it's back online.
+      window.addEventListener('online', retry);
+
+      // Belt-and-suspenders: some WebViews don't fire 'online' reliably,
+      // so also poll every 5s and retry once navigator.onLine is true.
+      var attempts = 0;
+      setInterval(function () {
+        attempts++;
+        if (navigator.onLine) {
+          retry();
+        } else {
+          statusEl.textContent = 'Waiting for a connection…';
+        }
+      }, 5000);
+    </script>
   </body>
 </html>
