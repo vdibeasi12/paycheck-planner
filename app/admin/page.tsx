@@ -18,8 +18,11 @@ import {
   Percent,
   Eye,
   MousePointerClick,
+  FileSpreadsheet,
+  FileText,
 } from "lucide-react";
 import AdminFeedback from "@/app/components/AdminFeedback";
+import { downloadMarketingReportCsv, downloadMarketingReportPdf, type MarketingReportData } from "@/lib/generateMarketingReport";
 
 type UserRow = {
   id: string;
@@ -450,6 +453,84 @@ export default function AdminPage() {
     return rows.slice(0, 10);
   }, [funnels]);
 
+  // Single source of truth for both export formats -- built from the exact
+  // same derived values already rendered on this page, so the CSV/PDF can
+  // never show a different number than the dashboard itself.
+  const reportData: MarketingReportData = useMemo(() => {
+    const planTotalForReport =
+      PLAN_ORDER.reduce((s, k) => s + (metrics?.planCounts?.[k] ?? 0), 0) || 1;
+    const marketingEvents =
+      events && Object.keys(events.totals).length > 0
+        ? Object.keys(EVENT_LABELS).map((key) => ({
+            label: EVENT_LABELS[key],
+            last30: events.last30[key] ?? 0,
+            allTime: events.totals[key] ?? 0,
+          }))
+        : [];
+    return {
+      generatedAt: new Date(),
+      overview: {
+        totalUsers: metrics?.totalUsers ?? 0,
+        signups30: metrics?.signups30 ?? 0,
+        activeSubs: metrics?.activeSubs ?? 0,
+        mrr: metrics?.mrr ?? 0,
+        paidUsers: metrics?.paidUsers ?? 0,
+        conversionPct: metrics?.conversion ?? 0,
+        canceledSubs: metrics?.canceledSubs ?? 0,
+      },
+      cost: {
+        gross: cost.gross,
+        stripeFees: cost.stripeFees,
+        plaidCost: cost.plaidCost,
+        net: cost.net,
+        marginPct: cost.margin,
+        activeConnected: cost.activeConnected,
+      },
+      planMix: PLAN_ORDER.map((k) => {
+        const n = metrics?.planCounts?.[k] ?? 0;
+        return { label: PLAN_LABELS[k], count: n, pct: (n / planTotalForReport) * 100 };
+      }),
+      signupSources: sources.entries.map(([label, count]) => ({
+        label,
+        count,
+        pct: (count / sources.total) * 100,
+      })),
+      utmSources: utmSources.entries.map(([label, count]) => ({
+        label,
+        count,
+        pct: (count / utmSources.total) * 100,
+      })),
+      visitorTraffic: visitors
+        ? {
+            visitorsToday: visitors.uniqueVisitors.today,
+            visitors7d: visitors.uniqueVisitors.last7,
+            visitors30d: visitors.uniqueVisitors.last30,
+            pageViews30d: visitors.pageViews.last30,
+            pageViewsAllTime: visitors.pageViews.allTime,
+          }
+        : null,
+      visitorSources: visitorSources.entries.map(([label, count]) => ({
+        label,
+        count,
+        pct: (count / visitorSources.total) * 100,
+      })),
+      ctaClicks: ctaClicks.map(([cta, count]) => ({ cta, count })),
+      marketingEvents,
+      productFunnel: productFunnelSteps.map((s) => ({
+        label: s.label,
+        count: s.count,
+        pctOfPrev: s.pctOfPrev,
+      })),
+      sourceFunnel,
+      campaignFunnel,
+      referrals: {
+        topReferrers: funnels?.topReferrers ?? [],
+        completedTotal: funnels?.referralsCompletedTotal ?? 0,
+        monthlyRevenue: funnels?.referralRevenueMonthly ?? 0,
+      },
+    };
+  }, [metrics, cost, sources, utmSources, visitors, visitorSources, ctaClicks, events, productFunnelSteps, funnels, sourceFunnel, campaignFunnel]);
+
   if (status === "loading")
     return (
       <div className="flex min-h-screen items-center justify-center text-gray-400">
@@ -484,6 +565,33 @@ export default function AdminPage() {
         <div className="flex items-center gap-2">
           <ShieldCheck className="text-emerald-500" />
           <h1 className="text-2xl font-bold text-white">Admin portal</h1>
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-gray-700 bg-[#0f172a] p-4 shadow-sm">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-300">Marketing report</h2>
+            <p className="mt-1 text-xs text-gray-500">
+              Export everything on this page -- signups, traffic, funnels, campaigns, referrals -- as a CSV or a formatted PDF.
+            </p>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => downloadMarketingReportCsv(reportData)}
+              disabled={status !== "ok"}
+              className="flex items-center gap-2 rounded-lg border border-gray-700 px-3 py-2 text-sm text-gray-200 hover:bg-[#1a233a] disabled:opacity-50"
+            >
+              <FileSpreadsheet size={15} /> Export CSV
+            </button>
+            <button
+              type="button"
+              onClick={() => downloadMarketingReportPdf(reportData)}
+              disabled={status !== "ok"}
+              className="flex items-center gap-2 rounded-lg bg-emerald-600 px-3 py-2 text-sm font-semibold text-white hover:bg-emerald-500 disabled:opacity-50"
+            >
+              <FileText size={15} /> Export PDF
+            </button>
+          </div>
         </div>
 
         <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
