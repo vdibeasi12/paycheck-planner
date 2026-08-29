@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server"
+﻿import { NextResponse } from "next/server"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { createClient as createUserClient } from "@/lib/supabase/server"
 
@@ -44,7 +44,11 @@ export async function GET() {
 
   try {
     const { data } = await admin.from("subscriptions").select("*")
-    const subs = data || []
+    // Only count rows Stripe's webhook actually wrote (stripe_subscription_id
+    // set -- see upsertSubscription in app/api/webhook/route.ts). Rows without
+    // it were inserted by hand for demo/test seeding and never represented
+    // real revenue. Keeps this endpoint consistent with app/api/admin/users.
+    const subs = (data || []).filter((s) => !!s.stripe_subscription_id)
 
     const active = subs.filter(
       (s) => s.status === "active" || s.status === "trialing"

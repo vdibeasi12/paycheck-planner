@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+﻿import { NextResponse } from "next/server";
 import { requireAdmin, serviceClient, logAdminAction } from "@/lib/adminGuard";
 import { plaid, PLAID_ENABLED } from "@/lib/plaid";
 
@@ -27,7 +27,7 @@ export async function GET(req: Request) {
 
   const [{ data: profiles }, { data: subs }] = await Promise.all([
     sb.from("profiles").select("id, plan, is_admin, signup_source, utm_source, utm_medium, utm_campaign, utm_content"),
-    sb.from("subscriptions").select("user_id, tier, status, plan_type, current_period_end"),
+    sb.from("subscriptions").select("user_id, tier, status, plan_type, current_period_end, stripe_subscription_id"),
   ]);
 
   const pMap = new Map((profiles || []).map((p) => [p.id, p]));
@@ -63,7 +63,23 @@ export async function GET(req: Request) {
   const signups30 = authUsers.filter(
     (u) => now - new Date(u.created_at).getTime() < 30 * 864e5
   ).length;
-  const activeSubs = (subs || []).filter(
+
+  // A "real" subscription is one Stripe's webhook actually wrote (it carries
+  // stripe_subscription_id -- see upsertSubscription in app/api/webhook/route.ts),
+  // for a user that still exists and isn't an admin/test account. Rows without
+  // a stripe_subscription_id were inserted by hand (demo/test seeding, e.g.
+  // SUPABASE_SETUP_COMPLETE.sql's "premium-demo" user) and never represented
+  // real revenue, so they must never count toward MRR or Active Subs -- same
+  // standard the Paid users / Free->Paid fix below already applies.
+  const authUserIds = new Set(authUsers.map((u) => u.id));
+  const realSubs = (subs || []).filter(
+    (s) =>
+      !!s.stripe_subscription_id &&
+      authUserIds.has(s.user_id) &&
+      !pMap.get(s.user_id)?.is_admin
+  );
+
+  const activeSubs = realSubs.filter(
     (s) => s.status === "active" || s.status === "trialing"
   );
   const mrr = activeSubs.reduce((sum, s) => sum + monthlyValue(s.tier, s.plan_type), 0);
@@ -91,8 +107,9 @@ export async function GET(req: Request) {
   // or internally-testing account showed up as a paying customer; (2) an
   // admin's own login (Vince's account, test/QA accounts) isn't a real
   // customer and shouldn't count toward conversion either way. MRR and
-  // Active Subs above are unaffected -- they were already sourced from
-  // real subscriptions.status, which is what these three now match too.
+  // Active Subs are now sourced from the same `realSubs`/`activeSubs`
+  // filtered above, so all five numbers agree on what counts as a real,
+  // paying, non-admin subscriber.
   const activeSubByUser = new Map(activeSubs.map((s) => [s.user_id, s]));
   const nonAdminUsers = authUsers.filter((u) => !pMap.get(u.id)?.is_admin);
 
@@ -105,7 +122,7 @@ export async function GET(req: Request) {
   const paidUsers = nonAdminUsers.filter((u) => activeSubByUser.has(u.id)).length;
   const conversion =
     nonAdminUsers.length > 0 ? (paidUsers / nonAdminUsers.length) * 100 : 0;
-  const canceledSubs = (subs || []).filter(
+  const canceledSubs = realSubs.filter(
     (s) => s.status === "canceled" || s.status === "cancelled"
   ).length;
 
