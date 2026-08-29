@@ -13,7 +13,6 @@ const PROTECTED = [
   "/ai-chat",
   "/ai-advisor",
   "/ai-recommendations",
-  "/onboarding",
   "/report",
   "/debt-payoff-calculator",
   "/documents",
