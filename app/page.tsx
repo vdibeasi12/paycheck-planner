@@ -95,20 +95,27 @@ export default function HomePage() {
     }
   }, [])
 
-  if (!ready) {
-    return (
-      <main className="min-h-screen bg-[#020617] flex items-center justify-center">
-        <PaycheckPlannerLogo size={40} className="opacity-80" />
-      </main>
-    )
-  }
-
   // Illustrative sample data for the hero/showcase visuals below -- these are
   // stand-ins showing what the real dashboard looks like, not aggregate
   // claims about actual users (see Aug 23 2026 homepage redesign notes: the
   // old "users see results in 24-36 months" stat was dropped for exactly
   // this reason). The one piece that's real is the paycheck date, computed
   // client-side so the hero never shows a stale day of the week.
+  //
+  // Moved above the `if (!ready)` return below (Aug 29 2026 fix): this hook
+  // used to sit after that early return, which is a Rules-of-Hooks
+  // violation -- the very first render (ready=true) called this useMemo,
+  // but the very next render, triggered by setReady(false) inside the
+  // useIsoLayoutEffect above, hit `if (!ready) return` and skipped it,
+  // shrinking the hook count from one render to the next. React only
+  // detects that on the branch where it actually happens, and `ready`
+  // only ever flips to false on native (isNativeApp() true) -- see the
+  // comment on the effect above -- so this only ever broke inside the
+  // Android/iOS app, never on web, and crashed straight to Next.js's
+  // error boundary (minified React error #300, "Rendered fewer hooks
+  // than expected") with no network/WebView error involved at all.
+  // Hooks must never sit after a conditional return; this one now runs
+  // unconditionally on every render, used or not.
   const nextPaycheckLabel = useMemo(() => {
     const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
     const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
@@ -118,6 +125,14 @@ export default function HomePage() {
     next.setDate(now.getDate() + daysUntilFriday)
     return `${days[next.getDay()]}, ${months[next.getMonth()]} ${next.getDate()}`
   }, [])
+
+  if (!ready) {
+    return (
+      <main className="min-h-screen bg-[#020617] flex items-center justify-center">
+        <PaycheckPlannerLogo size={40} className="opacity-80" />
+      </main>
+    )
+  }
 
   return (
     <main className="min-h-screen bg-[#020617] text-white relative overflow-hidden">
