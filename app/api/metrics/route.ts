@@ -1,15 +1,23 @@
 ﻿import { NextResponse } from "next/server"
 import { createClient as createServiceClient } from "@supabase/supabase-js"
 import { createClient as createUserClient } from "@/lib/supabase/server"
+import { TIERS } from "@/lib/plans"
 
 export const dynamic = "force-dynamic"
 
+// QA fix (Aug 29 2026): this used to hardcode its own copy of each tier's
+// price ($11.99/$119.99 for Autopilot) instead of reading lib/plans.ts,
+// the single source of truth pricing/checkout actually uses. It had
+// drifted -- Autopilot is really $12.99/mo, $129.99/yr -- so MRR was quietly
+// under-counting every Autopilot subscriber. Deriving straight from TIERS
+// means this can't drift again. Same fix applied to app/api/admin/users.
+const priceByTier = new Map(TIERS.map((t) => [t.id, t]))
+
 function monthlyValue(tier: string | null, planType: string | null) {
-  const monthly =
-    tier === "connected" ? 11.99 : tier === "premium" ? 6.99 : tier === "starter" ? 3.99 : 0
-  const annual =
-    tier === "connected" ? 119.99 : tier === "premium" ? 69.99 : tier === "starter" ? 39.99 : 0
-  return planType === "annual" || planType === "yearly" ? annual / 12 : monthly
+  const t = tier ? priceByTier.get(tier as (typeof TIERS)[number]["id"]) : undefined
+  if (!t) return 0
+  const isAnnual = planType === "annual" || planType === "yearly"
+  return isAnnual ? t.priceAnnual / 12 : t.priceMonthly
 }
 
 export async function GET() {
