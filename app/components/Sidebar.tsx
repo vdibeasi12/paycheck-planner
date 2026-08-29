@@ -88,6 +88,11 @@ export default function Sidebar() {
   const { t } = useLocale()
   const [open, setOpen] = useState(false)
   const [gsOpen, setGsOpen] = useState(false)
+  // True only when the checklist auto-opened itself for a still-onboarding
+  // user (see the effect below) -- distinguishes that from someone
+  // reopening it later via the nav button, so GettingStartedModal knows
+  // whether to show the trimmed first-run checklist or the full one.
+  const [gsFirstRun, setGsFirstRun] = useState(false)
   const [isAdmin, setIsAdmin] = useState(false)
   const [mfaReminder, setMfaReminder] = useState(false)
 
@@ -116,7 +121,10 @@ export default function Sidebar() {
       if (!active) return
       if (prof?.is_admin) setIsAdmin(true)
       // First-run: open the tier-aware checklist for users who haven't finished setup.
-      if (prof?.onboarded === false) setGsOpen(true)
+      if (prof?.onboarded === false) {
+        setGsFirstRun(true)
+        setGsOpen(true)
+      }
 
       // Non-blocking login reminder for existing users who skipped MFA setup.
       // Purely a nudge -- MFA stays optional everywhere except the Autopilot
@@ -181,6 +189,7 @@ export default function Sidebar() {
       <button
         onClick={() => {
           onNavigate?.()
+          setGsFirstRun(false)
           setGsOpen(true)
         }}
         data-tour="nav-getting-started"
@@ -402,7 +411,11 @@ export default function Sidebar() {
         </div>
       )}
 
-      <GettingStartedModal open={gsOpen} onClose={() => setGsOpen(false)} />
+      <GettingStartedModal
+        open={gsOpen}
+        firstRun={gsFirstRun}
+        onClose={() => setGsOpen(false)}
+      />
       <ProductTour />
     </>
   )

@@ -17,7 +17,9 @@ import {
   Bell,
   X,
   LayoutDashboard,
+  Sparkles,
 } from "lucide-react"
+import ReferralCard from "@/app/components/ReferralCard"
 
 type Tier = "free" | "starter" | "premium" | "connected"
 const RANK: Record<Tier, number> = { free: 0, starter: 1, premium: 2, connected: 3 }
@@ -99,14 +101,40 @@ const SOURCES = [
   { value: "other", label: "Other" },
 ]
 
-type Props = { open: boolean; onClose: () => void }
+type Props = {
+  open: boolean
+  onClose: () => void
+  // True only for the auto-opened, still-onboarding first run (see
+  // Sidebar.tsx) -- trims the checklist down to just the two steps that
+  // actually matter before someone has entered a single number, and shows
+  // the referral/lead-magnet success screen on completion. A later reopen
+  // from the nav ("Getting Started" button) passes false and gets the full
+  // checklist with a plain close, same as before.
+  firstRun?: boolean
+}
 
-export default function GettingStartedModal({ open, onClose }: Props) {
+// Real onboarding is 2 things away from useful, not 9 (QA fix, Aug 29
+// 2026): live user data showed nobody who saw the full 9-item checklist on
+// first open ever finished it -- one person peeked at /income for under a
+// minute and bounced, another never touched a single step. Trimming the
+// first open to income + first debt (the two the entire payoff plan is
+// built from) is the actual fix; everything else (bills, 2FA, notification
+// prefs, and the paid-tier previews) is still here on every later reopen.
+const FIRST_RUN_KEYS = new Set(["income", "debts"])
+
+export default function GettingStartedModal({ open, onClose, firstRun = false }: Props) {
   const router = useRouter()
   const pathname = usePathname()
   const [steps, setSteps] = useState<Step[] | null>(null)
   const [source, setSource] = useState("")
   const [busy, setBusy] = useState(false)
+  // Post-finish success screen (referral link + lead magnet) -- only shown
+  // for the trimmed first-run checklist, which is the moment that used to
+  // be app/onboarding/OnboardingActions.tsx's job. That page turned out to
+  // be orphaned: nothing in the live signup flow ever routes a user there,
+  // so nobody ever saw the referral card or lead-magnet mention added to it
+  // (Aug 29 2026). This modal is the real "just finished setup" moment.
+  const [done, setDone] = useState(false)
 
   // Close on Escape.
   useEffect(() => {
@@ -124,6 +152,7 @@ export default function GettingStartedModal({ open, onClose }: Props) {
     let active = true
     ;(async () => {
       setSteps(null)
+      setDone(false)
       const {
         data: { user },
       } = await supabase.auth.getUser()
@@ -141,8 +170,10 @@ export default function GettingStartedModal({ open, onClose }: Props) {
       const plan = ((prof?.plan as Tier) || "free")
       // Admins (and the connected tier) see every feature.
       const userRank = prof?.is_admin ? RANK.connected : (RANK[plan] ?? 0)
-      // Show every step; ones above the user's tier render as locked upgrade previews.
-      const defs = STEP_DEFS
+      // First run: just income + debts. Every other open (nav-triggered, or
+      // a first run that already finished): every step, with ones above the
+      // user's tier rendering as locked upgrade previews.
+      const defs = firstRun ? STEP_DEFS.filter((d) => FIRST_RUN_KEYS.has(d.key)) : STEP_DEFS
 
       const { data: progRows } = await supabase
         .from("onboarding_progress")
@@ -179,7 +210,7 @@ export default function GettingStartedModal({ open, onClose }: Props) {
     return () => {
       active = false
     }
-  }, [open])
+  }, [open, firstRun])
 
   if (!open) return null
 
@@ -223,7 +254,11 @@ export default function GettingStartedModal({ open, onClose }: Props) {
       // Non-blocking.
     }
     setBusy(false)
-    onClose()
+    if (firstRun) {
+      setDone(true)
+    } else {
+      onClose()
+    }
   }
 
   return (
@@ -247,6 +282,47 @@ export default function GettingStartedModal({ open, onClose }: Props) {
         </button>
 
         <div className="px-6 py-8 sm:px-8">
+        {done ? (
+          <div>
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-5 text-center">
+              <p className="text-lg font-semibold text-white">You're all set!</p>
+              <p className="mt-1 text-sm text-gray-300">
+                Your plan is ready. Two quick things before you go in --
+              </p>
+            </div>
+
+            <div className="mt-6">
+              <ReferralCard />
+            </div>
+
+            <a
+              href="/money-score"
+              onClick={onClose}
+              className="mt-6 flex items-start gap-3 rounded-xl border border-gray-700 bg-[#0f172a] p-4 transition hover:border-emerald-400/60"
+            >
+              <Sparkles size={20} className="mt-0.5 shrink-0 text-emerald-400" />
+              <span>
+                <span className="block text-sm font-semibold text-white">
+                  Not sure where to start? Take the free Money Score quiz
+                </span>
+                <span className="mt-1 block text-xs text-gray-400">
+                  A 2-minute check-in that scores your finances and hands you a plan to improve them.
+                </span>
+              </span>
+            </a>
+
+            <div className="mt-6 flex justify-end">
+              <button
+                onClick={onClose}
+                className="flex items-center gap-2 rounded-lg bg-green-500 px-5 py-2.5 font-semibold text-black transition hover:bg-green-600"
+              >
+                <LayoutDashboard size={18} />
+                Go to my dashboard
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
           <h1 className="text-2xl font-bold sm:text-3xl">Welcome to Paycheck Planner</h1>
           <p className="mt-2 text-gray-400">
             Let's get you set up. Here's everything your plan unlocks.
@@ -374,6 +450,8 @@ export default function GettingStartedModal({ open, onClose }: Props) {
               Done
             </button>
           </div>
+          </>
+        )}
         </div>
       </div>
     </div>
