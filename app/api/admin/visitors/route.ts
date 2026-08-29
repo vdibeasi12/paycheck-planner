@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, serviceClient } from "@/lib/adminGuard";
+import { fetchAllRows } from "@/lib/fetchAllRows";
 
 export const dynamic = "force-dynamic";
 
@@ -27,23 +28,35 @@ export async function GET() {
   startOfToday.setHours(0, 0, 0, 0);
   const todayIso = startOfToday.toISOString();
 
-  const [recentRes, allTimeCountRes] = await Promise.all([
-    sb
-      .from("events")
-      .select("created_at, event_name, metadata")
-      .in("event_name", ["page_view", "cta_clicked"])
-      .gte("created_at", since30),
+  // QA fix (Aug 29 2026): this used to be a single unbounded .select() over
+  // the whole 30-day window. PostgREST caps an unbounded select at ~1000
+  // rows, and page views alone were already landing right at that cap (993
+  // reported for 30 days) -- meaning real page views past row #1000 were
+  // being silently dropped, along with whatever cta_clicked rows fell after
+  // them. fetchAllRows pages through with .range() so every row in the
+  // window is counted no matter how much traffic there is.
+  const [recentRowsRes, allTimeCountRes] = await Promise.all([
+    fetchAllRows<{ created_at: string; event_name: string; metadata: unknown }>(
+      (from, to) =>
+        sb
+          .from("events")
+          .select("created_at, event_name, metadata")
+          .in("event_name", ["page_view", "cta_clicked"])
+          .gte("created_at", since30)
+          .order("id", { ascending: true })
+          .range(from, to)
+    ),
     sb
       .from("events")
       .select("id", { count: "exact", head: true })
       .eq("event_name", "page_view"),
   ]);
 
-  if (recentRes.error) {
-    return NextResponse.json({ error: recentRes.error.message }, { status: 500 });
+  if (recentRowsRes.error) {
+    return NextResponse.json({ error: recentRowsRes.error.message }, { status: 500 });
   }
 
-  const rows = recentRes.data || [];
+  const rows = recentRowsRes.data;
   const pageViews = rows.filter((r) => r.event_name === "page_view");
   const ctaClicks = rows.filter((r) => r.event_name === "cta_clicked");
 

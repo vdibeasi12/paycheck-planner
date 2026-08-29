@@ -17,6 +17,7 @@ import { computeCapacityForCycles, generatePaycheckTalk } from "@/lib/paycheckCa
 import PaycheckTalkCard from "@/app/components/PaycheckTalkCard"
 import AchievementsStrip from "@/app/components/AchievementsStrip"
 import ReferralCard from "@/app/components/ReferralCard"
+import PaywallCard from "@/app/components/PaywallCard"
 import { canUseCharts as planCanUseCharts, canUseSnowball as planCanUseSnowball, canUseAI as planCanUseAI } from "@/lib/permissions"
 import DashboardCharts from "@/app/components/DashboardCharts"
 import AIInsightPanel from "@/app/components/AIInsightPanel"
@@ -240,6 +241,17 @@ export default async function DashboardPage() {
       {paycheckTalk && <PaycheckTalkCard narrative={paycheckTalk} />}
       <SummaryCards netWorth={-totalDebt} totalDebt={totalDebt} monthlyPayments={monthlyPayments} percentPaid={percentPaid} />
       <DebtList debts={debts} />
+
+      {/* Real, usage-tied upgrade prompt (Aug 29 2026): PaywallCard already
+          existed fully built but was never mounted anywhere, so the only
+          way a free user ever saw pricing was by hitting a blurred
+          Charts/Snowball/AI panel further down the page. Once someone has
+          actually added debt -- the moment the interest they're paying is a
+          real number, not a hypothetical -- show them what upgrading gets
+          them, right here instead of only behind the paywalled panels. */}
+      {effectivePlan === "free" && debts.length > 0 && (
+        <PaywallCard user={user} debts={debts} />
+      )}
 
       {/* CHARTS */}
       <div className="relative bg-[#0f172a] border border-gray-700 rounded-xl p-6 overflow-hidden">
