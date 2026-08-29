@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, serviceClient } from "@/lib/adminGuard";
 import { fetchAllRows } from "@/lib/fetchAllRows";
+import { isInternalEmail } from "@/lib/internalAccounts";
 
 export const dynamic = "force-dynamic";
 
@@ -27,6 +28,30 @@ export async function GET() {
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
   const todayIso = startOfToday.toISOString();
+
+  // Internal/team/personal-test accounts (see lib/internalAccounts.ts) --
+  // excluded below so their own browsing of the app doesn't get counted as
+  // real visitor traffic. Their *anonymous* page views (before they log in
+  // on a given device) don't carry a user_id, so this also has to look up
+  // every visitorId that account has EVER logged in from, not just filter
+  // by user_id on the rows themselves.
+  const { data: allProfiles } = await sb.from("profiles").select("id, email, is_admin");
+  const internalUserIds = (allProfiles || [])
+    .filter((p) => p.is_admin || isInternalEmail(p.email))
+    .map((p) => p.id);
+
+  let internalVisitorIds = new Set<string>();
+  if (internalUserIds.length > 0) {
+    const { data: internalEvents } = await sb
+      .from("events")
+      .select("metadata")
+      .in("user_id", internalUserIds);
+    internalVisitorIds = new Set(
+      (internalEvents || [])
+        .map((e) => (e.metadata as any)?.visitorId)
+        .filter((v): v is string => !!v)
+    );
+  }
 
   // QA fix (Aug 29 2026): this used to be a single unbounded .select() over
   // the whole 30-day window. PostgREST caps an unbounded select at ~1000
@@ -56,7 +81,9 @@ export async function GET() {
     return NextResponse.json({ error: recentRowsRes.error.message }, { status: 500 });
   }
 
-  const rows = recentRowsRes.data;
+  const rows = recentRowsRes.data.filter(
+    (r) => !internalVisitorIds.has((r.metadata as any)?.visitorId)
+  );
   const pageViews = rows.filter((r) => r.event_name === "page_view");
   const ctaClicks = rows.filter((r) => r.event_name === "cta_clicked");
 
@@ -105,6 +132,10 @@ export async function GET() {
       today: pageViewsIn(todayIso),
       last7: pageViewsIn(since7),
       last30: pageViewsIn(since30),
+      // Not internal-filtered like the 30-day numbers above (an all-time
+      // exclusion would need to paginate the whole table, not just a
+      // head:true count) -- treat this one figure as a rough lifetime
+      // total, not a clean visitor count.
       allTime: allTimeCountRes.count || 0,
     },
     bySource,

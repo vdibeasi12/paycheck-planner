@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAdmin, serviceClient } from "@/lib/adminGuard";
 import { TIERS } from "@/lib/plans";
+import { isInternalEmail } from "@/lib/internalAccounts";
 
 export const dynamic = "force-dynamic";
 
@@ -49,12 +50,19 @@ export async function GET() {
   // subscription behind it, so it alone isn't a reliable "paid" signal.
   // Admin/internal accounts are also excluded from this whole breakdown --
   // they're real rows in `profiles` but not real marketing-funnel signups.
+  // QA fix (Aug 29 2026): !p.is_admin alone missed personal/team test
+  // accounts that were never flagged is_admin (e.g. a founder's own gmail
+  // used to browse the app as a regular user) -- see lib/internalAccounts.ts.
+  // Those were showing up as real "direct" signups/activations in the
+  // per-source table below.
   const activeSubUserIds = new Set(
     (subscriptionStatusRes.data || [])
       .filter((s) => s.status === "active" || s.status === "trialing")
       .map((s) => s.user_id)
   );
-  const funnelProfiles = (profilesRes.data || []).filter((p) => !p.is_admin);
+  const funnelProfiles = (profilesRes.data || []).filter(
+    (p) => !p.is_admin && !isInternalEmail(p.email)
+  );
 
   // Signup -> paid: of everyone who signed up since event tracking went
   // live, how many have also started a subscription. A pre-existing account
