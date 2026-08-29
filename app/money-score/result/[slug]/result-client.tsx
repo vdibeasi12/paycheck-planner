@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import Link from "next/link";
 import confetti from "canvas-confetti";
-import { CATEGORY_LABELS, type MoneyScoreCategory } from "@/lib/money-score";
+import { CATEGORY_LABELS, CATEGORY_TIPS, type MoneyScoreCategory } from "@/lib/money-score";
 
 interface Props {
   slug: string;
@@ -37,6 +37,12 @@ export default function MoneyScoreResultClient({
   const showStrongest = strongest && strongest[1].percent >= 70;
   const needsWork = byPercentAsc.filter(([, v]) => v.percent < 70);
   const weakestTwo = needsWork.slice(0, 2);
+  // Same "3 weakest categories" selection the plan email uses
+  // (lib/money-score-email.ts) so the free preview below, the locked
+  // teaser, and the emailed plan are always talking about the same 3
+  // things -- whatever someone sees on this page before unlocking is a true
+  // preview of what unlocking actually gives them, not a generic promise.
+  const topThree = byPercentAsc.slice(0, 3);
 
   const isExcellent = band.key === "excellent";
   const isLow = band.key === "needsImprovement" || band.key === "atRisk";
@@ -175,6 +181,30 @@ export default function MoneyScoreResultClient({
             </div>
           )}
 
+          {/* Worksheet cross-promo (Aug 29 2026): the lead-magnet worksheet
+              previously only linked from the footer and a blog post, both
+              low-intent placements -- this page is people actively worried
+              about their money mid-quiz-result, the closest thing the site
+              has to a matched audience for it. Tagged through /go so the
+              click attributes the same way an external share link would,
+              instead of vanishing as an untagged internal nav click. Shown
+              to every visitor regardless of score/unlock state. */}
+          <div className="mb-8 rounded-xl border border-gray-800 bg-[#0f172a] p-5 text-left">
+            <p className="font-semibold text-white mb-1">
+              {"📄"} Free paycheck budget worksheet
+            </p>
+            <p className="text-sm text-gray-300 mb-3">
+              A printable worksheet that matches every bill to the exact paycheck that covers it
+              -- the fastest fix for running out of money before payday.
+            </p>
+            <a
+              href="/go/money-score-worksheet?to=/worksheet"
+              className="inline-block px-4 py-2 rounded-lg border border-gray-700 text-gray-200 text-sm font-semibold hover:bg-white/5"
+            >
+              Get the free worksheet
+            </a>
+          </div>
+
           <div className="flex flex-wrap justify-center gap-3 mb-8">
             <button
               onClick={copyLink}
@@ -213,12 +243,56 @@ export default function MoneyScoreResultClient({
           <div className="border-t border-gray-800 pt-8">
             {!unlocked ? (
               <>
-                <h2 className="text-lg font-bold text-white mb-2">
-                  Get Your Personalized Financial Progress Plan
+                <h2 className="text-lg font-bold text-white mb-1">
+                  Your Personalized 3-Step Plan
                 </h2>
-                <p className="text-gray-400 mb-4">
-                  Enter your email and we'll send your personalized plan to raise your Money
-                  Score straight to your inbox.
+                <p className="text-gray-400 mb-4 text-sm">
+                  Based on your answers, here's exactly what will move your score the most.
+                </p>
+
+                {/* Concrete preview, not a blind ask: the #1 fix is shown in
+                    full (real content from the same tip bank the plan email
+                    uses), the other two are visibly blurred/locked. Old copy
+                    asked for an email in exchange for an abstract "personalized
+                    plan" with nothing to show for it -- and the category
+                    breakdown above already gave away every percentage for
+                    free, so there was no curiosity gap left to unlock. This
+                    gives something real up front and makes clear there's
+                    more behind the email. */}
+                <div className="mb-6 max-w-md mx-auto space-y-3 text-left">
+                  {topThree.map(([key, val], i) => {
+                    const isFirst = i === 0;
+                    return (
+                      <div
+                        key={key}
+                        className={`rounded-lg border p-4 ${
+                          isFirst
+                            ? "border-emerald-500/30 bg-emerald-500/10"
+                            : "border-gray-800 bg-[#0b1220]"
+                        }`}
+                      >
+                        <p className="text-sm font-semibold text-white mb-1">
+                          {isFirst ? "👉 Start here: " : `${i + 1}. `}
+                          {CATEGORY_LABELS[key]} -- {val.percent}%
+                        </p>
+                        {isFirst ? (
+                          <p className="text-sm text-gray-300">{CATEGORY_TIPS[key]}</p>
+                        ) : (
+                          <p
+                            className="text-sm text-gray-500 blur-[3px] select-none"
+                            aria-hidden="true"
+                          >
+                            {CATEGORY_TIPS[key]}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <p className="text-gray-400 mb-4 text-sm">
+                  Enter your email to unlock {topThree.length > 1 ? "steps 2-" + topThree.length : "the rest"} and
+                  get all {topThree.length} sent to your inbox.
                 </p>
                 <form
                   onSubmit={handleUnlock}
@@ -237,20 +311,29 @@ export default function MoneyScoreResultClient({
                     disabled={submitting}
                     className="px-5 py-3 rounded-lg bg-emerald-500 text-black font-semibold hover:bg-emerald-400 disabled:opacity-50"
                   >
-                    {submitting ? "Sending…" : "Get My Plan"}
+                    {submitting ? "Sending…" : "Unlock My Plan"}
                   </button>
                 </form>
                 {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
               </>
             ) : (
               <>
-                <h2 className="text-lg font-bold text-white mb-2">
+                <h2 className="text-lg font-bold text-white mb-1">
                   {"Your plan is on the way 🎉"}
                 </h2>
-                <p className="text-gray-400 mb-4">
-                  Check your inbox -- your personalized plan just landed. Paycheck Planner can
-                  help you build a real plan to improve every category above.
+                <p className="text-gray-400 mb-4 text-sm">
+                  It's also in your inbox now -- here's your full plan:
                 </p>
+                <div className="mb-6 max-w-md mx-auto space-y-3 text-left">
+                  {topThree.map(([key, val], i) => (
+                    <div key={key} className="rounded-lg border border-gray-800 bg-[#0b1220] p-4">
+                      <p className="text-sm font-semibold text-white mb-1">
+                        {i + 1}. {CATEGORY_LABELS[key]} -- {val.percent}%
+                      </p>
+                      <p className="text-sm text-gray-300">{CATEGORY_TIPS[key]}</p>
+                    </div>
+                  ))}
+                </div>
                 <Link
                   href="/signup"
                   className="inline-block px-6 py-3 rounded-lg bg-emerald-500 text-black font-semibold hover:bg-emerald-400"

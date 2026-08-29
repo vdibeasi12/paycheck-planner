@@ -19,6 +19,14 @@ export const dynamic = "force-dynamic";
 // Examples: /go/yt-desc, /go/yt-pinned-comment, /go/bio, /go/reddit-dm.
 // Bare /go (no segment) is handled by the sibling app/go/route.ts and
 // tags campaign "general".
+//
+// Optional ?to=/path (Aug 29 2026): same idea, but for promoting an
+// internal page other than the homepage -- e.g. the lead-magnet worksheet
+// from a callout on the Money Score result page. Still goes through /go so
+// the click shows up tagged in the same "Traffic sources" table rather than
+// as an untagged internal link. `to` must be a same-site path starting with
+// exactly one "/" (never "//" or an absolute URL) so this can't be turned
+// into an open redirect; anything else falls back to "/".
 function sanitizeCampaign(raw: string): string {
   const slug = raw
     .toLowerCase()
@@ -29,12 +37,19 @@ function sanitizeCampaign(raw: string): string {
   return slug || "general";
 }
 
+function sanitizeDestination(raw: string | null): string {
+  if (!raw) return "/";
+  if (!raw.startsWith("/") || raw.startsWith("//")) return "/";
+  return raw;
+}
+
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ campaign: string }> }
 ) {
   const { campaign } = await params;
-  const dest = new URL("/", request.url);
+  const reqUrl = new URL(request.url);
+  const dest = new URL(sanitizeDestination(reqUrl.searchParams.get("to")), request.url);
   dest.searchParams.set("utm_source", "share");
   dest.searchParams.set("utm_medium", "personal");
   dest.searchParams.set("utm_campaign", sanitizeCampaign(decodeURIComponent(campaign)));

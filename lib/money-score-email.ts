@@ -6,6 +6,7 @@
 
 import {
   CATEGORY_LABELS,
+  CATEGORY_TIPS,
   type MoneyScoreCategory,
   type MoneyScoreCategoryResult,
   type ScoreBand,
@@ -16,22 +17,6 @@ const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ||
   process.env.NEXT_PUBLIC_SITE_URL ||
   "https://paycheckplanner.ai"
-
-const CATEGORY_TIPS: Record<MoneyScoreCategory, string> = {
-  budgeting:
-    "Build a simple budget that gives every dollar of your paycheck a job -- bills, savings, spending. Paycheck Planner can generate this automatically from your pay schedule.",
-  savings:
-    "Automate a transfer for the day after payday, even if it's small. Consistency moves the needle faster than the amount does at first.",
-  debt: "List every debt with its interest rate, then attack the highest-rate balance first (avalanche) or the smallest balance first (snowball) -- either beats no plan at all.",
-  emergencyFund:
-    "Aim for 1 month of expenses saved before anything else. It's the buffer that keeps a surprise bill from turning into new debt.",
-  spending:
-    "Check spending against your budget weekly, not monthly -- small overspends compound fast when you only look once a month.",
-  bills:
-    "Set up autopay or reminders tied to the paycheck that actually covers each bill, so nothing slips through on a tight week.",
-  goals:
-    "Turn a vague goal into a number and a date -- \"save more\" becomes \"$3,000 by December.\" Specific goals are the ones people actually hit.",
-}
 
 function wrap(inner: string): string {
   return (

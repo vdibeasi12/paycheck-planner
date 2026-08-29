@@ -29,6 +29,26 @@ export const CATEGORY_LABELS: Record<MoneyScoreCategory, string> = {
   goals: "Financial Goals",
 };
 
+// Shared with lib/money-score-email.ts (the plan email) and the result page
+// (app/money-score/result/[slug]/result-client.tsx, which previews the #1
+// tip before the email gate) -- one real, concrete tip per category so both
+// places say the same thing instead of drifting.
+export const CATEGORY_TIPS: Record<MoneyScoreCategory, string> = {
+  budgeting:
+    "Build a simple budget that gives every dollar of your paycheck a job -- bills, savings, spending. Paycheck Planner can generate this automatically from your pay schedule.",
+  savings:
+    "Automate a transfer for the day after payday, even if it's small. Consistency moves the needle faster than the amount does at first.",
+  debt: "List every debt with its interest rate, then attack the highest-rate balance first (avalanche) or the smallest balance first (snowball) -- either beats no plan at all.",
+  emergencyFund:
+    "Aim for 1 month of expenses saved before anything else. It's the buffer that keeps a surprise bill from turning into new debt.",
+  spending:
+    "Check spending against your budget weekly, not monthly -- small overspends compound fast when you only look once a month.",
+  bills:
+    "Set up autopay or reminders tied to the paycheck that actually covers each bill, so nothing slips through on a tight week.",
+  goals:
+    "Turn a vague goal into a number and a date -- \"save more\" becomes \"$3,000 by December.\" Specific goals are the ones people actually hit.",
+};
+
 export const MONEY_SCORE_QUESTIONS: MoneyScoreQuestion[] = [
   {
     id: "q1",
