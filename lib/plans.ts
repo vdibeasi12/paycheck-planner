@@ -21,6 +21,13 @@ export type Tier = {
   highlight?: boolean;
   cta: string;
   stripe: { monthly?: string; annual?: string }; // Stripe price IDs
+  // RevenueCat *package* identifiers within the app's default offering (Web
+  // & Android don't use these -- Stripe only). These are picked here as the
+  // agreed naming convention; when you build the offering in RevenueCat,
+  // name the packages to match exactly, and make sure each maps to an App
+  // Store Connect subscription product that grants this tier's entitlement
+  // (see TIER_ENTITLEMENTS below).
+  iap?: { monthly?: string; annual?: string };
 };
 
 // Flip to true to launch the Autopilot (Plaid bank-sync) tier publicly.
@@ -50,6 +57,7 @@ export const TIERS: Tier[] = [
       monthly: process.env.NEXT_PUBLIC_STRIPE_STARTER_MONTHLY,
       annual: process.env.NEXT_PUBLIC_STRIPE_STARTER_YEARLY,
     },
+    iap: { monthly: "momentum_monthly", annual: "momentum_annual" },
   },
   {
     id: "premium",
@@ -63,6 +71,7 @@ export const TIERS: Tier[] = [
       monthly: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_MONTHLY,
       annual: process.env.NEXT_PUBLIC_STRIPE_PREMIUM_YEARLY,
     },
+    iap: { monthly: "accelerate_monthly", annual: "accelerate_annual" },
   },
   {
     id: "connected",
@@ -75,6 +84,7 @@ export const TIERS: Tier[] = [
       monthly: process.env.NEXT_PUBLIC_STRIPE_CONNECTED_MONTHLY,
       annual: process.env.NEXT_PUBLIC_STRIPE_CONNECTED_YEARLY,
     },
+    iap: { monthly: "autopilot_monthly", annual: "autopilot_annual" },
   },
 ];
 
@@ -163,6 +173,37 @@ export const FEATURE_GROUPS: FeatureGroup[] = [
 // Effective monthly cost when billed annually (for "$X/mo billed yearly").
 export function effectiveMonthly(annual: number): number {
   return Math.round((annual / 12) * 100) / 100;
+}
+
+// RevenueCat entitlement identifiers, one per paid tier. Configure these to
+// match exactly what you create in RevenueCat -> Entitlements. Used by both
+// the client purchase flow (lib/iap.ts) and the RevenueCat webhook
+// (app/api/revenuecat/webhook/route.ts) -- kept here (not in lib/iap.ts,
+// which is "use client" and dynamic-imports the Capacitor SDK) so the
+// server-side webhook route never pulls in client/native-only code.
+export const TIER_ENTITLEMENTS: Record<Exclude<TierId, "free">, string> = {
+  starter: "momentum",
+  premium: "accelerate",
+  connected: "autopilot",
+};
+
+// Highest tier wins if a customer somehow holds more than one active
+// entitlement at once (e.g. mid-upgrade, or a support-granted override).
+const TIER_PRIORITY: TierId[] = ["connected", "premium", "starter", "free"];
+
+// Given the set of currently-active RevenueCat entitlement identifiers for a
+// customer, resolve the highest tier they're entitled to. Returns "free"
+// when none of our known entitlements are active (not null -- an unknown/
+// foreign entitlement id, if RevenueCat ever sends one we don't recognize,
+// is treated the same as "no entitlement" rather than erroring).
+export function tierFromEntitlementIds(activeEntitlementIds: string[]): TierId {
+  const active = new Set(activeEntitlementIds);
+  for (const tier of TIER_PRIORITY) {
+    if (tier === "free") continue;
+    const entitlementId = TIER_ENTITLEMENTS[tier as Exclude<TierId, "free">];
+    if (active.has(entitlementId)) return tier;
+  }
+  return "free";
 }
 
 // Reverse lookup: a Stripe price ID -> the plan tier it belongs to.

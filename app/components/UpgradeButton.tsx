@@ -1,15 +1,27 @@
 "use client"
 
 import { useState } from "react"
-import { useIsNativeApp } from "@/lib/platform"
+import { useIsIOSApp } from "@/lib/platform"
 import { trackCta } from "@/lib/trackClient"
 
 export default function UpgradeButton() {
-  const native = useIsNativeApp()
+  const ios = useIsIOSApp()
   const [loading, setLoading] = useState(false)
 
   const handleUpgrade = async () => {
     trackCta('upgrade')
+
+    // iOS purchases through RevenueCat/StoreKit on the full pricing page,
+    // which needs a tier + billing-period choice this small button doesn't
+    // carry -- send iOS there instead of duplicating the purchase flow here.
+    // Guideline 3.1.1: this used to just hide on iOS while Android/web got a
+    // real checkout link; now iOS gets a real purchase path too, it's just
+    // one tap further away.
+    if (ios) {
+      window.location.href = "/pricing"
+      return
+    }
+
     try {
       setLoading(true)
       const res = await fetch("/api/stripe/checkout", { method: "POST" })
@@ -32,10 +44,6 @@ export default function UpgradeButton() {
       setLoading(false)
     }
   }
-
-  // Do not present an in-app purchase action inside the native app
-  // (App Store Guideline 3.1.1). Subscriptions are managed on the web.
-  if (native !== false) return null
 
   return (
     <button

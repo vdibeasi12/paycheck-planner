@@ -5,6 +5,7 @@ import Link from "next/link";
 import { supabase } from "@/lib/supabase/client";
 import { withTimeout } from "@/lib/withTimeout";
 import { isNativeApp, useIsNativeApp, useIsIOSApp } from "@/lib/platform";
+import { showManageSubscriptions } from "@/lib/iap";
 import { CreditCard, Loader2 } from "lucide-react";
 
 const PLAN_NAMES: Record<string, string> = {
@@ -21,6 +22,12 @@ export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
   const native = useIsNativeApp();
   const ios = useIsIOSApp();
   const [plan, setPlan] = useState<string | null>(null);
+  // Which platform the user's active paid subscription came from ('stripe' |
+  // 'app_store' | 'play_store' | null). Drives manage(): a grandfathered
+  // Stripe subscriber using the iOS app still needs the Stripe portal, not
+  // Apple's native subscription-management screen, since there's nothing
+  // there for a subscription Apple never sold.
+  const [source, setSource] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
 
@@ -37,17 +44,38 @@ export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
         setLoading(false);
         return;
       }
-      const { data } = await withTimeout(
-        supabase.from("profiles").select("plan").eq("id", id).single(),
-        8000,
-        { data: null } as any
-      );
-      setPlan((data?.plan as string) ?? "free");
+      const [{ data: profileData }, { data: subRows }] = await Promise.all([
+        withTimeout(
+          supabase.from("profiles").select("plan").eq("id", id).single(),
+          8000,
+          { data: null } as any
+        ),
+        withTimeout(
+          supabase
+            .from("subscriptions")
+            .select("source")
+            .eq("user_id", id)
+            .eq("status", "active")
+            .neq("tier", "free"),
+          8000,
+          { data: [] } as any
+        ),
+      ]);
+      setPlan((profileData?.plan as string) ?? "free");
+      // Prefer an app-store-sourced row if one exists (matches what "Manage
+      // subscription" should actually open on iOS); otherwise fall back to
+      // whatever active row is there (typically 'stripe').
+      const rows = (subRows as { source: string }[]) ?? [];
+      const preferred =
+        rows.find((r) => r.source === "app_store" || r.source === "play_store") ??
+        rows[0];
+      setSource(preferred?.source ?? null);
     } catch {
       // A hiccup fetching the plan shouldn't leave this card spinning
       // forever -- fall back to "Free" so the rest of the card (and page)
       // still renders; the user can retry by revisiting the page.
       setPlan("free");
+      setSource(null);
     } finally {
       setLoading(false);
     }
@@ -87,6 +115,18 @@ export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
   async function manage() {
     setBusy(true);
     try {
+      // iOS subscriptions bought through RevenueCat/StoreKit have no Stripe
+      // customer to open a portal for -- send the user to Apple's native
+      // "Manage Subscriptions" screen instead. A grandfathered iOS user
+      // whose active plan is really a Stripe subscription (source !==
+      // 'app_store') falls through to the Stripe portal below instead,
+      // same as web/Android -- Apple's screen would show nothing for a
+      // subscription Apple never sold.
+      if (ios && source === "app_store") {
+        await showManageSubscriptions();
+        return;
+      }
+
       const res = await fetch("/api/billing", { method: "POST" });
       const body = await res.json().catch(() => ({}));
       if (!res.ok || !body?.url) {
@@ -102,10 +142,10 @@ export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
         return;
       }
       if (isNativeApp()) {
-        // Android only -- this button is hidden on iOS (App Store Guideline
-        // 3.1.1). Open in an in-app browser overlay instead of navigating
-        // the app's own webview to billing.stripe.com, which would drop the
-        // Capacitor bridge. Same pattern as Google sign-in (NativeInit.tsx).
+        // Android only reaches here (iOS already handled above). Open in an
+        // in-app browser overlay instead of navigating the app's own
+        // webview to billing.stripe.com, which would drop the Capacitor
+        // bridge. Same pattern as Google sign-in (NativeInit.tsx).
         const { Browser } = await import("@capacitor/browser");
         await Browser.open({ url: body.url });
       } else {
@@ -120,12 +160,11 @@ export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
 
   const isPaid = plan !== null && plan !== "free";
   const planName = plan ? PLAN_NAMES[plan] ?? plan : "Free";
-  // Web and Android get the real, functional buttons below. Only iOS falls
-  // back to the informational message -- App Store Guideline 3.1.1 is an
-  // Apple-only restriction (see isIOSApp's doc comment in lib/platform.ts),
-  // Google Play has no equivalent blanket rule against this.
-  const showLiveControls = native === false || (native === true && ios === false);
-  const iosInfoOnly = native === true && ios === true;
+  // Every platform gets real, functional buttons now -- manage() and the
+  // "Upgrade plan" link both branch internally on iOS vs. web/Android to
+  // route to the right purchase/management surface (RevenueCat/StoreKit vs.
+  // Stripe). There's no more iOS-only informational dead-end.
+  const showLiveControls = native !== null && ios !== null;
 
   return (
     <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-6 shadow-sm">
@@ -158,8 +197,11 @@ export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
                   Manage subscription
                 </button>
                 <p className="mt-2 text-xs text-gray-500">
-                  Opens the secure Stripe portal to change plan, update payment,
-                  or cancel{native === true ? " (opens in-app)" : ""}.
+                  {ios && source === "app_store"
+                    ? "Opens the App Store's subscription management."
+                    : `Opens the secure Stripe portal to change plan, update payment, or cancel${
+                        native === true ? " (opens in-app)" : ""
+                      }.`}
                 </p>
               </>
             ) : (
@@ -170,12 +212,6 @@ export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
                 Upgrade plan
               </Link>
             )
-          ) : iosInfoOnly ? (
-            <p className="mt-4 text-sm text-gray-400">
-              {isPaid
-                ? "Manage your subscription in the App Store."
-                : "Upgrade from the web app at paycheckplanner.ai."}
-            </p>
           ) : null}
         </>
       )}

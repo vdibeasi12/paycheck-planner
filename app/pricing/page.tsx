@@ -1,6 +1,8 @@
 "use client";
 
 import { isNativeApp, isIOSApp } from "@/lib/platform";
+import { getIAPPackages, purchaseIAPPackage, type IAPPackage } from "@/lib/iap";
+import { supabase } from "@/lib/supabase/client";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -25,6 +27,73 @@ export default function PricingPage() {
     VISIBLE_TIERS.find((t) => t.highlight)?.id ?? VISIBLE_TIERS[0].id
   );
 
+  async function handleIOSPurchase(tier: Tier) {
+    setError(null);
+
+    // Purchasing has to attribute to a signed-in account -- RevenueCat's
+    // appUserID is set to the Supabase user id at login (see NativeInit.tsx
+    // / lib/iap.ts). A logged-out visitor goes create an account first, same
+    // as the free tier does above.
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      window.location.href = "/signup?next=/pricing";
+      return;
+    }
+
+    const packageId =
+      billing === "annual" ? tier.iap?.annual : tier.iap?.monthly;
+    if (!packageId) {
+      setError(
+        `This plan isn't available right now. Please try again later or email ${BRAND.supportEmail}.`
+      );
+      return;
+    }
+
+    try {
+      setLoadingId(tier.id);
+      const packages = await getIAPPackages();
+      const pkg = packages.find(
+        (p) => p.identifier === packageId || p.product.identifier === packageId
+      );
+      if (!pkg) {
+        console.error(
+          `No RevenueCat package found for identifier "${packageId}". Check the offering configuration in RevenueCat matches lib/plans.ts.`
+        );
+        setError(
+          `This plan isn't available right now. Please try again later or email ${BRAND.supportEmail}.`
+        );
+        return;
+      }
+
+      const result = await purchaseIAPPackage(pkg);
+      if (!result.ok) {
+        if (!result.cancelled) {
+          console.error("IAP purchase failed:", result.error);
+          setError(
+            `We couldn't complete the purchase. Please try again — if it keeps happening, email ${BRAND.supportEmail}.`
+          );
+        }
+        return;
+      }
+
+      // Fast-path server reconciliation (the webhook will also confirm this
+      // independently, see app/api/revenuecat/webhook/route.ts) so the rest
+      // of the app reflects the new plan immediately.
+      await fetch("/api/revenuecat/confirm", { method: "POST" }).catch(() => {
+        /* webhook still catches this even if the fast path fails */
+      });
+
+      window.location.href = "/dashboard";
+    } catch (err) {
+      console.error("IAP purchase error:", err);
+      setError("We couldn't reach the App Store. Check your connection and try again.");
+    } finally {
+      setLoadingId(null);
+    }
+  }
+
   async function handleCheckout(tier: Tier) {
     setError(null);
 
@@ -34,14 +103,13 @@ export default function PricingPage() {
       return;
     }
 
-    // App Store Guideline 3.1.1 is an Apple-only restriction (see isIOSApp's
-    // doc comment in lib/platform.ts) -- Google Play has no equivalent
-    // blanket rule against linking out to a web checkout, so only iOS bails
-    // to sign-up here. Android proceeds to real Stripe checkout below, same
-    // as the web, just opened in an in-app browser overlay instead of
-    // navigating the app's own webview away from itself.
+    // App Store Guideline 3.1.1 requires paid content unlocked in-app to go
+    // through Apple's In-App Purchase system -- iOS gets a real StoreKit
+    // purchase via RevenueCat (see lib/iap.ts), not a Stripe checkout link.
+    // Google Play has no equivalent blanket rule, so Android keeps using
+    // Stripe, same as the web.
     if (isIOSApp()) {
-      window.location.href = "/signup";
+      await handleIOSPurchase(tier);
       return;
     }
 
@@ -108,42 +176,14 @@ export default function PricingPage() {
     }
   }
 
-  // iOS app users see a simplified screen instead of the full pricing
-  // table/checkout flow (App Store Guideline 3.1.1 -- no in-app purchase
-  // mechanism is wired up here yet, so we don't show purchase UI natively).
-  // Android has no equivalent Google Play restriction, so Android app users
-  // get the real page below -- tier cards, the full feature comparison
-  // (including the mobile tab picker), and FAQ. Tapping a paid plan still
-  // safely redirects to sign-up instead of opening real checkout natively
-  // (see the isNativeApp() check in handleCheckout above) -- only this
-  // browsing screen was ever meant to be iOS-only.
-  if (isIOSApp()) {
-    return (
-      <main
-        className="flex min-h-screen flex-col items-center justify-center px-6 text-center text-slate-100"
-        style={{
-          background:
-            "radial-gradient(1200px 600px at 50% -10%, #16243f 0%, #0a1228 55%, #070d1c 100%)",
-        }}
-      >
-        <PaycheckPlannerLogo size={40} />
-        <h1 className="mt-6 text-2xl font-bold tracking-tight">
-          Manage your plan on the web
-        </h1>
-        <p className="mt-3 max-w-sm text-sm text-slate-400">
-          To view plans or upgrade your subscription, visit{" "}
-          <span className="text-emerald-400">paycheckplanner.ai</span> in a
-          web browser.
-        </p>
-        <Link
-          href="/dashboard"
-          className="mt-8 rounded-xl bg-gradient-to-r from-emerald-400 to-teal-400 px-6 py-2.5 text-sm font-semibold text-slate-950 transition hover:brightness-110"
-        >
-          Back to Dashboard
-        </Link>
-      </main>
-    );
-  }
+  // iOS app users now see the SAME full pricing table as web/Android below --
+  // tier cards, feature comparison, FAQ, the works. The only thing that
+  // differs per platform is what happens on tap (handleCheckout above):
+  // iOS purchases through RevenueCat/StoreKit, web and Android through
+  // Stripe. There is deliberately no more iOS-only "manage on the web"
+  // bail-out screen -- that pattern hid a real purchase mechanism from App
+  // Review while still unlocking paid features for anyone who'd bought on
+  // the web, which is exactly what Guideline 3.1.1 exists to prevent.
 
   return (
     <main
@@ -173,7 +213,7 @@ export default function PricingPage() {
             <BillingToggle billing={billing} onChange={setBilling} />
           </div>
           <p className="mt-3 h-5 text-sm text-emerald-400">
-            {billing === "annual" ? "You're saving two months on every paid plan." : "\u00A0"}
+            {billing === "annual" ? "You're saving two months on every paid plan." : " "}
           </p>
         </section>
 

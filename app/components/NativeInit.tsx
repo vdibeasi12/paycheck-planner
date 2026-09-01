@@ -3,6 +3,7 @@
 import { useEffect } from "react"
 import { supabase } from "@/lib/supabase/client"
 import { isNativeApp } from "@/lib/platform"
+import { configureIAP, loginIAPUser, logoutIAPUser } from "@/lib/iap"
 
 /**
  * Mounted once at the app root (see app/layout.tsx). Runs ONLY inside the
@@ -177,6 +178,53 @@ export default function NativeInit() {
         /* status bar plugin unavailable on this platform/version -- no-op */
       }
     })()
+  }, [])
+
+  // RevenueCat / StoreKit (iOS only -- see lib/iap.ts). Configure the SDK once
+  // at launch, then keep its identity in lock-step with the Supabase session:
+  // log in on sign-in (including an already-warm session at cold start) and
+  // log out on sign-out, so a purchase always attributes to the right
+  // account and a shared/reset device never inherits the previous user's
+  // entitlements. Mirrors the Guideline 3.1.1 requirement that paid content
+  // unlocked in-app go through Apple's IAP, now for real instead of the
+  // previous "hide the button from iOS" approach.
+  useEffect(() => {
+    if (!isNativeApp()) return
+
+    let cancelled = false
+
+    ;(async () => {
+      try {
+        await configureIAP()
+        const {
+          data: { user },
+        } = await supabase.auth.getUser()
+        if (!cancelled && user) {
+          await loginIAPUser(user.id)
+        }
+      } catch (err) {
+        console.error("IAP init failed:", err)
+      }
+    })()
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event, session) => {
+        if (event === "SIGNED_IN" && session?.user) {
+          loginIAPUser(session.user.id).catch((err) =>
+            console.error("loginIAPUser failed:", err)
+          )
+        } else if (event === "SIGNED_OUT") {
+          logoutIAPUser().catch((err) =>
+            console.error("logoutIAPUser failed:", err)
+          )
+        }
+      }
+    )
+
+    return () => {
+      cancelled = true
+      authListener.subscription.unsubscribe()
+    }
   }, [])
 
   return null

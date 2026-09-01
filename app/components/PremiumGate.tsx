@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { useIsNativeApp } from "@/lib/platform"
+import { useIsIOSApp } from "@/lib/platform"
 
 type Props = {
   isSubscribed: boolean
@@ -9,12 +9,19 @@ type Props = {
 }
 
 export default function PremiumGate({ isSubscribed, children }: Props) {
-  const native = useIsNativeApp()
+  const ios = useIsIOSApp()
   const [loading, setLoading] = useState(false)
 
   if (isSubscribed) return <>{children}</>
 
   async function startCheckout() {
+    // iOS purchases through RevenueCat/StoreKit on the full pricing page
+    // (see app/pricing/page.tsx) -- Guideline 3.1.1 requires the real
+    // purchase to go through Apple's IAP, not a Stripe checkout link.
+    if (ios) {
+      window.location.href = "/pricing"
+      return
+    }
     try {
       setLoading(true)
       const res = await fetch("/api/stripe/checkout", { method: "POST" })
@@ -38,19 +45,13 @@ export default function PremiumGate({ isSubscribed, children }: Props) {
         Unlock advanced insights, payoff strategies, and your optimized plan.
       </p>
 
-      {native === false ? (
-        <button
-          onClick={startCheckout}
-          disabled={loading}
-          className="bg-emerald-500 text-black px-4 py-2 rounded-lg font-semibold disabled:opacity-60"
-        >
-          {loading ? "Redirecting..." : "Upgrade Now"}
-        </button>
-      ) : (
-        <p className="text-sm text-slate-400">
-          Manage your plan on the web at paycheckplanner.ai
-        </p>
-      )}
+      <button
+        onClick={startCheckout}
+        disabled={loading}
+        className="bg-emerald-500 text-black px-4 py-2 rounded-lg font-semibold disabled:opacity-60"
+      >
+        {loading ? "Redirecting..." : "Upgrade Now"}
+      </button>
     </div>
   )
 }

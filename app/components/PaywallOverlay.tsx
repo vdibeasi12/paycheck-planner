@@ -2,6 +2,9 @@
 
 import { useState } from "react"
 import { isNativeApp, useIsIOSApp } from "@/lib/platform"
+import { getIAPPackages, purchaseIAPPackage } from "@/lib/iap"
+import { planForPriceId, TIERS } from "@/lib/plans"
+import { supabase } from "@/lib/supabase/client"
 
 type Props = {
   priceId: string
@@ -15,15 +18,68 @@ export default function PaywallOverlay({
   description = "This feature requires an upgrade.",
 }: Props) {
   const [loading, setLoading] = useState(false)
-  // App Store Guideline 3.1.1 is an Apple-only restriction (see isIOSApp's
-  // doc comment in lib/platform.ts) -- Google Play has no equivalent blanket
-  // rule, so only iOS falls back to the informational message. This matches
-  // the pattern already used on /pricing and SubscriptionCard; this overlay
-  // had been left on the older isNativeApp() gate, which wrongly hid
-  // checkout from Android app users too.
+  const [error, setError] = useState<string | null>(null)
   const ios = useIsIOSApp()
 
+  const handleIOSCheckout = async () => {
+    setError(null)
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+    if (!user) {
+      window.location.href = "/signup?next=/pricing"
+      return
+    }
+
+    // This overlay only knows the Stripe priceId it was given -- resolve it
+    // to a tier, then to that tier's RevenueCat package identifier (see
+    // lib/plans.ts's `iap` field). Billing period isn't encoded in priceId
+    // callers of this component, so default to monthly; annual purchases
+    // happen from the full pricing page.
+    const tierId = planForPriceId(priceId)
+    const tier = TIERS.find((t) => t.id === tierId)
+    const packageId = tier?.iap?.monthly
+    if (!packageId) {
+      console.error(`No RevenueCat package configured for priceId "${priceId}"`)
+      setError("This feature isn't available right now.")
+      return
+    }
+
+    setLoading(true)
+    try {
+      const packages = await getIAPPackages()
+      const pkg = packages.find(
+        (p) => p.identifier === packageId || p.product.identifier === packageId
+      )
+      if (!pkg) {
+        setError("This feature isn't available right now.")
+        return
+      }
+      const result = await purchaseIAPPackage(pkg)
+      if (!result.ok) {
+        if (!result.cancelled) setError("We couldn't complete the purchase. Please try again.")
+        return
+      }
+      await fetch("/api/revenuecat/confirm", { method: "POST" }).catch(() => {})
+      window.location.reload()
+    } catch (err) {
+      console.error("IAP purchase error:", err)
+      setError("We couldn't reach the App Store. Check your connection and try again.")
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const handleCheckout = async () => {
+    // Guideline 3.1.1: iOS purchases go through RevenueCat/StoreKit, right
+    // here in the overlay, instead of Stripe checkout. Google Play has no
+    // equivalent restriction, so Android keeps using Stripe below, same as
+    // web.
+    if (ios) {
+      await handleIOSCheckout()
+      return
+    }
+
     setLoading(true)
     try {
       const res = await fetch("/api/stripe/checkout", {
@@ -39,10 +95,9 @@ export default function PaywallOverlay({
       }
 
       if (isNativeApp()) {
-        // Android only reaches here (iOS shows the info message below
-        // instead). Open in an in-app browser overlay instead of
-        // window.location.href -- that would navigate the app's own
-        // Capacitor webview to checkout.stripe.com, breaking the native
+        // Android only reaches here. Open in an in-app browser overlay
+        // instead of window.location.href -- that would navigate the app's
+        // own Capacitor webview to checkout.stripe.com, breaking the native
         // bridge. Same pattern already used for Google sign-in and the
         // pricing page. Reload once the overlay closes so a completed
         // upgrade is reflected immediately -- the gate that renders this
@@ -71,25 +126,14 @@ export default function PaywallOverlay({
         <h3 className="text-xl font-semibold mb-2">{title}</h3>
         <p className="text-gray-300 mb-4">{description}</p>
 
-        {ios === false ? (
-          <button
-            onClick={handleCheckout}
-            disabled={loading}
-            className="bg-green-500 hover:bg-green-600 text-black px-5 py-2 rounded-lg font-medium"
-          >
-            {loading ? "Redirecting..." : "Upgrade Now"}
-          </button>
-        ) : (
-          // Default-deny: during SSR and the brief pre-mount window, ios is
-          // still null. Fall back to the info message (not the purchase
-          // button) until the platform is confirmed non-iOS, same direction
-          // as the `if (native !== false) return null` guard documented on
-          // isNativeApp() in lib/platform.ts -- the App Store must never see
-          // a purchase action, even for one frame.
-          <p className="text-gray-300 text-sm">
-            Manage your plan at paycheckplanner.ai
-          </p>
-        )}
+        <button
+          onClick={handleCheckout}
+          disabled={loading}
+          className="bg-green-500 hover:bg-green-600 text-black px-5 py-2 rounded-lg font-medium"
+        >
+          {loading ? "Redirecting..." : "Upgrade Now"}
+        </button>
+        {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
       </div>
     </div>
   )
