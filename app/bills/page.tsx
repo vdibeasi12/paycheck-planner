@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
-import { Plus, Trash2, Upload, Pencil, Check, X, FileSpreadsheet, Receipt, Repeat } from 'lucide-react'
+import { Plus, Trash2, Upload, Pencil, Check, X, FileSpreadsheet, Receipt, Repeat, ChevronDown } from 'lucide-react'
 import SmartCapture from '../components/SmartCapture'
 import { useRouter } from 'next/navigation'
 import { isPremium } from '@/lib/permissions'
@@ -67,11 +67,70 @@ export default function BillsPage() {
   )
   const visibleBills = tab === 'subscriptions' ? subscriptionBills : regularBills
 
-  const monthlyBillsTotal = regularBills.reduce(
+  // Which bills count toward the totals below -- same "filter by type"
+  // pattern as the Debts page's payoff-plan preview (app/debts/page.tsx).
+  // Tracked as an "excluded" set so a bill loaded or added later is
+  // included by default without extra bookkeeping; nothing excluded means
+  // everything counts, same as before this existed.
+  const [excludedIds, setExcludedIds] = useState<Set<string>>(new Set())
+  const toggleIncluded = (id: string) => {
+    setExcludedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+  const includeAllBills = () => setExcludedIds(new Set())
+
+  const includedRegularBills = useMemo(
+    () => regularBills.filter((b) => !excludedIds.has(b.id)),
+    [regularBills, excludedIds]
+  )
+  const includedSubscriptionBills = useMemo(
+    () => subscriptionBills.filter((b) => !excludedIds.has(b.id)),
+    [subscriptionBills, excludedIds]
+  )
+  const includedVisibleBills = tab === 'subscriptions' ? includedSubscriptionBills : includedRegularBills
+
+  // "Filter by type" dropdown, grouped by whatever categories actually exist
+  // on the bills in the active tab (CSV import already tags things like
+  // Housing/Utilities/Groceries -- see CATEGORY_RULES in lib/csvImport.ts).
+  // Same mechanics as the Debts page's debt_type groups.
+  const typeGroups = useMemo(() => {
+    const map = new Map<string, { label: string; ids: string[] }>()
+    for (const b of visibleBills) {
+      const key = (b.category || '').toLowerCase()
+      if (!map.has(key)) map.set(key, { label: b.category || 'Uncategorized', ids: [] })
+      map.get(key)!.ids.push(b.id)
+    }
+    return Array.from(map.values())
+  }, [visibleBills])
+  const isGroupIncluded = (ids: string[]) => ids.every((id) => !excludedIds.has(id))
+  const toggleGroup = (ids: string[]) => {
+    setExcludedIds((prev) => {
+      const next = new Set(prev)
+      const allIn = ids.every((id) => !next.has(id))
+      ids.forEach((id) => (allIn ? next.add(id) : next.delete(id)))
+      return next
+    })
+  }
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false)
+  const typeMenuRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    if (!typeMenuOpen) return
+    const onClick = (e: MouseEvent) => {
+      if (typeMenuRef.current && !typeMenuRef.current.contains(e.target as Node)) setTypeMenuOpen(false)
+    }
+    document.addEventListener('mousedown', onClick)
+    return () => document.removeEventListener('mousedown', onClick)
+  }, [typeMenuOpen])
+
+  const monthlyBillsTotal = includedRegularBills.reduce(
     (sum, b) => sum + Number(b.amount) * monthlyFactor(b.frequency),
     0
   )
-  const monthlySubscriptionsTotal = subscriptionBills.reduce(
+  const monthlySubscriptionsTotal = includedSubscriptionBills.reduce(
     (sum, b) => sum + Number(b.amount) * monthlyFactor(b.frequency),
     0
   )
@@ -267,9 +326,10 @@ export default function BillsPage() {
               <div>
                 <p className="font-semibold">Recurring costs detected</p>
                 <p className="text-gray-400 text-sm">
-                  {subscriptionBills.length} subscription{subscriptionBills.length === 1 ? '' : 's'} and{' '}
-                  {regularBills.length} recurring bill{regularBills.length === 1 ? '' : 's'} &middot; potential
+                  {includedSubscriptionBills.length} subscription{includedSubscriptionBills.length === 1 ? '' : 's'} and{' '}
+                  {includedRegularBills.length} recurring bill{includedRegularBills.length === 1 ? '' : 's'} &middot; potential
                   monthly cost {formatMoney(combinedMonthlyTotal)}
+                  {excludedIds.size > 0 && ' (filtered)'}
                 </p>
               </div>
             </div>
@@ -416,6 +476,69 @@ export default function BillsPage() {
                 </button>
               </div>
 
+              {/* Filter by type -- same pattern as the Debts page's payoff-
+                  plan preview: uncheck a category (or individual bill below)
+                  to leave it out, and the totals to the right update to
+                  match whatever's currently included. */}
+              {visibleBills.length > 0 && (
+                <div className="mb-6 rounded-lg border border-gray-700 bg-[#0f172a] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <label className="block text-xs font-medium uppercase tracking-wide text-gray-400">
+                      {tab === 'subscriptions' ? 'Subscriptions in this total' : 'Bills in this total'}
+                    </label>
+                    <div className="flex flex-wrap gap-2">
+                      <button
+                        type="button"
+                        onClick={includeAllBills}
+                        className={
+                          'rounded-md border px-2.5 py-1 text-xs font-medium transition ' +
+                          (excludedIds.size === 0
+                            ? 'border-emerald-500 bg-emerald-500/15 text-emerald-300'
+                            : 'border-gray-700 text-gray-300 hover:bg-[#1a233a]')
+                        }
+                      >
+                        All {tab === 'subscriptions' ? 'subscriptions' : 'bills'}
+                      </button>
+                      <div className="relative" ref={typeMenuRef}>
+                        <button
+                          type="button"
+                          onClick={() => setTypeMenuOpen((o) => !o)}
+                          className="flex items-center gap-1.5 rounded-md border border-gray-700 px-2.5 py-1 text-xs font-medium text-gray-300 transition hover:bg-[#1a233a]"
+                        >
+                          Filter by type
+                          <ChevronDown size={12} className={typeMenuOpen ? 'rotate-180 transition' : 'transition'} />
+                        </button>
+                        {typeMenuOpen && (
+                          <div className="absolute right-0 z-20 mt-1 w-60 rounded-lg border border-gray-700 bg-[#0f172a] p-2 shadow-xl">
+                            {typeGroups.map((g) => (
+                              <label
+                                key={g.label}
+                                className="flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-gray-200 hover:bg-[#1a233a]"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={isGroupIncluded(g.ids)}
+                                  onChange={() => toggleGroup(g.ids)}
+                                />
+                                <span className="flex-1">{g.label}</span>
+                                <span className="text-xs text-gray-500">{g.ids.length}</span>
+                              </label>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="mt-1.5 text-xs text-gray-500">
+                    {includedVisibleBills.length} of {visibleBills.length} {tab === 'subscriptions' ? 'subscription' : 'bill'}
+                    {visibleBills.length === 1 ? '' : 's'} included
+                    {includedVisibleBills.length !== visibleBills.length
+                      ? ' -- uncheck a bill below to leave it out. Excluded bills stay on your list, they just aren’t counted in the totals.'
+                      : ' -- uncheck any bill below to leave it out of the totals.'}
+                  </p>
+                </div>
+              )}
+
               {/* Summary */}
               <div className="grid grid-cols-2 gap-4 mb-6">
                 <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
@@ -430,7 +553,7 @@ export default function BillsPage() {
                   <p className="text-gray-400 text-sm">
                     {tab === 'subscriptions' ? 'Number of Subscriptions' : 'Number of Bills'}
                   </p>
-                  <p className="text-3xl font-bold text-blue-400">{visibleBills.length}</p>
+                  <p className="text-3xl font-bold text-blue-400">{includedVisibleBills.length}</p>
                 </div>
               </div>
 
@@ -444,7 +567,10 @@ export default function BillsPage() {
                     .map((bill) => (
                       <div
                         key={bill.id}
-                        className="bg-[#0f172a] border border-gray-700 rounded-lg p-4"
+                        className={
+                          'bg-[#0f172a] border border-gray-700 rounded-lg p-4' +
+                          (excludedIds.has(bill.id) ? ' opacity-60' : '')
+                        }
                       >
                         {editingId === bill.id ? (
                           <div className="space-y-3">
@@ -515,7 +641,26 @@ export default function BillsPage() {
                         ) : (
                           <div className="flex items-center justify-between">
                             <div>
-                              <h3 className="font-semibold text-lg">{bill.name}</h3>
+                              <h3 className="font-semibold text-lg flex items-center gap-2">
+                                <input
+                                  type="checkbox"
+                                  checked={!excludedIds.has(bill.id)}
+                                  onChange={() => toggleIncluded(bill.id)}
+                                  title="Include in the totals above"
+                                  className="shrink-0"
+                                />
+                                {bill.name}
+                                {bill.category && bill.category !== SUBSCRIPTION_CATEGORY && (
+                                  <span className="rounded-full bg-[#1a233a] px-2 py-0.5 text-xs font-medium text-gray-400">
+                                    {bill.category}
+                                  </span>
+                                )}
+                                {excludedIds.has(bill.id) && (
+                                  <span className="rounded-full bg-gray-700/60 px-2 py-0.5 text-xs font-medium text-gray-400">
+                                    not counted
+                                  </span>
+                                )}
+                              </h3>
                               <p className="text-gray-400 text-sm">
                                 {bill.category === SUBSCRIPTION_CATEGORY ? 'Renews' : 'Due'} on day{' '}
                                 {bill.due_date}{' '}
