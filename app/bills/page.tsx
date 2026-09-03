@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabase/client'
@@ -41,6 +41,7 @@ export default function BillsPage() {
   const [name, setName] = useState('')
   const [amount, setAmount] = useState('')
   const [dueDay, setDueDay] = useState('')
+  const [frequency, setFrequency] = useState<'monthly' | 'bimonthly'>('monthly')
   const [isSubscription, setIsSubscription] = useState(false)
   const [showCapture, setShowCapture] = useState(false)
   const [loading, setLoading] = useState(true)
@@ -49,6 +50,7 @@ export default function BillsPage() {
   const [editName, setEditName] = useState('')
   const [editAmount, setEditAmount] = useState('')
   const [editDueDay, setEditDueDay] = useState('')
+  const [editFrequency, setEditFrequency] = useState<'monthly' | 'bimonthly'>('monthly')
   const [editIsSubscription, setEditIsSubscription] = useState(false)
   const [editOriginalCategory, setEditOriginalCategory] = useState<string | null>(null)
   const [tab, setTab] = useState<'bills' | 'subscriptions'>('bills')
@@ -139,7 +141,7 @@ export default function BillsPage() {
         name,
         amount: Number(amount),
         due_date: Number(dueDay),
-        frequency: 'monthly',
+        frequency,
         category: isSubscription ? SUBSCRIPTION_CATEGORY : null,
       })
 
@@ -148,6 +150,7 @@ export default function BillsPage() {
       setName('')
       setAmount('')
       setDueDay('')
+      setFrequency('monthly')
       setIsSubscription(false)
       loadBills()
       // First bill added earns "bill_organizer" (and possibly "all_set" /
@@ -190,6 +193,7 @@ export default function BillsPage() {
     setEditName(bill.name ?? '')
     setEditAmount(String(bill.amount ?? ''))
     setEditDueDay(String(bill.due_date ?? ''))
+    setEditFrequency(bill.frequency === 'bimonthly' ? 'bimonthly' : 'monthly')
     setEditIsSubscription(bill.category === SUBSCRIPTION_CATEGORY)
     setEditOriginalCategory(bill.category ?? null)
   }
@@ -214,6 +218,7 @@ export default function BillsPage() {
           name: editName,
           amount: Number(editAmount),
           due_date: Number(editDueDay),
+          frequency: editFrequency,
           category,
         })
         .eq('id', id)
@@ -322,6 +327,18 @@ export default function BillsPage() {
                       placeholder="15"
                       className="w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white placeholder-gray-500"
                     />
+                  </div>
+
+                  <div>
+                    <label className="text-gray-400 text-sm block mb-2">How Often</label>
+                    <select
+                      value={frequency}
+                      onChange={(e) => setFrequency(e.target.value as 'monthly' | 'bimonthly')}
+                      className="w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white"
+                    >
+                      <option value="monthly">Monthly</option>
+                      <option value="bimonthly">Every 2 months (Bi-Monthly)</option>
+                    </select>
                   </div>
 
                   <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
@@ -460,6 +477,17 @@ export default function BillsPage() {
                                 />
                               </div>
                             </div>
+                            <div>
+                              <label className="text-gray-500 text-xs block mb-1">How often</label>
+                              <select
+                                value={editFrequency}
+                                onChange={(e) => setEditFrequency(e.target.value as 'monthly' | 'bimonthly')}
+                                className="w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white"
+                              >
+                                <option value="monthly">Monthly</option>
+                                <option value="bimonthly">Every 2 months (Bi-Monthly)</option>
+                              </select>
+                            </div>
                             <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
                               <input
                                 type="checkbox"
@@ -490,7 +518,8 @@ export default function BillsPage() {
                               <h3 className="font-semibold text-lg">{bill.name}</h3>
                               <p className="text-gray-400 text-sm">
                                 {bill.category === SUBSCRIPTION_CATEGORY ? 'Renews' : 'Due'} on day{' '}
-                                {bill.due_date} of each month
+                                {bill.due_date}{' '}
+                                {bill.frequency === 'bimonthly' ? 'every 2 months' : 'of each month'}
                               </p>
                             </div>
                             <div className="flex items-center gap-3">

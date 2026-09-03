@@ -1,4 +1,4 @@
-// lib/monthlyFactor.ts
+﻿// lib/monthlyFactor.ts
 // Canonical monthly-equivalent multiplier for a recurring amount, given its
 // billing/pay frequency. This used to be hand-copied in app/dashboard/page.tsx,
 // app/income/page.tsx, and app/bills/page.tsx -- the copies had already
@@ -20,6 +20,11 @@ export function monthlyFactor(freq?: string | null): number {
     case 'semi-monthly':
     case 'twice a month':
       return 2
+    case 'bimonthly':
+    case 'bi-monthly':
+    case 'every 2 months':
+    case 'every two months':
+      return 1 / 2
     case 'quarterly':
       return 1 / 3
     case 'annual':
