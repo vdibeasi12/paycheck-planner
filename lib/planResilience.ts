@@ -180,6 +180,30 @@ export function computePlanResilience(input: {
   return { hasPlan: true, cycles, weakestCycle, strengthScore, scenarioResults }
 }
 
+export type NearTermRisk = {
+  cycle: PaycheckCycle
+  level: "breaks" | "tight"
+}
+
+// The soonest upcoming paycheck worth warning about, if any -- used to
+// cross-link Paycheck Shield's own projection into Safe to Spend/Survival
+// Mode/the Dashboard, which otherwise only ever look at the very next
+// paycheck and can read as reassuring even when a later cycle (a mortgage
+// landing two paychecks out, say) is already projected to come up short.
+// Each cycle here is evaluated independently (no carried-over balance from
+// a prior cycle -- see projectPaycheckCycles), so "breaks" means "if you
+// don't have anything held back from an earlier paycheck," not a certainty.
+export function nearestWeakCycle(cycles: PaycheckCycle[]): NearTermRisk | null {
+  for (const c of cycles) {
+    if (c.cushion < 0) return { cycle: c, level: "breaks" }
+  }
+  for (const c of cycles) {
+    const threshold = c.amount > 0 ? c.amount * TIGHT_CUSHION_RATIO : THIN_CUSHION_FLOOR
+    if (c.cushion < threshold) return { cycle: c, level: "tight" }
+  }
+  return null
+}
+
 // The specific bills/debts due inside a cycle's window -- used to name real
 // items ("Netflix, $15.99") in "Strengthen This Paycheck" suggestions rather
 // than only showing an aggregate dollar figure.

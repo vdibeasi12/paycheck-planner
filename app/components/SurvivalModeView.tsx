@@ -4,10 +4,23 @@ import Link from "next/link"
 import { ArrowLeft, LifeBuoy } from "lucide-react"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import type { SafeToSpendResult } from "@/lib/safeToSpend"
+import type { ClassifiedItem } from "@/lib/paycheckCycles"
+import type { NearTermRisk } from "@/lib/planResilience"
+import type { StartingCash } from "@/lib/cashBalance"
 import WhatIfSpend from "./WhatIfSpend"
+import PlanRiskBanner from "./PlanRiskBanner"
+import CashBalanceEditor from "./CashBalanceEditor"
+import PaycheckItemBreakdown from "./PaycheckItemBreakdown"
+
+type NamedBill = { id: string; name: string; amount: number; due_date: number | null }
+type NamedDebt = { id: string; name: string; minimum_payment: number; due_date: number | null }
 
 type Props = {
   result: SafeToSpendResult
+  startingCash: StartingCash
+  classifiedBills: ClassifiedItem<NamedBill>[]
+  classifiedDebts: ClassifiedItem<{ id: string; name: string; amount: number; due_date: number | null }>[]
+  risk: NearTermRisk | null
 }
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: "green" | "red" }) {
@@ -26,23 +39,23 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 }
 
 /**
- * The stripped-down "survive until payday" mode -- same numbers as the
- * Dashboard's Paycheck Countdown card, no other dashboard chrome around
- * them. Ties into the 30-Day Challenge content as its in-app companion.
+ * The "survive until payday" mode -- same Safe-to-Spend numbers as the
+ * Dashboard's Paycheck Countdown card, but with room to actually show its
+ * work: what's already accounted for, what's still coming, an optional
+ * real-balance grounding, and a heads-up when Paycheck Shield's own
+ * projection sees trouble coming soon.
  */
-export default function SurvivalModeView({ result }: Props) {
+export default function SurvivalModeView({ result, startingCash, classifiedBills, classifiedDebts, risk }: Props) {
   const formatMoney = useFormatCurrency()
 
   const cantProject = !result.hasIncome || result.missingPayDate || !result.nextPaycheckDate
 
+  const upcomingBills = classifiedBills.filter((b) => b.itemStatus === "upcoming").map((b) => ({ name: b.name, amount: b.amount }))
+  const alreadyDueBills = classifiedBills.filter((b) => b.itemStatus === "alreadyDue").map((b) => ({ name: b.name, amount: b.amount }))
+  const upcomingDebts = classifiedDebts.filter((d) => d.itemStatus === "upcoming").map((d) => ({ name: d.name, amount: d.amount }))
+  const alreadyDueDebts = classifiedDebts.filter((d) => d.itemStatus === "alreadyDue").map((d) => ({ name: d.name, amount: d.amount }))
+
   return (
-    // QA fix (Aug 27 2026): this page used to cap at max-w-2xl while every
-    // other logged-in page (Dashboard included) caps at max-w-6xl -- on a
-    // normal desktop window that made Survival Mode look like a tiny,
-    // half-built page next to the Dashboard it's one click away from.
-    // Widened to match, and the stat grid below now spreads across a full
-    // row on larger screens instead of staying a small 2-column block
-    // floating in the middle of a much wider page.
     <div className="max-w-6xl mx-auto px-6 py-10">
       <Link href="/dashboard" className="inline-flex items-center gap-1.5 text-sm text-gray-400 hover:text-white">
         <ArrowLeft size={16} />
@@ -64,9 +77,13 @@ export default function SurvivalModeView({ result }: Props) {
           Add your income with a pay date, plus your bills and debts, to see your survival numbers here.
         </p>
       ) : (
-        <>
-          <div className="mt-8 grid grid-cols-2 gap-3 lg:grid-cols-4">
-            <Stat label="Last paycheck" value={formatMoney(result.lastPaycheckAmount)} />
+        <div className="mt-8 space-y-4">
+          {risk && <PlanRiskBanner risk={risk} />}
+
+          <CashBalanceEditor startingCash={startingCash} />
+
+          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+            <Stat label="Starting cash" value={formatMoney(result.startingCash)} />
             <Stat
               label="Days until payday"
               value={result.daysUntilNextPaycheck === 0 ? "Today" : String(result.daysUntilNextPaycheck)}
@@ -80,7 +97,7 @@ export default function SurvivalModeView({ result }: Props) {
           </div>
 
           {result.dailyLimit != null && result.daysUntilNextPaycheck != null && result.daysUntilNextPaycheck > 0 && (
-            <div className="mt-4 flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4">
+            <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4">
               <span className="text-sm font-semibold text-emerald-200">Daily limit</span>
               <span className={`text-2xl font-bold ${result.safeToSpend >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                 {formatMoney(result.dailyLimit)}/day
@@ -88,10 +105,25 @@ export default function SurvivalModeView({ result }: Props) {
             </div>
           )}
 
-          <div className="mt-6">
+          {(upcomingBills.length > 0 || upcomingDebts.length > 0 || alreadyDueBills.length > 0 || alreadyDueDebts.length > 0) && (
+            <div className="space-y-2">
+              <PaycheckItemBreakdown
+                title="Still to come before payday"
+                hint="These are what's actually subtracted from Safe to Spend above."
+                items={[...upcomingBills, ...upcomingDebts]}
+              />
+              <PaycheckItemBreakdown
+                title="Already due earlier this cycle"
+                hint="Due day already passed this month, so this is assumed already paid from your last paycheck -- not subtracted from the number above. If it hasn't actually gone out yet, your real Safe to Spend is lower than shown."
+                items={[...alreadyDueBills, ...alreadyDueDebts]}
+              />
+            </div>
+          )}
+
+          <div>
             <WhatIfSpend result={result} />
           </div>
-        </>
+        </div>
       )}
     </div>
   )

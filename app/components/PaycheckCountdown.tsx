@@ -1,12 +1,31 @@
 "use client"
 
+import Link from "next/link"
 import InfoHint from "./InfoHint"
 import { Wallet, CalendarClock } from "lucide-react"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import type { SafeToSpendResult } from "@/lib/safeToSpend"
+import type { ClassifiedItem } from "@/lib/paycheckCycles"
+import type { NearTermRisk } from "@/lib/planResilience"
+import type { StartingCash } from "@/lib/cashBalance"
+import PlanRiskBanner from "./PlanRiskBanner"
+import PaycheckItemBreakdown from "./PaycheckItemBreakdown"
+
+type NamedRow = { name: string; amount: number; due_date: number | null }
 
 type Props = {
   result: SafeToSpendResult
+  startingCash?: StartingCash
+  classifiedBills?: ClassifiedItem<NamedRow>[]
+  classifiedDebts?: ClassifiedItem<NamedRow>[]
+  risk?: NearTermRisk | null
+}
+
+function sourceLabel(startingCash?: StartingCash): string {
+  if (!startingCash) return "your last paycheck"
+  if (startingCash.source === "linkedAccount") return `your "${startingCash.label}" imported balance`
+  if (startingCash.source === "manualBalance") return "the balance you entered"
+  return "your last paycheck"
 }
 
 function formatDate(iso: string): string {
@@ -24,8 +43,14 @@ function formatDate(iso: string): string {
  * paycheck" rather than "your balance" -- this app has no live bank-balance
  * connection, so it doesn't get to claim it knows one.
  */
-export default function PaycheckCountdown({ result }: Props) {
+export default function PaycheckCountdown({ result, startingCash, classifiedBills = [], classifiedDebts = [], risk }: Props) {
   const formatMoney = useFormatCurrency()
+  const upcomingItems = [...classifiedBills, ...classifiedDebts]
+    .filter((i) => i.itemStatus === "upcoming")
+    .map((i) => ({ name: i.name, amount: i.amount }))
+  const alreadyDueItems = [...classifiedBills, ...classifiedDebts]
+    .filter((i) => i.itemStatus === "alreadyDue")
+    .map((i) => ({ name: i.name, amount: i.amount }))
 
   if (!result.hasIncome) {
     return (
@@ -56,13 +81,15 @@ export default function PaycheckCountdown({ result }: Props) {
   const positive = result.safeToSpend >= 0
 
   return (
-    <div className="rounded-2xl border border-gray-700 bg-gradient-to-br from-[#0f172a] to-[#0b1220] p-6 shadow-lg">
+    <div className="space-y-3">
+      {risk && <PlanRiskBanner risk={risk} />}
+      <div className="rounded-2xl border border-gray-700 bg-gradient-to-br from-[#0f172a] to-[#0b1220] p-6 shadow-lg">
       <div className="flex items-center gap-2">
         <Wallet size={18} className="text-emerald-400" />
         <h2 className="text-sm font-medium uppercase tracking-wide text-gray-400">Safe to spend</h2>
         <InfoHint
           label="About Safe to Spend"
-          text="Based on your last paycheck, minus what's still due (bills, debt payments, goal contributions) before your next one. Not a live bank balance -- Paycheck Planner doesn't have that connection."
+          text="Based on your starting cash, minus what's still due (bills, debt payments, goal contributions) before your next paycheck. Not a live bank balance unless you've linked or entered one yourself on Survival Mode."
         />
       </div>
 
@@ -81,8 +108,8 @@ export default function PaycheckCountdown({ result }: Props) {
 
       <div className="mt-4 space-y-1.5 text-sm text-gray-400">
         <div className="flex justify-between">
-          <span>Last paycheck</span>
-          <span className="text-gray-200">{formatMoney(result.lastPaycheckAmount)}</span>
+          <span>Starting from {sourceLabel(startingCash)}</span>
+          <span className="text-gray-200">{formatMoney(result.startingCash)}</span>
         </div>
         {result.billsDue > 0 && (
           <div className="flex justify-between">
@@ -104,6 +131,16 @@ export default function PaycheckCountdown({ result }: Props) {
         )}
       </div>
 
+      {(!startingCash || startingCash.source === "lastPaycheck") && (
+        <p className="mt-2 text-xs text-gray-500">
+          This is a projection, not your real balance.{" "}
+          <Link href="/survival-mode" className="text-emerald-400 hover:underline">
+            Add your real balance
+          </Link>{" "}
+          for more accuracy.
+        </p>
+      )}
+
       {result.dailyLimit != null && result.daysUntilNextPaycheck != null && result.daysUntilNextPaycheck > 0 && (
         <div className="mt-4 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3">
           <span className="text-sm text-gray-300">Daily spending limit</span>
@@ -118,6 +155,22 @@ export default function PaycheckCountdown({ result }: Props) {
           What's still due before your next paycheck is more than it covers. Consider trimming bills or revisiting your debt plan.
         </p>
       )}
+
+      {(upcomingItems.length > 0 || alreadyDueItems.length > 0) && (
+        <div className="mt-4 space-y-2">
+          <PaycheckItemBreakdown
+            title="What's counted above"
+            hint="These are what's actually subtracted from Safe to Spend."
+            items={upcomingItems}
+          />
+          <PaycheckItemBreakdown
+            title="Already due earlier this cycle"
+            hint="Due day already passed this month, so this is assumed already paid from your last paycheck -- not subtracted above. If it hasn't actually gone out yet, your real Safe to Spend is lower than shown."
+            items={alreadyDueItems}
+          />
+        </div>
+      )}
+      </div>
     </div>
   )
 }

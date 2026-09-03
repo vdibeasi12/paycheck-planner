@@ -116,6 +116,31 @@ export function itemsDueInWindow<T extends { amount: number; due_date: number | 
   return out
 }
 
+export type ItemStatus = "alreadyDue" | "upcoming"
+export type ClassifiedItem<T> = T & { occurrenceDate: string; itemStatus: ItemStatus }
+
+// Splits bills/debts into "already due earlier this cycle" (this month's
+// occurrence falls on or before today, so it's assumed already paid out of
+// a previous paycheck) vs "due before your next paycheck" (still to come,
+// and what Safe-to-Spend's billsDue/debtsDue actually subtracts). Built so
+// a big bill like a mortgage that quietly drops out of the subtraction --
+// because its due day already passed this month -- doesn't just vanish
+// with no explanation; the UI can show both lists instead of just a total.
+export function classifyItemsAroundCycle<T extends { amount: number; due_date: number | null }>(
+  rows: T[],
+  todayISO: string,
+  nextPaycheckISO: string
+): ClassifiedItem<T>[] {
+  const today = new Date(todayISO + "T00:00:00")
+  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+  const scanFromISO = toISODate(addDays(monthStart, -1))
+  const items = itemsDueInWindow(rows, scanFromISO, nextPaycheckISO)
+  return items.map((it) => ({
+    ...it,
+    itemStatus: (it.occurrenceDate <= todayISO ? "alreadyDue" : "upcoming") as ItemStatus,
+  }))
+}
+
 export function sumDueInWindow(
   rows: { amount: number; due_date: number | null }[],
   fromISO: string,

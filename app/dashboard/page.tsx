@@ -9,10 +9,12 @@ import InfoHint from "@/app/components/InfoHint"
 import PaycheckCountdown from "@/app/components/PaycheckCountdown"
 import WhatIfSpend from "@/app/components/WhatIfSpend"
 import PaycheckSurplusPrompt from "@/app/components/PaycheckSurplusPrompt"
-import { computeSafeToSpend } from "@/lib/safeToSpend"
+import { computeSafeToSpend, withStartingCash } from "@/lib/safeToSpend"
 import { detectClosedCycleSurplus } from "@/lib/paycheckSurplus"
 import { detectStartingCycleSnapshot } from "@/lib/planDrift"
-import { projectPaycheckCycles } from "@/lib/paycheckCycles"
+import { classifyItemsAroundCycle, projectPaycheckCycles, toISODate } from "@/lib/paycheckCycles"
+import { nearestWeakCycle } from "@/lib/planResilience"
+import { resolveStartingCash, type CashBalanceRow } from "@/lib/cashBalance"
 import { computeCapacityForCycles, generatePaycheckTalk } from "@/lib/paycheckCapacity"
 import PaycheckTalkCard from "@/app/components/PaycheckTalkCard"
 import AchievementsStrip from "@/app/components/AchievementsStrip"
@@ -144,7 +146,52 @@ export default async function DashboardPage() {
   // flat "this calendar month" version. Same debts/income already fetched
   // above; bills/income just needed due_date/next_pay_date added to their
   // selects.
-  const safeToSpendResult = computeSafeToSpend({ income, bills, debts, goals })
+  let safeToSpendResult = computeSafeToSpend({ income, bills, debts, goals })
+
+  // QA fix (Sep 3 2026, Vince): "$1,631.37 safe to spend, but my mortgage is
+  // due this month" -- the math was right (the mortgage's due day had
+  // already passed this month, so it's assumed already paid from the PRIOR
+  // paycheck), but the number is still just a projection off "last
+  // paycheck," not a real balance. Ground it in one when the user's
+  // provided one -- a manual balance or a linked imported account (see
+  // lib/cashBalance.ts) -- falling back to the original projection when
+  // they haven't.
+  const { data: cashRow } = await supabase
+    .from("cash_balance")
+    .select("manual_balance, manual_balance_updated_at, linked_account_label, linked_starting_balance")
+    .eq("user_id", user.id)
+    .maybeSingle()
+  let linkedAccountSum: number | null = null
+  if (cashRow?.linked_account_label) {
+    const { data: txns } = await supabase
+      .from("transactions")
+      .select("amount")
+      .eq("user_id", user.id)
+      .eq("account_label", cashRow.linked_account_label)
+    linkedAccountSum = (txns ?? []).reduce((sum, t) => sum + Number(t.amount || 0), 0)
+  }
+  const startingCash = resolveStartingCash(
+    cashRow as CashBalanceRow | null,
+    linkedAccountSum,
+    safeToSpendResult.lastPaycheckAmount
+  )
+  safeToSpendResult = withStartingCash(safeToSpendResult, startingCash)
+
+  // Same "why isn't my mortgage counted" transparency as Survival Mode --
+  // splits bills/debts into "still to come before payday" (what's actually
+  // subtracted above) vs "already due earlier this cycle" (assumed already
+  // paid, so excluded) instead of letting a big bill just silently vanish.
+  let classifiedBills: ReturnType<typeof classifyItemsAroundCycle<typeof bills[number]>> = []
+  let classifiedDebts: ReturnType<typeof classifyItemsAroundCycle<typeof debts[number]>> = []
+  if (safeToSpendResult.nextPaycheckDate) {
+    const todayISO = toISODate(new Date())
+    classifiedBills = classifyItemsAroundCycle(bills, todayISO, safeToSpendResult.nextPaycheckDate)
+    classifiedDebts = classifyItemsAroundCycle(
+      debts.map((d) => ({ ...d, amount: d.minimum_payment })),
+      todayISO,
+      safeToSpendResult.nextPaycheckDate
+    )
+  }
 
   // Paycheck Capacity / "If This Paycheck Could Talk" (Aug 26 2026): reuses
   // the same projected cycles Paycheck Shield already computes -- no new
@@ -155,6 +202,12 @@ export default async function DashboardPage() {
   // Surplus/Drift detectors below already handle gracefully.
   const upcomingCycles = projectPaycheckCycles({ income, bills, debts, goals })
   const paycheckTalk = generatePaycheckTalk(computeCapacityForCycles(upcomingCycles))
+
+  // Cross-links Paycheck Shield's own projection right here -- Safe to
+  // Spend only ever looks at the very next paycheck, so a bill landing two
+  // paychecks out (a mortgage, say) can leave this card looking calm while
+  // Paycheck Shield already knows that later cycle is in trouble.
+  const nearTermRisk = nearestWeakCycle(upcomingCycles)
 
   // Paycheck Surplus (Aug 26 2026): if a cycle just closed with money still
   // left in it (per the same Safe-to-Spend math above), record one decision
@@ -236,7 +289,13 @@ export default async function DashboardPage() {
           goals={goals.map((g) => ({ id: g.id, title: g.title }))}
         />
       )}
-      <PaycheckCountdown result={safeToSpendResult} />
+      <PaycheckCountdown
+        result={safeToSpendResult}
+        startingCash={startingCash}
+        classifiedBills={classifiedBills}
+        classifiedDebts={classifiedDebts}
+        risk={nearTermRisk}
+      />
       <WhatIfSpend result={safeToSpendResult} />
       {paycheckTalk && <PaycheckTalkCard narrative={paycheckTalk} />}
       <SummaryCards netWorth={-totalDebt} totalDebt={totalDebt} monthlyPayments={monthlyPayments} percentPaid={percentPaid} />

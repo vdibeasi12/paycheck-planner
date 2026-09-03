@@ -54,6 +54,13 @@ export type SafeToSpendResult = {
   goalContribution: number
   safeToSpend: number
   dailyLimit: number | null
+  // What safeToSpend was actually computed from -- defaults to
+  // lastPaycheckAmount/"lastPaycheck" here; see withStartingCash() below for
+  // grounding this in a real balance (manual entry or a linked imported
+  // account) instead of the projection-only default.
+  startingCash: number
+  startingCashSource: "lastPaycheck" | "manualBalance" | "linkedAccount"
+  startingCashLabel: string | null
 }
 
 export type WhatIfVerdict = "fine" | "tight" | "not-recommended"
@@ -91,6 +98,9 @@ export function computeSafeToSpend(input: {
     goalContribution: 0,
     safeToSpend: 0,
     dailyLimit: null,
+    startingCash: 0,
+    startingCashSource: "lastPaycheck",
+    startingCashLabel: null,
   }
   if (!hasIncome || missingPayDate) return empty
 
@@ -147,6 +157,37 @@ export function computeSafeToSpend(input: {
     goalContribution,
     safeToSpend,
     dailyLimit,
+    startingCash: lastPaycheckAmount,
+    startingCashSource: "lastPaycheck",
+    startingCashLabel: null,
+  }
+}
+
+// Re-grounds an already-computed Safe-to-Spend result in a real starting-
+// cash figure (see lib/cashBalance.ts's resolveStartingCash()) instead of
+// the projection-only lastPaycheckAmount -- same billsDue/debtsDue/
+// goalContribution (still just "what's due before your next paycheck"),
+// just a more accurate number to subtract them from. A no-op when the
+// result couldn't be computed in the first place (no income/pay date).
+export function withStartingCash(
+  result: SafeToSpendResult,
+  cash: { amount: number; source: SafeToSpendResult["startingCashSource"]; label: string | null }
+): SafeToSpendResult {
+  if (!result.hasIncome || result.missingPayDate || !result.nextPaycheckDate) {
+    return result
+  }
+  const safeToSpend = cash.amount - result.billsDue - result.debtsDue - result.goalContribution
+  const dailyLimit =
+    result.daysUntilNextPaycheck != null && result.daysUntilNextPaycheck > 0
+      ? safeToSpend / result.daysUntilNextPaycheck
+      : safeToSpend
+  return {
+    ...result,
+    safeToSpend,
+    dailyLimit,
+    startingCash: cash.amount,
+    startingCashSource: cash.source,
+    startingCashLabel: cash.label,
   }
 }
 
