@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server"
 import { computeSafeToSpend, withStartingCash } from "@/lib/safeToSpend"
 import { classifyItemsAroundCycle, projectPaycheckCycles, toISODate } from "@/lib/paycheckCycles"
 import { nearestWeakCycle } from "@/lib/planResilience"
-import { resolveStartingCash, type CashBalanceRow } from "@/lib/cashBalance"
+import { resolveStartingCash, resolveAccountBalance, type CashAccountRow } from "@/lib/cashBalance"
 import SurvivalModeView from "@/app/components/SurvivalModeView"
 
 /**
@@ -38,30 +38,35 @@ export default async function SurvivalModePage() {
     supabase.from("debts").select("id, name, minimum_payment, due_date").eq("user_id", user.id),
     supabase.from("financial_goals").select("target_amount, current_amount, deadline, status").eq("user_id", user.id),
     supabase
-      .from("cash_balance")
-      .select("manual_balance, manual_balance_updated_at, linked_account_label, linked_starting_balance")
+      .from("cash_accounts")
+      .select("id, label, manual_balance, manual_balance_updated_at, linked_account_label, linked_starting_balance")
       .eq("user_id", user.id)
-      .maybeSingle(),
+      .order("sort_order", { ascending: true }),
   ])
 
   const income = incomeRes.data ?? []
   const bills = billsRes.data ?? []
   const debts = debtsRes.data ?? []
   const goals = goalsRes.data ?? []
-  const cashRow = (cashRes.data ?? null) as CashBalanceRow | null
+  const cashRows = (cashRes.data ?? []) as CashAccountRow[]
 
   let result = computeSafeToSpend({ income, bills, debts, goals })
 
-  let linkedSum: number | null = null
-  if (cashRow?.linked_account_label) {
-    const { data: txns } = await supabase
-      .from("transactions")
-      .select("amount")
-      .eq("user_id", user.id)
-      .eq("account_label", cashRow.linked_account_label)
-    linkedSum = (txns ?? []).reduce((sum, t) => sum + Number(t.amount || 0), 0)
-  }
-  const startingCash = resolveStartingCash(cashRow, linkedSum, result.lastPaycheckAmount)
+  const resolvedAccounts = await Promise.all(
+    cashRows.map(async (row) => {
+      let linkedSum: number | null = null
+      if (row.linked_account_label) {
+        const { data: txns } = await supabase
+          .from("transactions")
+          .select("amount")
+          .eq("user_id", user.id)
+          .eq("account_label", row.linked_account_label)
+        linkedSum = (txns ?? []).reduce((sum, t) => sum + Number(t.amount || 0), 0)
+      }
+      return resolveAccountBalance(row, linkedSum)
+    })
+  )
+  const startingCash = resolveStartingCash(resolvedAccounts, result.lastPaycheckAmount)
   result = withStartingCash(result, startingCash)
 
   type DebtWithAmount = { id: string; name: string; amount: number; due_date: number | null }

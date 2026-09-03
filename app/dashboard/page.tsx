@@ -14,7 +14,7 @@ import { detectClosedCycleSurplus } from "@/lib/paycheckSurplus"
 import { detectStartingCycleSnapshot } from "@/lib/planDrift"
 import { classifyItemsAroundCycle, projectPaycheckCycles, toISODate } from "@/lib/paycheckCycles"
 import { nearestWeakCycle } from "@/lib/planResilience"
-import { resolveStartingCash, type CashBalanceRow } from "@/lib/cashBalance"
+import { resolveStartingCash, resolveAccountBalance, type CashAccountRow } from "@/lib/cashBalance"
 import { computeCapacityForCycles, generatePaycheckTalk } from "@/lib/paycheckCapacity"
 import PaycheckTalkCard from "@/app/components/PaycheckTalkCard"
 import AchievementsStrip from "@/app/components/AchievementsStrip"
@@ -151,30 +151,32 @@ export default async function DashboardPage() {
   // QA fix (Sep 3 2026, Vince): "$1,631.37 safe to spend, but my mortgage is
   // due this month" -- the math was right (the mortgage's due day had
   // already passed this month, so it's assumed already paid from the PRIOR
-  // paycheck), but the number is still just a projection off "last
-  // paycheck," not a real balance. Ground it in one when the user's
-  // provided one -- a manual balance or a linked imported account (see
-  // lib/cashBalance.ts) -- falling back to the original projection when
-  // they haven't.
-  const { data: cashRow } = await supabase
-    .from("cash_balance")
-    .select("manual_balance, manual_balance_updated_at, linked_account_label, linked_starting_balance")
+  // paycheck), but the number was still just a projection off "last
+  // paycheck," not real money. Ground it in the user's real accounts when
+  // they've added any (see lib/cashBalance.ts) -- summed together, since
+  // bills/debts often draw from more than one bank -- falling back to the
+  // original projection when they haven't added any yet.
+  const { data: cashAccountRows } = await supabase
+    .from("cash_accounts")
+    .select("id, label, manual_balance, manual_balance_updated_at, linked_account_label, linked_starting_balance")
     .eq("user_id", user.id)
-    .maybeSingle()
-  let linkedAccountSum: number | null = null
-  if (cashRow?.linked_account_label) {
-    const { data: txns } = await supabase
-      .from("transactions")
-      .select("amount")
-      .eq("user_id", user.id)
-      .eq("account_label", cashRow.linked_account_label)
-    linkedAccountSum = (txns ?? []).reduce((sum, t) => sum + Number(t.amount || 0), 0)
-  }
-  const startingCash = resolveStartingCash(
-    cashRow as CashBalanceRow | null,
-    linkedAccountSum,
-    safeToSpendResult.lastPaycheckAmount
+    .order("sort_order", { ascending: true })
+  const cashRows = (cashAccountRows ?? []) as CashAccountRow[]
+  const resolvedAccounts = await Promise.all(
+    cashRows.map(async (row) => {
+      let linkedSum: number | null = null
+      if (row.linked_account_label) {
+        const { data: txns } = await supabase
+          .from("transactions")
+          .select("amount")
+          .eq("user_id", user.id)
+          .eq("account_label", row.linked_account_label)
+        linkedSum = (txns ?? []).reduce((sum, t) => sum + Number(t.amount || 0), 0)
+      }
+      return resolveAccountBalance(row, linkedSum)
+    })
   )
+  const startingCash = resolveStartingCash(resolvedAccounts, safeToSpendResult.lastPaycheckAmount)
   safeToSpendResult = withStartingCash(safeToSpendResult, startingCash)
 
   // Same "why isn't my mortgage counted" transparency as Survival Mode --

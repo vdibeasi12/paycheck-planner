@@ -22,10 +22,9 @@ type Props = {
 }
 
 function sourceLabel(startingCash?: StartingCash): string {
-  if (!startingCash) return "your last paycheck"
-  if (startingCash.source === "linkedAccount") return `your "${startingCash.label}" imported balance`
-  if (startingCash.source === "manualBalance") return "the balance you entered"
-  return "your last paycheck"
+  if (!startingCash || startingCash.source === "lastPaycheck") return "your last paycheck"
+  if (startingCash.accounts.length === 1) return `your "${startingCash.label}" balance`
+  return `your ${startingCash.label}`
 }
 
 function formatDate(iso: string): string {

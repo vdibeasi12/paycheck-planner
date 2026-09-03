@@ -56,10 +56,10 @@ export type SafeToSpendResult = {
   dailyLimit: number | null
   // What safeToSpend was actually computed from -- defaults to
   // lastPaycheckAmount/"lastPaycheck" here; see withStartingCash() below for
-  // grounding this in a real balance (manual entry or a linked imported
-  // account) instead of the projection-only default.
+  // grounding this in real account balances (lib/cashBalance.ts) instead of
+  // the projection-only default.
   startingCash: number
-  startingCashSource: "lastPaycheck" | "manualBalance" | "linkedAccount"
+  startingCashSource: "lastPaycheck" | "accounts"
   startingCashLabel: string | null
 }
 
@@ -164,8 +164,9 @@ export function computeSafeToSpend(input: {
 }
 
 // Re-grounds an already-computed Safe-to-Spend result in a real starting-
-// cash figure (see lib/cashBalance.ts's resolveStartingCash()) instead of
-// the projection-only lastPaycheckAmount -- same billsDue/debtsDue/
+// cash figure -- the sum of every account the user's told us about (see
+// lib/cashBalance.ts's resolveStartingCash()) -- instead of the
+// projection-only lastPaycheckAmount. Same billsDue/debtsDue/
 // goalContribution (still just "what's due before your next paycheck"),
 // just a more accurate number to subtract them from. A no-op when the
 // result couldn't be computed in the first place (no income/pay date).
