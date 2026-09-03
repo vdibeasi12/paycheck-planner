@@ -1,4 +1,4 @@
-// lib/iap.ts
+﻿// lib/iap.ts
 // Thin wrapper around the RevenueCat Capacitor SDK (@revenuecat/purchases-capacitor),
 // which bridges to native StoreKit on iOS. This is the ONLY purchase path that
 // should ever run inside the iOS app -- App Store Guideline 3.1.1 requires paid
@@ -159,11 +159,25 @@ export async function restoreIAPPurchases(): Promise<PurchaseResult> {
   }
 }
 
-/** Open the native "Manage Subscriptions" screen (App Store account settings). */
+/**
+ * Open the native "Manage Subscriptions" screen (App Store account settings).
+ *
+ * The RevenueCat Capacitor plugin has no showManageSubscriptions() method --
+ * that's a native-SDK-only call. The supported cross-platform way is to read
+ * CustomerInfo.managementURL (an apps.apple.com/account/subscriptions link
+ * for App Store subscriptions) and open it, same as every other external
+ * link in this app (see SubscriptionCard.tsx, PaywallOverlay.tsx, etc.).
+ */
 export async function showManageSubscriptions(): Promise<void> {
   if (!isIOSApp()) return;
   const { Purchases } = await import("@revenuecat/purchases-capacitor");
-  await Purchases.showManageSubscriptions();
+  const { customerInfo } = await Purchases.getCustomerInfo();
+  if (!customerInfo.managementURL) {
+    console.error("showManageSubscriptions: no managementURL on CustomerInfo");
+    return;
+  }
+  const { Browser } = await import("@capacitor/browser");
+  await Browser.open({ url: customerInfo.managementURL });
 }
 
 // Thin adapter from RevenueCat's CustomerInfo.entitlements.active shape
