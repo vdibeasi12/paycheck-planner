@@ -12,7 +12,12 @@ import PaycheckSurplusPrompt from "@/app/components/PaycheckSurplusPrompt"
 import { computeSafeToSpend, withStartingCash } from "@/lib/safeToSpend"
 import { detectClosedCycleSurplus } from "@/lib/paycheckSurplus"
 import { detectStartingCycleSnapshot } from "@/lib/planDrift"
-import { classifyItemsAroundCycle, projectPaycheckCycles, toISODate } from "@/lib/paycheckCycles"
+import {
+  classifyItemsAroundCycle,
+  excludeTransferCoveredDebts,
+  projectPaycheckCycles,
+  toISODate,
+} from "@/lib/paycheckCycles"
 import { nearestWeakCycle } from "@/lib/planResilience"
 import { resolveStartingCash, resolveAccountBalance, type CashAccountRow } from "@/lib/cashBalance"
 import { computeCapacityForCycles, generatePaycheckTalk } from "@/lib/paycheckCapacity"
@@ -183,13 +188,21 @@ export default async function DashboardPage() {
   // splits bills/debts into "still to come before payday" (what's actually
   // subtracted above) vs "already due earlier this cycle" (assumed already
   // paid, so excluded) instead of letting a big bill just silently vanish.
+  // Debts marked covered_by_transfer (paid automatically from a linked
+  // transfer -- see lib/paycheckCycles.ts) are left out of this list
+  // entirely, same as they're left out of billsDue/debtsDue above: they're
+  // not part of what this paycheck covers.
+  const spendableDebts = excludeTransferCoveredDebts(debts)
+  const coveredDebts = debts
+    .filter((d) => d.covered_by_transfer)
+    .map((d) => ({ name: d.name, amount: Number(d.minimum_payment) || 0 }))
   let classifiedBills: ReturnType<typeof classifyItemsAroundCycle<typeof bills[number]>> = []
   let classifiedDebts: ReturnType<typeof classifyItemsAroundCycle<typeof debts[number]>> = []
   if (safeToSpendResult.nextPaycheckDate) {
     const todayISO = toISODate(new Date())
     classifiedBills = classifyItemsAroundCycle(bills, todayISO, safeToSpendResult.nextPaycheckDate)
     classifiedDebts = classifyItemsAroundCycle(
-      debts.map((d) => ({ ...d, amount: d.minimum_payment })),
+      spendableDebts.map((d) => ({ ...d, amount: d.minimum_payment })),
       todayISO,
       safeToSpendResult.nextPaycheckDate
     )
@@ -296,6 +309,7 @@ export default async function DashboardPage() {
         startingCash={startingCash}
         classifiedBills={classifiedBills}
         classifiedDebts={classifiedDebts}
+        coveredDebts={coveredDebts}
         risk={nearTermRisk}
       />
       <WhatIfSpend result={safeToSpendResult} />

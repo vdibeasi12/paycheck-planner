@@ -9,6 +9,7 @@ import {
   projectPaycheckCycles,
   itemsDueInWindow,
   sumDueInWindow,
+  excludeTransferCoveredDebts,
   toISODate,
   addDays,
   type CycleIncome,
@@ -115,7 +116,7 @@ function applyScenario(
       const extendedTo = toISODate(addDays(new Date(c.date + "T00:00:00"), scenario.value))
       adjustedBillsDue = sumDueInWindow(bills, c.windowStart, extendedTo)
       adjustedDebtsDue = sumDueInWindow(
-        debts.map((d) => ({ amount: d.minimum_payment, due_date: d.due_date })),
+        excludeTransferCoveredDebts(debts).map((d) => ({ amount: d.minimum_payment, due_date: d.due_date })),
         c.windowStart,
         extendedTo
       )

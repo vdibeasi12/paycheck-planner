@@ -29,6 +29,7 @@ interface Debt {
   minimum_payment: number
   debt_type: string | null
   escrow_payment: number | null
+  covered_by_transfer: boolean
   created_at: string
 }
 
@@ -39,6 +40,7 @@ type EditState = {
   minimum_payment: string
   debt_type: string
   escrow_payment: string
+  covered_by_transfer: boolean
 }
 
 const EMPTY_EDIT: EditState = {
@@ -48,6 +50,7 @@ const EMPTY_EDIT: EditState = {
   minimum_payment: '',
   debt_type: '',
   escrow_payment: '',
+  covered_by_transfer: false,
 }
 
 export default function DebtsPage() {
@@ -59,6 +62,7 @@ export default function DebtsPage() {
   const [minPayment, setMinPayment] = useState('')
   const [debtType, setDebtType] = useState('')
   const [escrowPayment, setEscrowPayment] = useState('')
+  const [coveredByTransfer, setCoveredByTransfer] = useState(false)
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [edit, setEdit] = useState<EditState>(EMPTY_EDIT)
@@ -170,7 +174,9 @@ export default function DebtsPage() {
     try {
       const { data } = await supabase
         .from('debts')
-        .select('id, name, balance, original_balance, interest_rate, minimum_payment, debt_type, escrow_payment, created_at')
+        .select(
+          'id, name, balance, original_balance, interest_rate, minimum_payment, debt_type, escrow_payment, covered_by_transfer, created_at'
+        )
         .order('balance', { ascending: true })
       if (data) setItems(data as Debt[])
     } catch (error) {
@@ -215,6 +221,7 @@ export default function DebtsPage() {
         minimum_payment: minPayment === '' ? 0 : Number(minPayment),
         debt_type: debtType || null,
         escrow_payment: escrowPayment === '' ? null : Number(escrowPayment),
+        covered_by_transfer: coveredByTransfer,
       })
       if (error) throw error
       setName('')
@@ -223,6 +230,7 @@ export default function DebtsPage() {
       setMinPayment('')
       setDebtType('')
       setEscrowPayment('')
+      setCoveredByTransfer(false)
       loadDebts()
       // First debt added earns "debt_tracker" -- check right now instead of
       // waiting for a later dashboard visit.
@@ -266,6 +274,7 @@ export default function DebtsPage() {
       minimum_payment: String(d.minimum_payment ?? ''),
       debt_type: d.debt_type ?? '',
       escrow_payment: d.escrow_payment != null ? String(d.escrow_payment) : '',
+      covered_by_transfer: !!d.covered_by_transfer,
     })
   }
 
@@ -293,6 +302,7 @@ export default function DebtsPage() {
           minimum_payment: edit.minimum_payment === '' ? 0 : Number(edit.minimum_payment),
           debt_type: edit.debt_type || null,
           escrow_payment: edit.escrow_payment === '' ? null : Number(edit.escrow_payment),
+          covered_by_transfer: edit.covered_by_transfer,
         })
         .eq('id', id)
       if (error) throw error
@@ -455,6 +465,19 @@ export default function DebtsPage() {
                     </p>
                   </div>
                 )}
+                <label className="flex items-start gap-2 text-sm text-gray-400">
+                  <input
+                    type="checkbox"
+                    checked={coveredByTransfer}
+                    onChange={(e) => setCoveredByTransfer(e.target.checked)}
+                    className="mt-0.5 shrink-0"
+                  />
+                  <span>
+                    Paid automatically from a linked transfer (e.g. this comes out of a different account than your
+                    main paycheck deposit) -- excludes it from Safe to Spend/Survival Mode so it's not subtracted
+                    twice.
+                  </span>
+                </label>
                 <button
                   type="submit"
                   disabled={atLimit}
@@ -840,6 +863,15 @@ export default function DebtsPage() {
                             </p>
                           </div>
                         )}
+                        <label className="flex items-start gap-2 text-xs text-gray-400">
+                          <input
+                            type="checkbox"
+                            checked={edit.covered_by_transfer}
+                            onChange={(e) => setEdit({ ...edit, covered_by_transfer: e.target.checked })}
+                            className="mt-0.5 shrink-0"
+                          />
+                          <span>Paid automatically from a linked transfer (excludes it from Safe to Spend)</span>
+                        </label>
                         <div className="flex gap-2">
                           <button
                             onClick={() => saveEdit(d.id)}
@@ -878,6 +910,14 @@ export default function DebtsPage() {
                             {excludedIds.has(d.id) && (
                               <span className="rounded-full bg-gray-700/60 px-2 py-0.5 text-xs font-medium text-gray-400">
                                 not in plan
+                              </span>
+                            )}
+                            {d.covered_by_transfer && (
+                              <span
+                                className="rounded-full bg-sky-500/10 px-2 py-0.5 text-xs font-medium text-sky-300"
+                                title="Excluded from Safe to Spend/Survival Mode -- paid automatically from a linked transfer instead."
+                              >
+                                paid via transfer
                               </span>
                             )}
                             {noMinPaymentIds.has(d.id) && (

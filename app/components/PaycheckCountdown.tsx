@@ -18,6 +18,7 @@ type Props = {
   startingCash?: StartingCash
   classifiedBills?: ClassifiedItem<NamedRow>[]
   classifiedDebts?: ClassifiedItem<NamedRow>[]
+  coveredDebts?: { name: string; amount: number }[]
   risk?: NearTermRisk | null
 }
 
@@ -42,7 +43,14 @@ function formatDate(iso: string): string {
  * paycheck" rather than "your balance" -- this app has no live bank-balance
  * connection, so it doesn't get to claim it knows one.
  */
-export default function PaycheckCountdown({ result, startingCash, classifiedBills = [], classifiedDebts = [], risk }: Props) {
+export default function PaycheckCountdown({
+  result,
+  startingCash,
+  classifiedBills = [],
+  classifiedDebts = [],
+  coveredDebts = [],
+  risk,
+}: Props) {
   const formatMoney = useFormatCurrency()
   const upcomingItems = [...classifiedBills, ...classifiedDebts]
     .filter((i) => i.itemStatus === "upcoming")
@@ -106,10 +114,25 @@ export default function PaycheckCountdown({ result, startingCash, classifiedBill
       </p>
 
       <div className="mt-4 space-y-1.5 text-sm text-gray-400">
-        <div className="flex justify-between">
-          <span>Starting from {sourceLabel(startingCash)}</span>
-          <span className="text-gray-200">{formatMoney(result.startingCash)}</span>
-        </div>
+        {startingCash && startingCash.source === "accounts" ? (
+          <div className="flex justify-between">
+            <span>Starting from {sourceLabel(startingCash)}</span>
+            <span className="text-gray-200">{formatMoney(result.startingCash)}</span>
+          </div>
+        ) : (
+          <>
+            <div className="flex justify-between">
+              <span>Your last paycheck</span>
+              <span className="text-gray-200">{formatMoney(result.lastPaycheckAmount)}</span>
+            </div>
+            {result.transfersOut > 0 && (
+              <div className="flex justify-between">
+                <span>Automatic transfer out</span>
+                <span className="text-gray-200">-{formatMoney(result.transfersOut)}</span>
+              </div>
+            )}
+          </>
+        )}
         {result.billsDue > 0 && (
           <div className="flex justify-between">
             <span>Upcoming bills</span>
@@ -166,6 +189,16 @@ export default function PaycheckCountdown({ result, startingCash, classifiedBill
             title="Already due earlier this cycle"
             hint="Due day already passed this month, so this is assumed already paid from your last paycheck -- not subtracted above. If it hasn't actually gone out yet, your real Safe to Spend is lower than shown."
             items={alreadyDueItems}
+          />
+        </div>
+      )}
+
+      {coveredDebts.length > 0 && (
+        <div className="mt-2">
+          <PaycheckItemBreakdown
+            title="Covered by an automatic transfer"
+            hint="Paid from a linked account this paycheck automatically sweeps money to -- not part of what's subtracted above, so it's not double-counted."
+            items={coveredDebts}
           />
         </div>
       )}

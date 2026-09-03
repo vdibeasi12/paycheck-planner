@@ -1,7 +1,12 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { computeSafeToSpend, withStartingCash } from "@/lib/safeToSpend"
-import { classifyItemsAroundCycle, projectPaycheckCycles, toISODate } from "@/lib/paycheckCycles"
+import {
+  classifyItemsAroundCycle,
+  excludeTransferCoveredDebts,
+  projectPaycheckCycles,
+  toISODate,
+} from "@/lib/paycheckCycles"
 import { nearestWeakCycle } from "@/lib/planResilience"
 import { resolveStartingCash, resolveAccountBalance, type CashAccountRow } from "@/lib/cashBalance"
 import SurvivalModeView from "@/app/components/SurvivalModeView"
@@ -35,7 +40,7 @@ export default async function SurvivalModePage() {
   const [incomeRes, billsRes, debtsRes, goalsRes, cashRes] = await Promise.all([
     supabase.from("income").select("amount, frequency, next_pay_date, income_type").eq("user_id", user.id),
     supabase.from("bills").select("id, name, amount, due_date").eq("user_id", user.id),
-    supabase.from("debts").select("id, name, minimum_payment, due_date").eq("user_id", user.id),
+    supabase.from("debts").select("id, name, minimum_payment, due_date, covered_by_transfer").eq("user_id", user.id),
     supabase.from("financial_goals").select("target_amount, current_amount, deadline, status").eq("user_id", user.id),
     supabase
       .from("cash_accounts")
@@ -69,14 +74,23 @@ export default async function SurvivalModePage() {
   const startingCash = resolveStartingCash(resolvedAccounts, result.lastPaycheckAmount)
   result = withStartingCash(result, startingCash)
 
+  // Debts covered_by_transfer are paid automatically from a linked transfer
+  // (see lib/paycheckCycles.ts) -- left out of the "what's due" lists below
+  // just like they're left out of debtsDue itself, and called out
+  // separately so a mortgage/car loan doesn't just silently disappear with
+  // no explanation.
   type DebtWithAmount = { id: string; name: string; amount: number; due_date: number | null }
+  const spendableDebts = excludeTransferCoveredDebts(debts)
+  const coveredDebts = debts
+    .filter((d) => d.covered_by_transfer)
+    .map((d) => ({ name: d.name, amount: Number(d.minimum_payment) || 0 }))
   let classifiedBills: ReturnType<typeof classifyItemsAroundCycle<typeof bills[number]>> = []
   let classifiedDebts: ReturnType<typeof classifyItemsAroundCycle<DebtWithAmount>> = []
   if (result.nextPaycheckDate) {
     const todayISO = toISODate(new Date())
     classifiedBills = classifyItemsAroundCycle(bills, todayISO, result.nextPaycheckDate)
     classifiedDebts = classifyItemsAroundCycle(
-      debts.map((d) => ({ ...d, amount: d.minimum_payment })),
+      spendableDebts.map((d) => ({ ...d, amount: d.minimum_payment })),
       todayISO,
       result.nextPaycheckDate
     )
@@ -91,6 +105,7 @@ export default async function SurvivalModePage() {
       startingCash={startingCash}
       classifiedBills={classifiedBills}
       classifiedDebts={classifiedDebts}
+      coveredDebts={coveredDebts}
       risk={risk}
     />
   )

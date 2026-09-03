@@ -4,10 +4,16 @@ import Link from "next/link"
 import { Wrench } from "lucide-react"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import { itemsInCycleWindow } from "@/lib/planResilience"
-import type { PaycheckCycle } from "@/lib/paycheckCycles"
+import { excludeTransferCoveredDebts, type PaycheckCycle } from "@/lib/paycheckCycles"
 
 type BillRow = { id: string; name: string; amount: number; due_date: number | null }
-type DebtRow = { id: string; name: string; minimum_payment: number; due_date: number | null }
+type DebtRow = {
+  id: string
+  name: string
+  minimum_payment: number
+  due_date: number | null
+  covered_by_transfer?: boolean | null
+}
 
 type Props = {
   cycle: PaycheckCycle
@@ -38,7 +44,7 @@ export default function StrengthenPaycheckPanel({ cycle, bills, debts }: Props) 
   const hasGoalContribution = cycle.goalContribution > 0
   const debtsInWindow = itemsInCycleWindow(
     cycle,
-    debts.map((d) => ({ ...d, amount: d.minimum_payment }))
+    excludeTransferCoveredDebts(debts).map((d) => ({ ...d, amount: d.minimum_payment }))
   )
 
   const hasSuggestions = billsInWindow.length > 0 || hasGoalContribution

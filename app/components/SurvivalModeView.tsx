@@ -20,6 +20,7 @@ type Props = {
   startingCash: StartingCash
   classifiedBills: ClassifiedItem<NamedBill>[]
   classifiedDebts: ClassifiedItem<{ id: string; name: string; amount: number; due_date: number | null }>[]
+  coveredDebts?: { name: string; amount: number }[]
   risk: NearTermRisk | null
 }
 
@@ -45,7 +46,14 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
  * real-balance grounding, and a heads-up when Paycheck Shield's own
  * projection sees trouble coming soon.
  */
-export default function SurvivalModeView({ result, startingCash, classifiedBills, classifiedDebts, risk }: Props) {
+export default function SurvivalModeView({
+  result,
+  startingCash,
+  classifiedBills,
+  classifiedDebts,
+  coveredDebts = [],
+  risk,
+}: Props) {
   const formatMoney = useFormatCurrency()
 
   const cantProject = !result.hasIncome || result.missingPayDate || !result.nextPaycheckDate
@@ -81,6 +89,13 @@ export default function SurvivalModeView({ result, startingCash, classifiedBills
           {risk && <PlanRiskBanner risk={risk} />}
 
           <CashBalanceEditor startingCash={startingCash} />
+
+          {startingCash.source === "lastPaycheck" && result.transfersOut > 0 && (
+            <p className="text-xs text-gray-500">
+              Your last paycheck ({formatMoney(result.lastPaycheckAmount)}) minus an automatic transfer out (
+              {formatMoney(result.transfersOut)}) = {formatMoney(result.startingCash)} starting cash.
+            </p>
+          )}
 
           <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
             <Stat label="Starting cash" value={formatMoney(result.startingCash)} />
@@ -118,6 +133,14 @@ export default function SurvivalModeView({ result, startingCash, classifiedBills
                 items={[...alreadyDueBills, ...alreadyDueDebts]}
               />
             </div>
+          )}
+
+          {coveredDebts.length > 0 && (
+            <PaycheckItemBreakdown
+              title="Covered by an automatic transfer"
+              hint="Paid from a linked account this paycheck automatically sweeps money to -- not part of what's subtracted above, so it's not double-counted."
+              items={coveredDebts}
+            />
           )}
 
           <div>

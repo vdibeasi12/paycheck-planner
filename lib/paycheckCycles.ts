@@ -27,6 +27,14 @@ export type CycleBill = {
 export type CycleDebt = {
   minimum_payment: number
   due_date: number | null
+  // QA fix (Sep 3 2026, Vince): a debt paid automatically from a linked
+  // transfer (e.g. a second bank the paycheck sweeps money to for a
+  // mortgage/car loan) shouldn't ALSO be subtracted from this account's
+  // Safe to Spend -- that money already left via the transfer (see
+  // sumTransfersInWindow below), so counting the debt too would subtract it
+  // twice. Debts with this set are excluded from every debtsDue calculation
+  // in this file.
+  covered_by_transfer?: boolean | null
 }
 
 export type CycleGoal = {
@@ -46,7 +54,20 @@ export type PaycheckCycle = {
   billsDue: number
   debtsDue: number
   goalContribution: number
+  // Money swept out to another of the user's own accounts on this same
+  // date (see sumTransfersInWindow) -- already netted out of `amount`
+  // above, broken out here so the UI can show it as its own line instead of
+  // folding it silently into a smaller paycheck.
+  transfersOut: number
   cushion: number
+}
+
+// A debt not paid from this account's own money -- see CycleDebt's
+// covered_by_transfer comment. Filters (rather than a combined
+// "sum debts due, excluding transfers" helper) so every call site can keep
+// mapping its own row shape into { amount, due_date } afterward.
+export function excludeTransferCoveredDebts<T extends { covered_by_transfer?: boolean | null }>(debts: T[]): T[] {
+  return debts.filter((d) => !d.covered_by_transfer)
 }
 
 export function toISODate(d: Date): string {
@@ -86,6 +107,46 @@ export function projectIncomeOccurrences(
     }
   }
   return out.sort((a, b) => a.date.localeCompare(b.date))
+}
+
+// Every "transfer" income-row occurrence (date + amount) across the given
+// month range -- the mirror image of projectIncomeOccurrences above. Real
+// income projection excludes these because they're not new money; Safe to
+// Spend needs the opposite: they're a real, scheduled cash outflow (an
+// automatic sweep to another of the user's own accounts, e.g. one that
+// covers a mortgage/car loan there) that happens on the same schedule as a
+// paycheck, whether or not anything else is "due" yet.
+export function projectTransferOccurrences(
+  income: CycleIncome[],
+  startYear: number,
+  startMonth: number,
+  monthCount: number
+): { date: string; amount: number }[] {
+  const out: { date: string; amount: number }[] = []
+  const transfers = income.filter((i) => i.income_type === "transfer" && i.next_pay_date)
+  for (let step = 0; step < monthCount; step++) {
+    const idx = startYear * 12 + startMonth + step
+    const year = Math.floor(idx / 12)
+    const month = idx % 12
+    for (const inc of transfers) {
+      const dates = occurrencesInMonth(inc.next_pay_date!, (inc.frequency || "monthly") as Frequency, year, month)
+      for (const date of dates) {
+        out.push({ date, amount: Number(inc.amount) || 0 })
+      }
+    }
+  }
+  return out.sort((a, b) => a.date.localeCompare(b.date))
+}
+
+// Sum of transfer occurrences in (fromISO, toISO] -- same half-open window
+// convention as sumDueInWindow, so "the transfer tied to this paycheck" can
+// be found the same way a bill/debt due date is.
+export function sumTransfersInWindow(income: CycleIncome[], fromISO: string, toISO: string): number {
+  const from = new Date(fromISO + "T00:00:00")
+  const to = new Date(toISO + "T00:00:00")
+  const monthCount = to.getFullYear() * 12 + to.getMonth() - (from.getFullYear() * 12 + from.getMonth()) + 1
+  const occurrences = projectTransferOccurrences(income, from.getFullYear(), from.getMonth(), monthCount)
+  return occurrences.filter((o) => o.date > fromISO && o.date <= toISO).reduce((sum, o) => sum + o.amount, 0)
 }
 
 // Every bill/debt occurrence whose due date falls in (fromISO, toISO],
@@ -300,6 +361,19 @@ export function projectPaycheckCycles(input: {
   }
   const dates = Array.from(byDate.keys()).sort()
 
+  // Net each cycle's paycheck against any transfer landing on that same
+  // date (see sumTransfersInWindow) -- a transfer scheduled alongside the
+  // paycheck (same next_pay_date/frequency, e.g. an automatic sweep to
+  // another bank) leaves before it's ever "safe to spend," so it comes out
+  // of `amount` here rather than only being excluded from income.
+  const transferOccurrences = projectTransferOccurrences(input.income, scanStartYear, scanStartMonth, monthsForward + 3)
+  const transfersByDate = new Map<string, number>()
+  for (const t of transferOccurrences) {
+    transfersByDate.set(t.date, (transfersByDate.get(t.date) || 0) + t.amount)
+  }
+
+  const spendableDebts = excludeTransferCoveredDebts(input.debts)
+
   // Goal contributions are resolved across the whole set of cycle dates at
   // once (see goalContributionsForCycles) rather than per-cycle in this
   // loop -- an overdue goal's full remaining amount needs to land on
@@ -311,12 +385,13 @@ export function projectPaycheckCycles(input: {
   for (const date of dates) {
     const billsDue = sumDueInWindow(input.bills, windowStart, date)
     const debtsDue = sumDueInWindow(
-      input.debts.map((d) => ({ amount: d.minimum_payment, due_date: d.due_date })),
+      spendableDebts.map((d) => ({ amount: d.minimum_payment, due_date: d.due_date })),
       windowStart,
       date
     )
     const goalContribution = goalContributions.get(date) || 0
-    const amount = byDate.get(date) || 0
+    const transfersOut = transfersByDate.get(date) || 0
+    const amount = (byDate.get(date) || 0) - transfersOut
     cycles.push({
       date,
       windowStart,
@@ -324,6 +399,7 @@ export function projectPaycheckCycles(input: {
       billsDue,
       debtsDue,
       goalContribution,
+      transfersOut,
       cushion: amount - billsDue - debtsDue - goalContribution,
     })
     windowStart = date

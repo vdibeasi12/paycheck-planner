@@ -20,9 +20,12 @@
 
 import {
   toISODate,
+  addDays,
   daysBetween,
   projectIncomeOccurrences,
   sumDueInWindow,
+  sumTransfersInWindow,
+  excludeTransferCoveredDebts,
   goalContributionRate,
   type CycleIncome,
   type CycleBill,
@@ -52,6 +55,14 @@ export type SafeToSpendResult = {
   billsDue: number
   debtsDue: number
   goalContribution: number
+  // Money already swept out to another of the user's own accounts on the
+  // same day as lastPaycheckDate (an automatic transfer that funds a
+  // mortgage/car loan/personal loan elsewhere, say) -- real money that left
+  // before any of it was ever "safe to spend." Folded into the default
+  // startingCash below; debts actually paid FROM that transfer are excluded
+  // from debtsDue entirely (see CycleDebt.covered_by_transfer) so they're
+  // never subtracted twice.
+  transfersOut: number
   safeToSpend: number
   dailyLimit: number | null
   // What safeToSpend was actually computed from -- defaults to
@@ -96,6 +107,7 @@ export function computeSafeToSpend(input: {
     billsDue: 0,
     debtsDue: 0,
     goalContribution: 0,
+    transfersOut: 0,
     safeToSpend: 0,
     dailyLimit: null,
     startingCash: 0,
@@ -135,13 +147,23 @@ export function computeSafeToSpend(input: {
 
   const billsDue = sumDueInWindow(input.bills, todayStr, nextPaycheckDate)
   const debtsDue = sumDueInWindow(
-    input.debts.map((d) => ({ amount: d.minimum_payment, due_date: d.due_date })),
+    excludeTransferCoveredDebts(input.debts).map((d) => ({ amount: d.minimum_payment, due_date: d.due_date })),
     todayStr,
     nextPaycheckDate
   )
   const goalContribution = goalContributionRate(input.goals, input.income, todayStr)
 
-  const safeToSpend = lastPaycheckAmount - billsDue - debtsDue - goalContribution
+  // The transfer tied to the paycheck that already landed (same day, same
+  // schedule as lastPaycheckDate) -- money that's already gone by the time
+  // this is being asked, whether or not the user's tracked a real balance.
+  // Only ever subtracted from the lastPaycheck-projection fallback below;
+  // a real account balance (withStartingCash) already reflects it, since
+  // lastPaycheckDate is always in the past.
+  const dayBeforeLastPaycheck = toISODate(addDays(new Date(lastPaycheckDate + "T00:00:00"), -1))
+  const transfersOut = sumTransfersInWindow(input.income, dayBeforeLastPaycheck, lastPaycheckDate)
+
+  const startingCash = lastPaycheckAmount - transfersOut
+  const safeToSpend = startingCash - billsDue - debtsDue - goalContribution
   const daysUntilNextPaycheck = Math.max(0, daysBetween(todayStr, nextPaycheckDate))
   const dailyLimit = daysUntilNextPaycheck > 0 ? safeToSpend / daysUntilNextPaycheck : safeToSpend
 
@@ -155,9 +177,10 @@ export function computeSafeToSpend(input: {
     billsDue,
     debtsDue,
     goalContribution,
+    transfersOut,
     safeToSpend,
     dailyLimit,
-    startingCash: lastPaycheckAmount,
+    startingCash,
     startingCashSource: "lastPaycheck",
     startingCashLabel: null,
   }

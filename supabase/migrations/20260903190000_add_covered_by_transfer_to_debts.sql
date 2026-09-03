@@ -1,0 +1,13 @@
+-- QA fix (Sep 3 2026, Vince): Safe to Spend/Paycheck Shield were treating a
+-- recurring internal transfer (a biweekly sweep from the paycheck account to
+-- a second bank that covers a mortgage/car loan/personal loan there) as
+-- neither income nor an expense -- it was correctly excluded from "income"
+-- (lib/paycheckCycles.ts already does that), but the money leaving was never
+-- subtracted from what's actually left to spend. On top of that, the debts
+-- paid from that second account (funded by the transfer) were STILL being
+-- subtracted a second time from the paycheck account's Safe to Spend, double
+-- counting them. covered_by_transfer marks which debts are already handled
+-- by a linked transfer so the paycheck-cycle engine can exclude them from
+-- its own subtraction, while the transfer amount itself now gets subtracted
+-- once, explicitly, as "money already moved out."
+alter table public.debts add column if not exists covered_by_transfer boolean not null default false;
