@@ -27,7 +27,6 @@ interface Debt {
   original_balance: number | null
   interest_rate: number
   minimum_payment: number
-  due_date: number | null
   debt_type: string | null
   escrow_payment: number | null
   created_at: string
@@ -38,7 +37,6 @@ type EditState = {
   balance: string
   interest_rate: string
   minimum_payment: string
-  due_date: string
   debt_type: string
   escrow_payment: string
 }
@@ -48,7 +46,6 @@ const EMPTY_EDIT: EditState = {
   balance: '',
   interest_rate: '',
   minimum_payment: '',
-  due_date: '',
   debt_type: '',
   escrow_payment: '',
 }
@@ -60,7 +57,6 @@ export default function DebtsPage() {
   const [balance, setBalance] = useState('')
   const [rate, setRate] = useState('')
   const [minPayment, setMinPayment] = useState('')
-  const [dueDay, setDueDay] = useState('')
   const [debtType, setDebtType] = useState('')
   const [escrowPayment, setEscrowPayment] = useState('')
   const [loading, setLoading] = useState(true)
@@ -152,21 +148,6 @@ export default function DebtsPage() {
     [items]
   )
 
-  // Debts with no due date on file. This isn't just a display gap: Safe to
-  // Spend (lib/safeToSpend.ts, via lib/paycheckCycles.ts's itemsDueInWindow)
-  // skips a debt entirely when due_date is null -- it has no way to know
-  // which pay cycle the payment falls in. Older debts added before this
-  // field existed on this form silently drop their minimum payment out of
-  // Safe to Spend/Paycheck Shield, no matter how large -- a mortgage or auto
-  // loan with a real minimum payment but no due date reads as "free money"
-  // in every downstream projection until a due date is added (QA fix, Sep
-  // 2026 -- a user's mortgage + auto payment, ~$2,800/mo combined, were
-  // both silently excluded this way).
-  const noDueDateIds = useMemo(
-    () => new Set(items.filter((d) => d.due_date == null).map((d) => d.id)),
-    [items]
-  )
-
   async function loadPlan() {
     try {
       const { data: userAuth } = await supabase.auth.getUser()
@@ -189,7 +170,7 @@ export default function DebtsPage() {
     try {
       const { data } = await supabase
         .from('debts')
-        .select('id, name, balance, original_balance, interest_rate, minimum_payment, due_date, debt_type, escrow_payment, created_at')
+        .select('id, name, balance, original_balance, interest_rate, minimum_payment, debt_type, escrow_payment, created_at')
         .order('balance', { ascending: true })
       if (data) setItems(data as Debt[])
     } catch (error) {
@@ -232,7 +213,6 @@ export default function DebtsPage() {
         original_balance: Number(balance),
         interest_rate: rate === '' ? 0 : Number(rate),
         minimum_payment: minPayment === '' ? 0 : Number(minPayment),
-        due_date: dueDay === '' ? null : Number(dueDay),
         debt_type: debtType || null,
         escrow_payment: escrowPayment === '' ? null : Number(escrowPayment),
       })
@@ -241,7 +221,6 @@ export default function DebtsPage() {
       setBalance('')
       setRate('')
       setMinPayment('')
-      setDueDay('')
       setDebtType('')
       setEscrowPayment('')
       loadDebts()
@@ -285,7 +264,6 @@ export default function DebtsPage() {
       balance: String(d.balance ?? ''),
       interest_rate: String(d.interest_rate ?? ''),
       minimum_payment: String(d.minimum_payment ?? ''),
-      due_date: d.due_date != null ? String(d.due_date) : '',
       debt_type: d.debt_type ?? '',
       escrow_payment: d.escrow_payment != null ? String(d.escrow_payment) : '',
     })
@@ -313,7 +291,6 @@ export default function DebtsPage() {
           balance: newBalance,
           interest_rate: edit.interest_rate === '' ? 0 : Number(edit.interest_rate),
           minimum_payment: edit.minimum_payment === '' ? 0 : Number(edit.minimum_payment),
-          due_date: edit.due_date === '' ? null : Number(edit.due_date),
           debt_type: edit.debt_type || null,
           escrow_payment: edit.escrow_payment === '' ? null : Number(edit.escrow_payment),
         })
@@ -436,22 +413,6 @@ export default function DebtsPage() {
                     placeholder="0.00"
                     className={inputClass}
                   />
-                </div>
-                <div>
-                  <label className="text-gray-400 text-sm block mb-2">Due Day (1-31)</label>
-                  <input
-                    type="number"
-                    min="1"
-                    max="31"
-                    value={dueDay}
-                    onChange={(e) => setDueDay(e.target.value)}
-                    placeholder="15"
-                    className={inputClass}
-                  />
-                  <p className="mt-1.5 text-xs text-gray-500">
-                    Needed for Safe to Spend and Paycheck Shield to count this payment -- without
-                    it, this debt&apos;s minimum payment won&apos;t be subtracted anywhere.
-                  </p>
                 </div>
                 <div>
                   <label className="text-gray-400 text-sm block mb-2">Debt type</label>
@@ -814,7 +775,7 @@ export default function DebtsPage() {
                           placeholder="Name"
                           className={inputClass}
                         />
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                        <div className="grid grid-cols-3 gap-2">
                           <div>
                             <label className="text-gray-500 text-xs block mb-1">Balance</label>
                             <input
@@ -842,17 +803,6 @@ export default function DebtsPage() {
                               step="0.01"
                               value={edit.minimum_payment}
                               onChange={(e) => setEdit({ ...edit, minimum_payment: e.target.value })}
-                              className={inputClass}
-                            />
-                          </div>
-                          <div>
-                            <label className="text-gray-500 text-xs block mb-1">Due day</label>
-                            <input
-                              type="number"
-                              min="1"
-                              max="31"
-                              value={edit.due_date}
-                              onChange={(e) => setEdit({ ...edit, due_date: e.target.value })}
                               className={inputClass}
                             />
                           </div>
@@ -938,21 +888,12 @@ export default function DebtsPage() {
                                 no min. payment on file
                               </span>
                             )}
-                            {noDueDateIds.has(d.id) && (
-                              <span
-                                className="rounded-full bg-amber-500/10 px-2 py-0.5 text-xs font-medium text-amber-300"
-                                title="No due date on file -- Safe to Spend and Paycheck Shield won't count this payment until you add one."
-                              >
-                                no due date on file
-                              </span>
-                            )}
                           </h3>
                           <p className="text-gray-400 text-sm">
                             {Number(d.interest_rate).toFixed(2)}% APR
                             {Number(d.minimum_payment) > 0
                               ? ` - min ${formatMoney(Number(d.minimum_payment))}/mo`
                               : ''}
-                            {d.due_date != null ? ` - due day ${d.due_date}` : ''}
                             {Number(d.escrow_payment) > 0
                               ? ` (incl. ${formatMoney(Number(d.escrow_payment))} escrow)`
                               : ''}

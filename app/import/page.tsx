@@ -41,6 +41,15 @@ export default function ImportPage() {
   const [selections, setSelections] = useState<Record<string, { include: boolean; kind: 'income' | 'bill' }>>({})
   const [result, setResult] = useState<ImportResult | null>(null)
 
+  // Which real-world account this statement is for. Matters for Goals: a
+  // goal can be linked to just this account's imported history (see
+  // app/components/GoalTracker.tsx and lib/goalAutoCalc.ts) to calculate
+  // "what you've saved" automatically -- so a savings/cushion account
+  // needs its own distinct label, not lumped in with checking. Defaults to
+  // "Checking" since that's what most bill/income imports are.
+  const [accountLabel, setAccountLabel] = useState('Checking')
+  const [knownAccountLabels, setKnownAccountLabels] = useState<string[]>([])
+
   useEffect(() => {
     async function checkPlan() {
       try {
@@ -56,6 +65,14 @@ export default function ImportPage() {
           .maybeSingle()
         const effectivePlan = profile?.is_admin ? 'connected' : profile?.plan ?? 'free'
         setAllowed(isPremium(effectivePlan))
+
+        const { data: existing } = await supabase
+          .from('transactions')
+          .select('account_label')
+          .eq('user_id', auth.user.id)
+          .not('account_label', 'is', null)
+        const labels = Array.from(new Set((existing ?? []).map((r) => r.account_label).filter(Boolean))) as string[]
+        setKnownAccountLabels(labels)
       } catch (err) {
         console.error('Error checking plan:', err)
       } finally {
@@ -191,7 +208,12 @@ export default function ImportPage() {
       const res = await fetch('/api/transactions/import', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ transactions: analysis.transactions, confirmedRecurringGroups, source }),
+        body: JSON.stringify({
+          transactions: analysis.transactions,
+          confirmedRecurringGroups,
+          source,
+          accountLabel: accountLabel.trim() || 'Checking',
+        }),
       })
       const json = await res.json().catch(() => null)
       if (!res.ok || !json?.ok) {
@@ -263,6 +285,26 @@ export default function ImportPage() {
 
         {step === 'upload' && (
           <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-8 text-center">
+            <div className="mb-6 max-w-xs mx-auto text-left">
+              <label className="block text-sm font-medium text-gray-300 mb-1">Which account is this statement for?</label>
+              <input
+                type="text"
+                list="account-label-options"
+                value={accountLabel}
+                onChange={(e) => setAccountLabel(e.target.value)}
+                placeholder="Checking"
+                className="w-full rounded-lg border border-gray-700 bg-[#1a233a] px-3 py-2 text-sm text-white placeholder-gray-500 outline-none focus:border-emerald-400"
+              />
+              <datalist id="account-label-options">
+                {knownAccountLabels.map((l) => (
+                  <option key={l} value={l} />
+                ))}
+              </datalist>
+              <p className="mt-1 text-xs text-gray-500">
+                Uploading a separate savings account? Give it its own name here (e.g. &quot;Savings&quot;) -- you can
+                then link a goal to just that account&apos;s history on the Goals page.
+              </p>
+            </div>
             <input
               ref={fileRef}
               type="file"
@@ -292,6 +334,9 @@ export default function ImportPage() {
                 <AlertCircle size={16} /> {pageWarning}
               </div>
             )}
+            <p className="text-sm text-gray-400">
+              Importing into account: <span className="font-semibold text-gray-200">{accountLabel || 'Checking'}</span>
+            </p>
             <div className="grid grid-cols-3 gap-4">
               <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
                 <p className="text-gray-400 text-sm">Transactions found</p>

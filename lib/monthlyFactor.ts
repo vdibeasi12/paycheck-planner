@@ -1,4 +1,4 @@
-﻿// lib/monthlyFactor.ts
+// lib/monthlyFactor.ts
 // Canonical monthly-equivalent multiplier for a recurring amount, given its
 // billing/pay frequency. This used to be hand-copied in app/dashboard/page.tsx,
 // app/income/page.tsx, and app/bills/page.tsx -- the copies had already

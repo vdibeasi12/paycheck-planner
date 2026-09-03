@@ -4,8 +4,9 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/lib/supabase/client";
 import { celebrate, popMilestone, crossedMilestone } from "@/lib/confetti";
 import { checkAchievementsAndCelebrate } from "@/lib/checkAchievements";
+import { recalcLinkedGoals } from "@/lib/goalAutoCalc";
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency";
-import { Plus, Target, Trophy, Trash2, Loader2 } from "lucide-react";
+import { Plus, Target, Trophy, Trash2, Loader2, Link2, Unlink } from "lucide-react";
 
 type Goal = {
   id: string;
@@ -17,6 +18,8 @@ type Goal = {
   category: string | null;
   priority: string | null;
   status: string | null;
+  linked_account_label: string | null;
+  starting_balance: number | null;
 };
 
 const CATEGORIES = ["Emergency fund", "Debt payoff", "Savings", "Big purchase", "Other"];
@@ -34,6 +37,10 @@ export default function GoalTracker() {
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Distinct account names the user has imported statements under (see
+  // app/import/page.tsx) -- the pool a goal can link to. Empty until they
+  // import at least one CSV/PDF statement.
+  const [accountLabels, setAccountLabels] = useState<string[]>([]);
 
   // new-goal form
   const [title, setTitle] = useState("");
@@ -47,12 +54,50 @@ export default function GoalTracker() {
 
   async function load() {
     setLoading(true);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     const { data } = await supabase
       .from("financial_goals")
       .select("*")
       .order("created_at", { ascending: false });
     if (data) setGoals(data as Goal[]);
+    if (user) {
+      const { data: txns } = await supabase
+        .from("transactions")
+        .select("account_label")
+        .eq("user_id", user.id)
+        .not("account_label", "is", null);
+      setAccountLabels(Array.from(new Set((txns ?? []).map((t) => t.account_label).filter(Boolean))) as string[]);
+    }
     setLoading(false);
+  }
+
+  // Saves a goal's account link + starting balance, then immediately
+  // recalculates current_amount from that account's transaction history so
+  // the number is right the moment you link it -- not just after the next
+  // statement import.
+  async function saveLink(goal: Goal, label: string | null, startingBalance: number) {
+    setBusy(true);
+    try {
+      await supabase
+        .from("financial_goals")
+        .update({
+          linked_account_label: label,
+          starting_balance: startingBalance,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", goal.id);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (label && user) {
+        await recalcLinkedGoals(supabase, user.id, [label]);
+      }
+      await load();
+    } finally {
+      setBusy(false);
+    }
   }
 
   async function addGoal() {
@@ -231,7 +276,15 @@ export default function GoalTracker() {
       ) : (
         <div className="grid gap-4">
           {goals.map((g) => (
-            <GoalCard key={g.id} goal={g} onContribute={contribute} onRemove={removeGoal} />
+            <GoalCard
+              key={g.id}
+              goal={g}
+              accountLabels={accountLabels}
+              onContribute={contribute}
+              onRemove={removeGoal}
+              onLink={saveLink}
+              busy={busy}
+            />
           ))}
         </div>
       )}
@@ -241,17 +294,27 @@ export default function GoalTracker() {
 
 function GoalCard({
   goal,
+  accountLabels,
   onContribute,
   onRemove,
+  onLink,
+  busy,
 }: {
   goal: Goal;
+  accountLabels: string[];
   onContribute: (g: Goal, raw: string) => void;
   onRemove: (id: string) => void;
+  onLink: (g: Goal, label: string | null, startingBalance: number) => void;
+  busy: boolean;
 }) {
   const formatMoney = useFormatCurrency();
   const [amt, setAmt] = useState("");
+  const [linking, setLinking] = useState(false);
+  const [linkLabel, setLinkLabel] = useState(goal.linked_account_label ?? "");
+  const [linkStart, setLinkStart] = useState(String(goal.starting_balance ?? 0));
   const progress = pct(goal);
   const done = progress >= 100;
+  const isLinked = !!goal.linked_account_label;
 
   return (
     <div className="rounded-2xl border border-gray-700 bg-[#0f172a] p-5 shadow-sm">
@@ -270,15 +333,99 @@ function GoalCard({
             {goal.deadline ? ` · by ${new Date(goal.deadline).toLocaleDateString()}` : ""}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => onRemove(goal.id)}
-          className="rounded-lg p-2 text-gray-400 hover:bg-rose-500/10 hover:text-rose-400"
-          aria-label="Delete goal"
-        >
-          <Trash2 size={16} />
-        </button>
+        <div className="flex items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setLinking((v) => !v)}
+            className="rounded-lg p-2 text-gray-400 hover:bg-emerald-500/10 hover:text-emerald-400"
+            aria-label={isLinked ? "Edit linked account" : "Link an account"}
+            title={isLinked ? `Linked to ${goal.linked_account_label}` : "Link an imported account"}
+          >
+            {isLinked ? <Link2 size={16} /> : <Unlink size={16} />}
+          </button>
+          <button
+            type="button"
+            onClick={() => onRemove(goal.id)}
+            className="rounded-lg p-2 text-gray-400 hover:bg-rose-500/10 hover:text-rose-400"
+            aria-label="Delete goal"
+          >
+            <Trash2 size={16} />
+          </button>
+        </div>
       </div>
+
+      {isLinked && !linking && (
+        <p className="mt-2 text-xs text-emerald-400">
+          Auto-calculated from your &quot;{goal.linked_account_label}&quot; imported transactions
+        </p>
+      )}
+
+      {linking && (
+        <div className="mt-3 rounded-xl border border-gray-700 bg-[#1a233a] p-3">
+          <label className="block">
+            <span className="text-xs font-medium text-gray-300">Link to an imported account</span>
+            <select
+              value={linkLabel}
+              onChange={(e) => setLinkLabel(e.target.value)}
+              className="mt-1 w-full rounded-lg border border-gray-700 bg-[#0f172a] px-3 py-2 text-sm text-white outline-none focus:border-emerald-400"
+            >
+              <option value="">None -- track manually</option>
+              {accountLabels.map((l) => (
+                <option key={l} value={l}>
+                  {l}
+                </option>
+              ))}
+            </select>
+          </label>
+          {accountLabels.length === 0 && (
+            <p className="mt-1 text-xs text-gray-500">
+              Import a bank statement first (Import page) to get an account to link to.
+            </p>
+          )}
+          {linkLabel && (
+            <label className="mt-2 block">
+              <span className="text-xs font-medium text-gray-300">
+                Starting balance (what was in &quot;{linkLabel}&quot; before your earliest imported transaction)
+              </span>
+              <div className="mt-1 flex items-center rounded-lg border border-gray-700 bg-[#0f172a] px-3 focus-within:border-emerald-400">
+                <span className="text-gray-300">$</span>
+                <input
+                  value={linkStart}
+                  onChange={(e) => setLinkStart(e.target.value)}
+                  inputMode="decimal"
+                  placeholder="0"
+                  className="w-full bg-transparent py-2 pl-1 text-sm text-white placeholder-gray-500 outline-none"
+                />
+              </div>
+            </label>
+          )}
+          <p className="mt-2 text-xs text-gray-500">
+            Progress will be calculated from real transaction history, not a live bank balance -- only link an
+            account whose imports actually represent this goal&apos;s savings (e.g. a dedicated savings account),
+            not a general checking account.
+          </p>
+          <div className="mt-3 flex gap-2">
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => {
+                onLink(goal, linkLabel || null, Number(linkStart) || 0);
+                setLinking(false);
+              }}
+              className="rounded-lg bg-emerald-500 px-3 py-1.5 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-60"
+            >
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => setLinking(false)}
+              className="rounded-lg px-3 py-1.5 text-sm text-gray-400 hover:bg-white/5"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Progress */}
       <div className="mt-4">
@@ -298,8 +445,9 @@ function GoalCard({
         </div>
       </div>
 
-      {/* Add contribution */}
-      {!done && (
+      {/* Add contribution -- manual only; linked goals are fully
+          auto-calculated from their account's transaction history above. */}
+      {!done && !isLinked && (
         <div className="mt-4 flex gap-2">
           <div className="flex flex-1 items-center rounded-lg border border-gray-700 bg-[#1a233a] px-3 focus-within:border-emerald-400">
             <span className="text-gray-300">$</span>

@@ -88,6 +88,11 @@ async function upsertSubscription(
 
   const row = {
     user_id: userId,
+    // 'stripe' always -- this webhook only ever handles Stripe events. See
+    // app/api/revenuecat/webhook/route.ts for the iOS/Android IAP counterpart,
+    // which writes its own row (source: 'app_store' | 'play_store') rather
+    // than competing with this one for the same (user_id, source) slot.
+    source: "stripe" as const,
     stripe_customer_id: typeof sub.customer === "string" ? sub.customer : null,
     stripe_subscription_id: sub.id,
     tier,
@@ -103,9 +108,13 @@ async function upsertSubscription(
     updated_at: new Date().toISOString(),
   }
 
+  // onConflict target matches the (user_id, source) unique index added in
+  // supabase/migrations/20260901120000_add_subscription_source.sql -- a user
+  // can hold one Stripe row and one RevenueCat row at once without either
+  // webhook overwriting the other's.
   const { error } = await supabase
     .from("subscriptions")
-    .upsert(row, { onConflict: "user_id" })
+    .upsert(row, { onConflict: "user_id,source" })
   if (error) console.error("upsertSubscription failed:", error.message)
 }
 

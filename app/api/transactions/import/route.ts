@@ -18,6 +18,7 @@ import { createClient } from "@/lib/supabase/server"
 import { canUseCsvImport } from "@/lib/permissions"
 import type { CategorizedTransaction, RecurringGroup, RecurringFrequency } from "@/lib/csvImport"
 import { normalizeMerchantKey } from "@/lib/csvImport"
+import { recalcLinkedGoals } from "@/lib/goalAutoCalc"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
@@ -92,6 +93,18 @@ export async function POST(req: Request) {
   // today's behavior exactly. Anything else falls back to "csv" too rather
   // than storing an arbitrary client-supplied string in a provenance field.
   const source = (body as any).source === "pdf" ? "pdf" : "csv"
+  // Which real-world account this statement is for (e.g. "Checking",
+  // "Savings") -- lets a goal be linked to just this account's history
+  // later (see lib/goalAutoCalc.ts). Free text, not a fixed enum, since
+  // banks/users name accounts however they like; trimmed and length-capped
+  // like the other string fields in this route. Falls back to "Checking"
+  // for older clients that don't send it, matching the backfill used for
+  // every transaction imported before this field existed.
+  const rawAccountLabel = (body as any).accountLabel
+  const accountLabel =
+    typeof rawAccountLabel === "string" && rawAccountLabel.trim().length > 0
+      ? rawAccountLabel.trim().slice(0, 100)
+      : "Checking"
 
   if (rawTransactions.length > MAX_TRANSACTIONS) {
     return NextResponse.json(
@@ -144,6 +157,7 @@ export async function POST(req: Request) {
     category: t.category ?? null,
     recurring_group_key: normalizeMerchantKey(t.description) || null,
     source,
+    account_label: accountLabel,
   }))
   for (const batch of chunk(rows, 500)) {
     const { data, error } = await supabase
@@ -253,6 +267,17 @@ export async function POST(req: Request) {
         if (!error) incomeCreated++
         else console.error("transactions import: income insert failed", error)
       }
+    }
+  }
+
+  // 3) Any goal linked to this account just got new transaction history --
+  // refresh its current_amount so it's correct the moment this import
+  // finishes, not just next time someone happens to look at the Goals page.
+  if (transactionsImported > 0) {
+    try {
+      await recalcLinkedGoals(supabase, user.id, [accountLabel])
+    } catch (err) {
+      console.error("transactions import: recalcLinkedGoals failed", err)
     }
   }
 
