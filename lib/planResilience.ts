@@ -113,7 +113,8 @@ function applyScenario(
   cycles: PaycheckCycle[],
   scenario: Scenario,
   bills: CycleBill[],
-  debts: CycleDebt[]
+  debts: CycleDebt[],
+  income: CycleIncome[]
 ): ScenarioResult {
   const results: ScenarioCycleResult[] = cycles.map((c) => {
     let adjustedAmount = c.amount
@@ -133,7 +134,7 @@ function applyScenario(
       const extendedTo = toISODate(addDays(new Date(c.date + "T00:00:00"), scenario.value))
       adjustedBillsDue = sumDueInWindow(bills, c.windowStart, extendedTo)
       adjustedDebtsDue = sumDueInWindow(
-        excludeTransferCoveredDebts(debts).map((d) => ({
+        excludeTransferCoveredDebts(debts, income).map((d) => ({
           amount: d.minimum_payment,
           due_date: d.due_date,
           grace_period_days: d.grace_period_days,
@@ -201,7 +202,7 @@ export function computePlanResilience(input: {
   const weakestCycle = cycles.reduce((worst, c) => (c.runningBalance < worst.runningBalance ? c : worst), cycles[0])
 
   const scenarios = input.scenarios ?? DEFAULT_SCENARIOS
-  const scenarioResults = scenarios.map((s) => applyScenario(cycles, s, input.bills, input.debts))
+  const scenarioResults = scenarios.map((s) => applyScenario(cycles, s, input.bills, input.debts, input.income))
 
   // Transparent point-penalty score, not a claimed industry-standard metric:
   // start at 100, -15 for any scenario that breaks at least one projected

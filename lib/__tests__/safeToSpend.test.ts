@@ -26,6 +26,7 @@
 // other debt. Test group 5 below locks that exact scenario in.
 
 import { computeSafeToSpend, withStartingCash, type STSBill, type STSDebt, type STSIncome } from "../safeToSpend"
+import { nextItemOccurrence } from "../paycheckCycles"
 
 let passed = 0
 let failed = 0
@@ -42,14 +43,24 @@ function assertEqual(actual: number, expected: number, label: string) {
   }
 }
 
+function assertTrue(cond: boolean, label: string) {
+  if (cond) {
+    passed++
+    console.log(`  PASS  ${label}`)
+  } else {
+    failed++
+    console.error(`  FAIL  ${label}`)
+  }
+}
+
 // One biweekly paycheck, next landing 2026-01-17 -- every test below sets
 // "today" to 2026-01-10, so the projected window is (Jan 10, Jan 17] and the
 // most recent past paycheck (for the lastPaycheckAmount fallback) is Jan 3.
 const income: STSIncome[] = [{ amount: 2000, frequency: "biweekly", next_pay_date: "2026-01-17", income_type: null }]
 const today = new Date("2026-01-10T00:00:00")
 
-function run(bills: STSBill[], debts: STSDebt[], startingCash: number, opts?: { today?: Date }) {
-  const result = computeSafeToSpend({ income, bills, debts, goals: [], today: opts?.today ?? today })
+function run(bills: STSBill[], debts: STSDebt[], startingCash: number, opts?: { today?: Date; income?: STSIncome[] }) {
+  const result = computeSafeToSpend({ income: opts?.income ?? income, bills, debts, goals: [], today: opts?.today ?? today })
   return withStartingCash(result, { amount: startingCash, source: "checking", asOf: "2026-01-10" })
 }
 
@@ -145,33 +156,49 @@ console.log("Test 9 -- no bills or debts due this cycle: Safe to Spend is just t
   assertEqual(r.safeToSpend, 4000, "nothing to reserve this cycle")
 }
 
-console.log("Test 10 (regression) -- covered_by_transfer correctly excludes a debt paid from an")
-console.log("  account OUTSIDE the pool (money genuinely already left the tracked cash)")
+console.log("Test 10 (regression) -- covered_by_transfer excludes a debt only when a real")
+console.log("  transfer is actually on record to back it up")
 {
   const debt: STSDebt = { minimum_payment: 400, due_date: 15, covered_by_transfer: true }
-  const r = run([], [debt], 4000)
-  assertEqual(r.debtsDue, 0, "excluded -- that money already left via the linked transfer")
+  const withTransferOnFile: STSIncome[] = [
+    ...income,
+    { amount: 2000, frequency: "biweekly", next_pay_date: "2026-01-17", income_type: "transfer" },
+  ]
+  const r = run([], [debt], 4000, { income: withTransferOnFile })
+  assertEqual(r.debtsDue, 0, "excluded -- a real transfer is on record backing the flag")
   assertEqual(r.safeToSpend, 4000, "not double-subtracted")
 }
 
-console.log("Test 11 (regression) -- the Sep 4 2026 bug: a debt wrongly flagged covered_by_transfer")
-console.log("  while its funding account is itself pooled must NOT be silently excluded")
+console.log("Test 11 (regression) -- the Sep 4 2026 bug, root cause: covered_by_transfer was")
+console.log("  trusted with ZERO transfer income rows anywhere on file to back it up")
 {
   // This is the actual shape of the live bug: Capital One Auto ($596.50, due
-  // the 15th) was flagged covered_by_transfer even though the "transfer" it
-  // supposedly relies on moves money into another of the user's own pooled
-  // Checking accounts (53rd Checking), not out of the tracked cash system.
-  // With the flag WRONGLY set true, the required payment vanishes from
-  // debtsDue entirely -- this is the failure mode. With it correctly set
-  // false (the fix), the payment is reserved like any other debt.
+  // the 15th) was flagged covered_by_transfer even though there was no
+  // transfer income row on file at all -- nothing had actually left
+  // anywhere. With the flag trusted blindly, the required payment vanished
+  // from debtsDue entirely (the exact mechanism behind the live $3,377.77
+  // figure -- see Test 16 below for the full reconciliation). The fix:
+  // excludeTransferCoveredDebts now requires real evidence (at least one
+  // income_type "transfer" row) before it will honor the flag at all --
+  // with none on file (this test's `income` has none), the flag is ignored
+  // and the payment is reserved like any other debt.
   const wronglyFlagged: STSDebt = { minimum_payment: 596.5, due_date: 15, covered_by_transfer: true }
-  const buggy = run([], [wronglyFlagged], 4000)
-  assertEqual(buggy.debtsDue, 0, "documents the failure mode: wrongly excluded")
-
-  const correctlyFlagged: STSDebt = { minimum_payment: 596.5, due_date: 15, covered_by_transfer: false }
-  const fixed = run([], [correctlyFlagged], 4000)
-  assertEqual(fixed.debtsDue, 596.5, "fixed: the required payment is reserved")
+  const fixed = run([], [wronglyFlagged], 4000)
+  assertEqual(fixed.debtsDue, 596.5, "fixed: with no transfer on record, the flag is not honored -- the payment is reserved")
   assertEqual(fixed.safeToSpend, 3403.5, "4000 - 596.50 = 3403.50, not the full 4000")
+
+  // Known remaining limitation, documented rather than silently fixed: once
+  // ANY transfer exists on file, the flag is still trusted coarsely --
+  // nothing yet ties THIS debt to that SPECIFIC transfer's actual
+  // destination, so a transfer that lands right back in one of the user's
+  // own pooled accounts would still (wrongly) let the flag exclude a debt
+  // it shouldn't. See CycleDebt.covered_by_transfer's comment.
+  const withUnrelatedTransferOnFile: STSIncome[] = [
+    ...income,
+    { amount: 500, frequency: "monthly", next_pay_date: "2026-01-05", income_type: "transfer" },
+  ]
+  const stillCoarse = run([], [wronglyFlagged], 4000, { income: withUnrelatedTransferOnFile })
+  assertEqual(stillCoarse.debtsDue, 0, "documents the known gap: any transfer on file is still enough to honor the flag")
 }
 
 console.log("Test 12 (regression) -- a debt with a real grace period isn't reserved until the grace")
@@ -286,6 +313,88 @@ console.log("  guessing which months, or silently excluding a real bill")
   const legacyBimonthlyBill: STSBill = { amount: 85, due_date: 15, frequency: "bimonthly" } // bimonthly_parity intentionally unset
   const r = run([legacyBimonthlyBill], [], 4000)
   assertEqual(r.billsDue, 85, "unset parity keeps the conservative every-month fallback")
+}
+
+console.log("Test 16 (regression) -- the full Sep 4 2026 live reconciliation, permanently")
+console.log("  locked in: starting cash minus every real obligation equals the exact")
+console.log("  live figure, and the exact buggy figure it used to produce")
+{
+  // Vince's real Sep 4 2026 numbers -- pooled checking $3,678.30 (53rd
+  // Checking $3,303.13 + Chime Checking $375.17), next paycheck Sep 16.
+  const liveIncome: STSIncome[] = [{ amount: 2578.4, frequency: "biweekly", next_pay_date: "2026-09-16", income_type: null }]
+  const liveBills: STSBill[] = [
+    { amount: 24.99, due_date: 1, frequency: "monthly" }, // BitDefender -- already due before today, excluded
+    { amount: 8.99, due_date: 6, frequency: "monthly" }, // Netflix
+    { amount: 20.0, due_date: 7, frequency: "monthly" }, // Anthropic
+    { amount: 201.54, due_date: 11, frequency: "bimonthly", bimonthly_parity: "odd" }, // Addison Water
+    { amount: 20.0, due_date: 14, frequency: "monthly" }, // Vercel Pro
+    { amount: 96.31, due_date: 22, frequency: "monthly" }, // Xfinity Internet -- next cycle
+  ]
+  const signatureVisa: STSDebt = { minimum_payment: 50, due_date: 14, covered_by_transfer: false }
+  const capitalOneAuto: STSDebt = { minimum_payment: 596.5, due_date: 15, covered_by_transfer: false }
+  const onityMortgage: STSDebt = {
+    minimum_payment: 2220.86,
+    due_date: 1,
+    grace_period_days: 15,
+    paid_through: "2026-09-01", // September already marked paid
+    covered_by_transfer: false,
+  }
+  const avant: STSDebt = { minimum_payment: 507.61, due_date: 22, covered_by_transfer: false } // next cycle
+
+  const today = new Date("2026-09-04T00:00:00")
+  const result = computeSafeToSpend({
+    income: liveIncome,
+    bills: liveBills,
+    debts: [signatureVisa, capitalOneAuto, onityMortgage, avant],
+    goals: [],
+    today,
+  })
+  const live = withStartingCash(result, { amount: 3678.3, source: "checking", asOf: "2026-09-04" })
+  assertEqual(live.billsDue, 250.53, "Netflix + Anthropic + Addison Water + Vercel Pro = 250.53")
+  assertEqual(live.debtsDue, 646.5, "Signature Visa + Capital One Auto = 646.50 (mortgage already paid, Avant is next cycle)")
+  assertEqual(live.safeToSpend, 2781.27, "3,678.30 - 250.53 - 646.50 = 2,781.27, the exact live figure")
+
+  // The exact historical bug, permanently reproducible: if Capital One
+  // Auto's payment is dropped from the reservation (the live failure mode --
+  // see Test 11), the same starting cash and bills produce $3,377.77
+  // instead. Locking this in proves the root cause, not just that a
+  // number happened to change.
+  const buggyResult = computeSafeToSpend({
+    income: liveIncome,
+    bills: liveBills,
+    debts: [signatureVisa, onityMortgage, avant], // Capital One Auto missing entirely
+    goals: [],
+    today,
+  })
+  const buggy = withStartingCash(buggyResult, { amount: 3678.3, source: "checking", asOf: "2026-09-04" })
+  assertEqual(buggy.safeToSpend, 3377.77, "reproduces the exact historical bug figure when Capital One Auto's payment is missing")
+}
+
+console.log("Test 17 (regression) -- Safe to Spend and the Bills & Debts obligations list")
+console.log("  (nextItemOccurrence) must agree on whether a paid_through'd occurrence is")
+console.log("  settled -- the exact Onity Mortgage bug caught live on Sep 4 2026")
+{
+  const onityMortgage: STSDebt = {
+    minimum_payment: 2220.86,
+    due_date: 1,
+    grace_period_days: 15,
+    paid_through: "2026-09-01",
+    covered_by_transfer: false,
+  }
+  const todayISO = "2026-09-04"
+  const liveIncome: STSIncome[] = [{ amount: 2578.4, frequency: "biweekly", next_pay_date: "2026-09-16", income_type: null }]
+  const stsResult = withStartingCash(
+    computeSafeToSpend({ income: liveIncome, bills: [], debts: [onityMortgage], goals: [], today: new Date(todayISO + "T00:00:00") }),
+    { amount: 5000, source: "checking", asOf: todayISO }
+  )
+  assertEqual(stsResult.debtsDue, 0, "Safe to Spend excludes September's occurrence -- already marked paid")
+
+  const nextOccurrence = nextItemOccurrence(onityMortgage, todayISO)
+  assertTrue(
+    nextOccurrence.status !== "grace" && nextOccurrence.status !== "overdue",
+    `Next 7 Days must ALSO treat September as settled, not show 'grace'/'overdue' (got '${nextOccurrence.status}')`
+  )
+  assertEqual(nextOccurrence.occurrenceDate === null ? -1 : Number(nextOccurrence.occurrenceDate.slice(5, 7)), 10, "the next occurrence it finds is October's, not September's")
 }
 
 console.log(`\n${passed} passed, ${failed} failed`)

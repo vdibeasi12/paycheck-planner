@@ -82,5 +82,5 @@ export default async function PaycheckShieldPage() {
     startingCash: startingCash.amount,
   })
 
-  return <PaycheckShieldView result={result} bills={bills} debts={debts} />
+  return <PaycheckShieldView result={result} bills={bills} debts={debts} income={income} />
 }

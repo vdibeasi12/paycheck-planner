@@ -4,6 +4,7 @@ import { Shield, TrendingDown } from "lucide-react"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import type { PlanResilienceResult } from "@/lib/planResilience"
 import { capacityForCycle, type CapacityLevel } from "@/lib/paycheckCapacity"
+import type { CycleIncome } from "@/lib/paycheckCycles"
 import StressTestPanel from "./StressTestPanel"
 import StrengthenPaycheckPanel from "./StrengthenPaycheckPanel"
 
@@ -32,6 +33,7 @@ type Props = {
   result: PlanResilienceResult
   bills: BillRow[]
   debts: DebtRow[]
+  income: CycleIncome[]
 }
 
 function formatDate(iso: string): string {
@@ -50,7 +52,7 @@ function strengthLabel(score: number): { label: string; className: string } {
  * much money do I have," it's "how much can this plan withstand before a
  * specific paycheck comes up short." No bank transaction feed involved.
  */
-export default function PaycheckShieldView({ result, bills, debts }: Props) {
+export default function PaycheckShieldView({ result, bills, debts, income }: Props) {
   const formatMoney = useFormatCurrency()
 
   if (!result.hasPlan) {
@@ -155,7 +157,7 @@ export default function PaycheckShieldView({ result, bills, debts }: Props) {
       <StressTestPanel scenarioResults={result.scenarioResults} />
 
       {result.weakestCycle && (
-        <StrengthenPaycheckPanel cycle={result.weakestCycle} bills={bills} debts={debts} />
+        <StrengthenPaycheckPanel cycle={result.weakestCycle} bills={bills} debts={debts} income={income} />
       )}
     </div>
   )

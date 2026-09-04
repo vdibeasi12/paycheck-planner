@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { CheckCircle2, AlertTriangle, PiggyBank } from 'lucide-react'
 import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
 import { computeDebtPayoffAffordability, DEFAULT_PAYOFF_RESERVE } from '@/lib/debtPayoffSafety'
-import type { CycleBill, CycleDebt, CycleIncome, CycleGoal } from '@/lib/paycheckCycles'
+import { excludeTransferCoveredDebts, type CycleBill, type CycleDebt, type CycleIncome, type CycleGoal } from '@/lib/paycheckCycles'
 
 type PayoffDebt = {
   id: string
@@ -51,7 +51,15 @@ export default function DebtPayoffAffordability({ debts, bills, income, starting
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [open, setOpen] = useState(false)
 
-  const payoffCandidates = useMemo(() => debts.filter((d) => !d.covered_by_transfer), [debts])
+  // A debt only belongs off this checklist if it's ACTUALLY excluded from the
+  // affordability math below -- covered_by_transfer alone is no longer
+  // trusted without a real transfer on record (see
+  // lib/paycheckCycles.ts's excludeTransferCoveredDebts), so this list must
+  // agree with what's actually being reserved, not re-read the raw flag.
+  const payoffCandidates = useMemo(
+    () => excludeTransferCoveredDebts(debts, income),
+    [debts, income]
+  )
 
   function toggle(id: string) {
     setSelected((prev) => {

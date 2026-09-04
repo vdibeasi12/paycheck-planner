@@ -35,7 +35,7 @@ import { consumeCapturePrefill } from '@/lib/capturePrefill'
 import { checkAchievementsAndCelebrate } from '@/lib/checkAchievements'
 import { celebrate, popMilestone, crossedMilestone } from '@/lib/confetti'
 import { DEBT_TYPES, debtTypeLabel } from '@/lib/debtTypes'
-import { toISODate, daysBetween, addDays, type CycleIncome } from '@/lib/paycheckCycles'
+import { toISODate, nextItemOccurrence, excludeTransferCoveredDebts, type CycleIncome } from '@/lib/paycheckCycles'
 import { billOccurrenceInMonth } from '@/lib/schedule'
 import { generateBillsDebtsPdf } from '@/lib/generateBillsDebtsPdf'
 import { resolveStartingCash, type CashAccountRow } from '@/lib/cashBalance'
@@ -149,26 +149,24 @@ type Obligation = {
 
 const SUBSCRIPTION_CATEGORY = 'Subscriptions'
 
-// QA fix (Sep 4 2026, Vince): graceDays (debts only -- bills always pass 0)
-// shifts the *effective* due date used for status purposes to
-// dueDay + graceDays, so a debt within a real grace period (mortgage due the
-// 1st, no penalty till the 16th) shows as "Grace period" instead of
-// "Overdue" the moment the nominal day passes, and doesn't count as due (for
-// Safe to Spend/Paycheck Shield) until the grace window actually ends. Once
-// the grace window itself passes, it's genuinely overdue.
+// QA fix (Sep 4 2026, Vince): this used to be its own ad hoc calculation --
+// always read the CURRENT calendar month's occurrence, never checked
+// paid_through or bimonthly_parity at all -- so a bill already confirmed
+// paid via "Mark as paid" kept showing as due/overdue/in-grace here even
+// after Safe to Spend had correctly excluded it (caught live: Onity
+// Mortgage, marked paid_through 2026-09-01, still showed "Grace period" and
+// $2,220.86 here while Safe to Spend rightly left it out). Now a thin
+// wrapper over lib/paycheckCycles.ts's nextItemOccurrence -- the same
+// shared occurrence rules (due dates, bimonthly parity, paid_through, grace
+// period) Safe to Spend/Paycheck Shield/"Then what" already use, so this
+// list can only ever disagree with them on WHICH DATES it's showing (today
+// vs today+7 vs until-next-paycheck), never on what an obligation actually
+// means.
 function statusOf(
-  dueDay: number | null,
-  todayISO: string,
-  graceDays: number = 0
+  row: { due_date: number | null; grace_period_days?: number | null; paid_through?: string | null; frequency?: string | null; bimonthly_parity?: 'odd' | 'even' | null },
+  todayISO: string
 ): { occurrenceDate: string | null; daysUntil: number | null; status: UrgencyStatus } {
-  if (!dueDay) return { occurrenceDate: null, daysUntil: null, status: 'no-date' }
-  const today = new Date(todayISO + 'T00:00:00')
-  const occurrenceDate = billOccurrenceInMonth(dueDay, today.getFullYear(), today.getMonth())
-  const effectiveDate = graceDays > 0 ? toISODate(addDays(new Date(occurrenceDate + 'T00:00:00'), graceDays)) : occurrenceDate
-  const daysUntil = daysBetween(todayISO, effectiveDate)
-  const inGrace = graceDays > 0 && todayISO > occurrenceDate && todayISO <= effectiveDate
-  const status: UrgencyStatus = daysUntil < 0 ? 'overdue' : inGrace ? 'grace' : daysUntil <= 7 ? 'due-soon' : 'upcoming'
-  return { occurrenceDate, daysUntil, status }
+  return nextItemOccurrence(row, todayISO)
 }
 
 // Shared with CSV/PDF export so the plain-text status always matches what
@@ -358,7 +356,7 @@ export default function BillsAndDebtsPage() {
 
   const obligations: Obligation[] = useMemo(() => {
     const billItems: Obligation[] = bills.map((b) => {
-      const s = statusOf(b.due_date, todayISO)
+      const s = statusOf(b, todayISO)
       return {
         id: b.id,
         type: 'bill',
@@ -373,8 +371,12 @@ export default function BillsAndDebtsPage() {
         raw: b,
       }
     })
-    const debtItems: Obligation[] = debts.map((d) => {
-      const s = statusOf(d.due_date, todayISO, d.grace_period_days || 0)
+    // Debts genuinely covered by a real transfer (see
+    // excludeTransferCoveredDebts) aren't this paycheck's responsibility --
+    // same exclusion Safe to Spend applies, so this list can't disagree with
+    // it about which debts even count.
+    const debtItems: Obligation[] = excludeTransferCoveredDebts(debts, income).map((d) => {
+      const s = statusOf(d, todayISO)
       return {
         id: d.id,
         type: 'debt',
@@ -395,7 +397,7 @@ export default function BillsAndDebtsPage() {
       if (b.due_date == null) return -1
       return (a.daysUntil ?? 999) - (b.daysUntil ?? 999)
     })
-  }, [bills, debts, todayISO])
+  }, [bills, debts, income, todayISO])
 
   const overlaps = useMemo(() => findBillDebtOverlaps(bills, debts), [bills, debts])
 

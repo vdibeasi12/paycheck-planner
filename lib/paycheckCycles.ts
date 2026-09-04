@@ -83,22 +83,22 @@ export type CycleDebt = {
   // in this file.
   //
   // CRITICAL CONSTRAINT (root-caused Sep 4 2026 after a real bug: Safe to
-  // Spend showed $3,377.77 with two required debt payments -- Capital One
-  // Auto, $596.50; Avant, $507.61 -- silently missing from the reservation):
-  // this flag is only valid when the linked transfer's money actually
-  // leaves every account Safe to Spend pools together (see
-  // lib/cashBalance.ts's multi-account pooling). If the transfer's
-  // destination is itself one of the user's OTHER pooled Checking accounts
-  // (e.g. a dedicated bill-pay account the app also tracks), the money
-  // never actually leaves the pooled cash system -- it just moves from one
-  // pooled account to another -- and the debt's required payment still has
-  // to be reserved like any normal debt, or it vanishes from Safe to Spend
-  // with nothing else accounting for it. There is currently no field
-  // recording a transfer's destination account, so this can't be validated
-  // automatically; when marking a debt covered_by_transfer, confirm the
-  // money is actually leaving the app's tracked accounts entirely, not
-  // moving between two of them. See lib/__tests__/safeToSpend.test.ts
-  // (Test 11) for the exact regression this caused.
+  // Spend showed $3,377.77 with a required debt payment -- Capital One Auto,
+  // $596.50 -- silently missing from the reservation): this flag alone is
+  // NOT trusted anymore. The live bug had covered_by_transfer set true on
+  // Capital One Auto and Avant with ZERO transfer income rows on file to
+  // back it up -- nothing had actually left anywhere. excludeTransferCoveredDebts
+  // below now requires real corroborating evidence (at least one income row
+  // with income_type "transfer") before it will honor this flag at all; a
+  // debt flagged covered_by_transfer with no matching transfer on record is
+  // reserved like any normal debt instead of silently vanishing. This closes
+  // the exact failure mode, but is still a coarse, user-attested signal, not
+  // a real link to a specific transfer -- there's no field yet tying THIS
+  // debt to a SPECIFIC transfer row, so it can't yet also catch the mirror
+  // case (a transfer whose destination is itself one of the user's OTHER
+  // pooled Checking accounts, meaning the money never left the pool at all).
+  // See lib/__tests__/safeToSpend.test.ts (Test 11) for the exact regression
+  // this caused, and Test 16 for the "no evidence on file" guard.
   covered_by_transfer?: boolean | null
   // QA fix (Sep 4 2026, Vince): "my mortgage's due date is the 1st but I have
   // a grace period till the 16th without a penalty -- I paid on the 9th."
@@ -158,12 +158,31 @@ export type PaycheckCycle = {
   runningBalance: number
 }
 
+// Whether there's any real evidence a transfer actually exists for this
+// user at all -- see CycleDebt.covered_by_transfer's "CRITICAL CONSTRAINT"
+// comment. Deliberately coarse (any transfer row counts, not "the specific
+// transfer this debt claims to rely on") since nothing in the schema yet
+// links a debt to one particular transfer -- but coarse-and-checked beats
+// nothing-checked-at-all, which is what let the $3,377.77 bug happen: two
+// debts were flagged covered_by_transfer with zero transfer income rows on
+// file anywhere.
+function hasTransferEvidence(income: CycleIncome[]): boolean {
+  return income.some((i) => i.income_type === "transfer")
+}
+
 // A debt not paid from this account's own money -- see CycleDebt's
-// covered_by_transfer comment. Filters (rather than a combined
-// "sum debts due, excluding transfers" helper) so every call site can keep
-// mapping its own row shape into { amount, due_date } afterward.
-export function excludeTransferCoveredDebts<T extends { covered_by_transfer?: boolean | null }>(debts: T[]): T[] {
-  return debts.filter((d) => !d.covered_by_transfer)
+// covered_by_transfer comment. Only honors that flag when a real transfer
+// is actually on record (hasTransferEvidence above); otherwise the flag is
+// ignored and the debt's payment is reserved like any other one. Filters
+// (rather than a combined "sum debts due, excluding transfers" helper) so
+// every call site can keep mapping its own row shape into
+// { amount, due_date } afterward.
+export function excludeTransferCoveredDebts<T extends { covered_by_transfer?: boolean | null }>(
+  debts: T[],
+  income: CycleIncome[]
+): T[] {
+  const hasEvidence = hasTransferEvidence(income)
+  return debts.filter((d) => !(d.covered_by_transfer && hasEvidence))
 }
 
 export function toISODate(d: Date): string {
@@ -280,7 +299,7 @@ export function projectRunningBalance(input: {
   const transfersOut = sumTransfersInWindow(income, anchorDateISO, asOfISO)
   const billsOut = sumDueInWindow(bills, anchorDateISO, asOfISO)
   const debtsOut = sumDueInWindow(
-    excludeTransferCoveredDebts(debts).map((d) => ({
+    excludeTransferCoveredDebts(debts, income).map((d) => ({
       amount: d.minimum_payment,
       due_date: d.due_date,
       grace_period_days: d.grace_period_days,
@@ -385,6 +404,68 @@ export function classifyItemsAroundCycle<T extends { amount: number; due_date: n
     ...it,
     itemStatus: (it.occurrenceDate <= todayISO ? "alreadyDue" : "upcoming") as ItemStatus,
   }))
+}
+
+export type ItemOccurrenceStatus = "no-date" | "overdue" | "grace" | "due-soon" | "upcoming"
+export type ItemOccurrence =
+  | { occurrenceDate: null; daysUntil: null; status: "no-date" }
+  | { occurrenceDate: string; daysUntil: number; status: ItemOccurrenceStatus }
+
+// How far forward to scan looking for a not-yet-satisfied occurrence --
+// comfortably covers even a bimonthly item whose parity hasn't matched in a
+// while, or several months of paid_through in a row.
+const OCCURRENCE_SCAN_MONTHS = 13
+
+// QA fix (Sep 4 2026, Vince): "Bills & Debts -> Next 7 days must understand
+// due dates, recurrence, paid_through, bimonthly rules... the difference
+// [from Safe to Spend] should be the date filter, not a completely
+// different interpretation of the obligation." Before this, Bills & Debts
+// ran its own ad hoc statusOf() that always read the CURRENT calendar
+// month's occurrence and never checked paid_through or bimonthly_parity at
+// all -- so a bill already confirmed paid via "Mark as paid" (paid_through)
+// kept showing as due/overdue/in-grace there even though Safe to Spend had
+// correctly excluded it (the exact bug caught live: Onity Mortgage, marked
+// paid_through 2026-09-01, still showing "Grace period" and $2,220.86 on
+// Bills & Debts while Safe to Spend rightly left it out entirely). This is
+// the single shared primitive both now use for "what's this item's status
+// right now" -- same occurrence rules as itemsDueInWindow (bimonthly
+// parity, paid_through, grace period), just scanning forward for the next
+// not-yet-satisfied occurrence instead of summing everything inside a fixed
+// window. The returned occurrenceDate is the NOMINAL due date (what the UI
+// shows as "due"), while daysUntil/status are computed from the
+// grace-adjusted EFFECTIVE date -- same split lib/bills-debts's old
+// statusOf() used, kept so a grace-period item's displayed date doesn't
+// change, only whether/when it's treated as satisfied.
+export function nextItemOccurrence<
+  T extends {
+    due_date: number | null
+    grace_period_days?: number | null
+    paid_through?: string | null
+    frequency?: string | null
+    bimonthly_parity?: "odd" | "even" | null
+  }
+>(row: T, todayISO: string): ItemOccurrence {
+  if (!row.due_date) return { occurrenceDate: null, daysUntil: null, status: "no-date" }
+  const today = new Date(todayISO + "T00:00:00")
+  const startIdx = today.getFullYear() * 12 + today.getMonth()
+  for (let step = 0; step < OCCURRENCE_SCAN_MONTHS; step++) {
+    const idx = startIdx + step
+    const year = Math.floor(idx / 12)
+    const month = idx % 12
+    if (row.frequency === "bimonthly" && row.bimonthly_parity && !matchesBimonthlyParity(month, row.bimonthly_parity)) {
+      continue
+    }
+    const nominalDate = billOccurrenceInMonth(row.due_date, year, month)
+    if (row.paid_through && nominalDate <= row.paid_through) continue
+    const effectiveDate = row.grace_period_days
+      ? toISODate(addDays(new Date(nominalDate + "T00:00:00"), row.grace_period_days))
+      : nominalDate
+    const daysUntil = daysBetween(todayISO, effectiveDate)
+    const inGrace = !!row.grace_period_days && todayISO > nominalDate && todayISO <= effectiveDate
+    const status: ItemOccurrenceStatus = daysUntil < 0 ? "overdue" : inGrace ? "grace" : daysUntil <= 7 ? "due-soon" : "upcoming"
+    return { occurrenceDate: nominalDate, daysUntil, status }
+  }
+  return { occurrenceDate: null, daysUntil: null, status: "no-date" }
 }
 
 export function sumDueInWindow(
@@ -569,7 +650,7 @@ export function projectPaycheckCycles(input: {
     transfersByDate.set(t.date, (transfersByDate.get(t.date) || 0) + t.amount)
   }
 
-  const spendableDebts = excludeTransferCoveredDebts(input.debts)
+  const spendableDebts = excludeTransferCoveredDebts(input.debts, input.income)
 
   // Goal contributions are resolved across the whole set of cycle dates at
   // once (see goalContributionsForCycles) rather than per-cycle in this

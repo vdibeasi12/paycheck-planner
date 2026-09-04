@@ -188,9 +188,14 @@ export default async function DashboardPage() {
   // transfer -- see lib/paycheckCycles.ts) are left out of this list
   // entirely, same as they're left out of billsDue/debtsDue above: they're
   // not part of what this paycheck covers.
-  const spendableDebts = excludeTransferCoveredDebts(debts)
+  const spendableDebts = excludeTransferCoveredDebts(debts, income)
+  // Only show a debt as "covered by transfer" here if it's ACTUALLY excluded
+  // above -- covered_by_transfer alone is no longer trusted without a real
+  // transfer on record (see excludeTransferCoveredDebts), so this list must
+  // agree with spendableDebts instead of re-reading the raw flag on its own.
+  const spendableDebtIds = new Set(spendableDebts.map((d) => d.id))
   const coveredDebts = debts
-    .filter((d) => d.covered_by_transfer)
+    .filter((d) => d.covered_by_transfer && !spendableDebtIds.has(d.id))
     .map((d) => ({ name: d.name, amount: Number(d.minimum_payment) || 0 }))
   let classifiedBills: ReturnType<typeof classifyItemsAroundCycle<typeof bills[number]>> = []
   let classifiedDebts: ReturnType<typeof classifyItemsAroundCycle<typeof debts[number]>> = []

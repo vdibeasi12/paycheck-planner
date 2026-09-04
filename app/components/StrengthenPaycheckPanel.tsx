@@ -4,7 +4,7 @@ import Link from "next/link"
 import { Wrench } from "lucide-react"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import { itemsInCycleWindow } from "@/lib/planResilience"
-import { excludeTransferCoveredDebts, type PaycheckCycle } from "@/lib/paycheckCycles"
+import { excludeTransferCoveredDebts, type PaycheckCycle, type CycleIncome } from "@/lib/paycheckCycles"
 
 type BillRow = { id: string; name: string; amount: number; due_date: number | null }
 type DebtRow = {
@@ -21,6 +21,7 @@ type Props = {
   cycle: PaycheckCycle
   bills: BillRow[]
   debts: DebtRow[]
+  income: CycleIncome[]
 }
 
 /**
@@ -37,7 +38,7 @@ type Props = {
  * this app deliberately doesn't do (same reasoning as Safe-to-Spend not
  * claiming a live balance).
  */
-export default function StrengthenPaycheckPanel({ cycle, bills, debts }: Props) {
+export default function StrengthenPaycheckPanel({ cycle, bills, debts, income }: Props) {
   const formatMoney = useFormatCurrency()
 
   if (cycle.cushion >= cycle.amount * 0.2 && cycle.cushion > 0) return null
@@ -46,7 +47,7 @@ export default function StrengthenPaycheckPanel({ cycle, bills, debts }: Props) 
   const hasGoalContribution = cycle.goalContribution > 0
   const debtsInWindow = itemsInCycleWindow(
     cycle,
-    excludeTransferCoveredDebts(debts).map((d) => ({ ...d, amount: d.minimum_payment }))
+    excludeTransferCoveredDebts(debts, income).map((d) => ({ ...d, amount: d.minimum_payment }))
   )
 
   const hasSuggestions = billsInWindow.length > 0 || hasGoalContribution
