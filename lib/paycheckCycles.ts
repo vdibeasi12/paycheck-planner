@@ -149,6 +149,48 @@ export function sumTransfersInWindow(income: CycleIncome[], fromISO: string, toI
   return occurrences.filter((o) => o.date > fromISO && o.date <= toISO).reduce((sum, o) => sum + o.amount, 0)
 }
 
+// Sum of real (non-transfer) income occurrences in (fromISO, toISO] -- the
+// counterpart to sumTransfersInWindow, used by projectRunningBalance below
+// to add back paychecks that landed since a manually-entered balance.
+export function sumIncomeInWindow(income: CycleIncome[], fromISO: string, toISO: string): number {
+  const from = new Date(fromISO + "T00:00:00")
+  const to = new Date(toISO + "T00:00:00")
+  const monthCount = to.getFullYear() * 12 + to.getMonth() - (from.getFullYear() * 12 + from.getMonth()) + 1
+  const occurrences = projectIncomeOccurrences(income, from.getFullYear(), from.getMonth(), monthCount)
+  return occurrences.filter((o) => o.date > fromISO && o.date <= toISO).reduce((sum, o) => sum + o.amount, 0)
+}
+
+// Projects a manually-entered account balance forward from the date it was
+// accurate (anchorDateISO) to today (asOfISO), using only real scheduled
+// cash movements: paychecks landing (add), automatic transfers out (see
+// projectTransferOccurrences), and bills/debts due (subtract) -- NOT goal
+// contributions, which are a planning target, not money that has actually
+// left the account. This is the "no Plaid Auth needed" alternative to a
+// live bank balance: the user only has to enter their real balance once,
+// and it stays accurate on its own for as long as their income/bills/debts
+// stay accurate, instead of quietly going stale the moment they stop
+// re-checking their bank.
+export function projectRunningBalance(input: {
+  anchorBalance: number
+  anchorDateISO: string
+  asOfISO: string
+  income: CycleIncome[]
+  bills: CycleBill[]
+  debts: CycleDebt[]
+}): number {
+  const { anchorBalance, anchorDateISO, asOfISO, income, bills, debts } = input
+  if (asOfISO <= anchorDateISO) return anchorBalance
+  const incomeIn = sumIncomeInWindow(income, anchorDateISO, asOfISO)
+  const transfersOut = sumTransfersInWindow(income, anchorDateISO, asOfISO)
+  const billsOut = sumDueInWindow(bills, anchorDateISO, asOfISO)
+  const debtsOut = sumDueInWindow(
+    excludeTransferCoveredDebts(debts).map((d) => ({ amount: d.minimum_payment, due_date: d.due_date })),
+    anchorDateISO,
+    asOfISO
+  )
+  return Math.round((anchorBalance + incomeIn - transfersOut - billsOut - debtsOut) * 100) / 100
+}
+
 // Every bill/debt occurrence whose due date falls in (fromISO, toISO],
 // tagged with the resolved occurrence date -- used both to sum a window's
 // commitments and (by Paycheck Shield) to name which specific items landed

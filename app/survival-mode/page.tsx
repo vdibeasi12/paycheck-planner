@@ -8,7 +8,7 @@ import {
   toISODate,
 } from "@/lib/paycheckCycles"
 import { nearestWeakCycle } from "@/lib/planResilience"
-import { resolveStartingCash, resolveAccountBalance, type CashAccountRow } from "@/lib/cashBalance"
+import { resolveStartingCash, type CashAccountRow } from "@/lib/cashBalance"
 import SurvivalModeView from "@/app/components/SurvivalModeView"
 
 /**
@@ -42,11 +42,7 @@ export default async function SurvivalModePage() {
     supabase.from("bills").select("id, name, amount, due_date").eq("user_id", user.id),
     supabase.from("debts").select("id, name, minimum_payment, due_date, covered_by_transfer").eq("user_id", user.id),
     supabase.from("financial_goals").select("target_amount, current_amount, deadline, status").eq("user_id", user.id),
-    supabase
-      .from("cash_accounts")
-      .select("id, label, manual_balance, manual_balance_updated_at, linked_account_label, linked_starting_balance")
-      .eq("user_id", user.id)
-      .order("sort_order", { ascending: true }),
+    supabase.from("cash_accounts").select("kind, balance, balance_as_of").eq("user_id", user.id),
   ])
 
   const income = incomeRes.data ?? []
@@ -54,24 +50,13 @@ export default async function SurvivalModePage() {
   const debts = debtsRes.data ?? []
   const goals = goalsRes.data ?? []
   const cashRows = (cashRes.data ?? []) as CashAccountRow[]
+  const checkingRow = cashRows.find((r) => r.kind === "checking") ?? null
+  const savingsRow = cashRows.find((r) => r.kind === "savings") ?? null
 
   let result = computeSafeToSpend({ income, bills, debts, goals })
 
-  const resolvedAccounts = await Promise.all(
-    cashRows.map(async (row) => {
-      let linkedSum: number | null = null
-      if (row.linked_account_label) {
-        const { data: txns } = await supabase
-          .from("transactions")
-          .select("amount")
-          .eq("user_id", user.id)
-          .eq("account_label", row.linked_account_label)
-        linkedSum = (txns ?? []).reduce((sum, t) => sum + Number(t.amount || 0), 0)
-      }
-      return resolveAccountBalance(row, linkedSum)
-    })
-  )
-  const startingCash = resolveStartingCash(resolvedAccounts, result.lastPaycheckAmount)
+  const todayISO = toISODate(new Date())
+  const startingCash = resolveStartingCash(checkingRow, { income, bills, debts, todayISO }, result.lastPaycheckAmount)
   result = withStartingCash(result, startingCash)
 
   // Debts covered_by_transfer are paid automatically from a linked transfer
@@ -87,7 +72,6 @@ export default async function SurvivalModePage() {
   let classifiedBills: ReturnType<typeof classifyItemsAroundCycle<typeof bills[number]>> = []
   let classifiedDebts: ReturnType<typeof classifyItemsAroundCycle<DebtWithAmount>> = []
   if (result.nextPaycheckDate) {
-    const todayISO = toISODate(new Date())
     classifiedBills = classifyItemsAroundCycle(bills, todayISO, result.nextPaycheckDate)
     classifiedDebts = classifyItemsAroundCycle(
       spendableDebts.map((d) => ({ ...d, amount: d.minimum_payment })),
@@ -103,6 +87,7 @@ export default async function SurvivalModePage() {
     <SurvivalModeView
       result={result}
       startingCash={startingCash}
+      savings={savingsRow}
       classifiedBills={classifiedBills}
       classifiedDebts={classifiedDebts}
       coveredDebts={coveredDebts}

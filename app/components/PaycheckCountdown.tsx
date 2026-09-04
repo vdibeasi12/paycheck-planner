@@ -24,8 +24,7 @@ type Props = {
 
 function sourceLabel(startingCash?: StartingCash): string {
   if (!startingCash || startingCash.source === "lastPaycheck") return "your last paycheck"
-  if (startingCash.accounts.length === 1) return `your "${startingCash.label}" balance`
-  return `your ${startingCash.label}`
+  return "your checking balance"
 }
 
 function formatDate(iso: string): string {
@@ -114,7 +113,7 @@ export default function PaycheckCountdown({
       </p>
 
       <div className="mt-4 space-y-1.5 text-sm text-gray-400">
-        {startingCash && startingCash.source === "accounts" ? (
+        {startingCash && startingCash.source === "checking" ? (
           <div className="flex justify-between">
             <span>Starting from {sourceLabel(startingCash)}</span>
             <span className="text-gray-200">{formatMoney(result.startingCash)}</span>
@@ -160,6 +159,14 @@ export default function PaycheckCountdown({
             Add your real balance
           </Link>{" "}
           for more accuracy.
+        </p>
+      )}
+
+      {startingCash?.source === "checking" && (
+        <p className="mt-2 text-xs text-gray-500">
+          Not linked to your bank -- calculated from the balance you entered on{" "}
+          {startingCash.asOf ? new Date(startingCash.asOf + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "file"}
+          , projected forward with your income/bills/debts.
         </p>
       )}
 

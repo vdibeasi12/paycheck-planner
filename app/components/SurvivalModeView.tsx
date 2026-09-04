@@ -6,7 +6,7 @@ import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import type { SafeToSpendResult } from "@/lib/safeToSpend"
 import type { ClassifiedItem } from "@/lib/paycheckCycles"
 import type { NearTermRisk } from "@/lib/planResilience"
-import type { StartingCash } from "@/lib/cashBalance"
+import type { StartingCash, CashAccountRow } from "@/lib/cashBalance"
 import WhatIfSpend from "./WhatIfSpend"
 import PlanRiskBanner from "./PlanRiskBanner"
 import CashBalanceEditor from "./CashBalanceEditor"
@@ -18,6 +18,7 @@ type NamedDebt = { id: string; name: string; minimum_payment: number; due_date: 
 type Props = {
   result: SafeToSpendResult
   startingCash: StartingCash
+  savings: CashAccountRow | null
   classifiedBills: ClassifiedItem<NamedBill>[]
   classifiedDebts: ClassifiedItem<{ id: string; name: string; amount: number; due_date: number | null }>[]
   coveredDebts?: { name: string; amount: number }[]
@@ -49,6 +50,7 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 export default function SurvivalModeView({
   result,
   startingCash,
+  savings,
   classifiedBills,
   classifiedDebts,
   coveredDebts = [],
@@ -88,7 +90,7 @@ export default function SurvivalModeView({
         <div className="mt-8 space-y-4">
           {risk && <PlanRiskBanner risk={risk} />}
 
-          <CashBalanceEditor startingCash={startingCash} />
+          <CashBalanceEditor startingCash={startingCash} savings={savings} />
 
           {startingCash.source === "lastPaycheck" && result.transfersOut > 0 && (
             <p className="text-xs text-gray-500">

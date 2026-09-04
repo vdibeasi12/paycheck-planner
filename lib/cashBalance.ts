@@ -1,90 +1,58 @@
 // lib/cashBalance.ts
 // Resolves the most accurate "what do I actually have to spend from right
 // now" figure available, for Safe to Spend / Survival Mode. Plaid Auth
-// (live checking balance) was denied for Production, so these numbers have
-// always projected a starting-cash figure from "your last paycheck" -- this
-// file lets that be replaced with something grounded in reality when the
-// user provides it, without ever touching a live bank connection.
+// (live checking balance) was denied for Production, so this is the
+// alternative: the user types in their real Checking balance once (with the
+// date it was accurate), and the app PROJECTS it forward to today using the
+// income/bills/debts already on file (see lib/paycheckCycles.ts's
+// projectRunningBalance) -- no live bank feed, but it doesn't go stale the
+// moment they stop re-checking their bank either. Savings is tracked the
+// same way but shown as-is (nothing in this app's data model scheduled-debits
+// a savings account, so there's nothing to project forward with).
 //
-// QA fix (Sep 3 2026, Vince): a single balance can't represent a real
-// household -- bills might come out of one bank while a mortgage/car/
-// personal loan come out of another, and a savings/cushion account should
-// never be counted as spendable money. So this is now a LIST of accounts
-// (cash_accounts table, one row per account the user actually spends bills
-// from), summed together. Anything the user wants tracked but NOT counted
-// toward Safe to Spend (a savings account, a cushion goal) simply isn't
-// added here -- it can be tracked instead via a linked Financial Goal (see
-// lib/goalAutoCalc.ts), which is a better fit for "money I'm growing" than
-// "money I have to spend."
-//
-// Each account resolves its own balance from one of two sources, most to
-// least "sticky":
-//   1. linkedAccount -- an imported account's transaction-verified running
-//      balance (starting_balance + net of every transaction tagged with
-//      that account label). Updates itself on every statement import.
-//   2. manualBalance -- a number the user typed in themselves, current as
-//      of whenever they last checked their bank.
-// With zero accounts added, Safe to Spend falls back to the original
-// lastPaycheck projection, unchanged for anyone who never touches this.
+// This deliberately replaced an earlier "list of N accounts, link one to
+// imported transactions" version (shipped same day, never used) -- that
+// modeled the wrong problem. What actually fixes Safe to Spend is one real
+// Checking balance projected forward, not a longer list of static numbers.
+
+import {
+  projectRunningBalance,
+  type CycleIncome,
+  type CycleBill,
+  type CycleDebt,
+} from "./paycheckCycles"
 
 export type CashAccountRow = {
-  id: string
-  label: string
-  manual_balance: number | null
-  manual_balance_updated_at: string | null
-  linked_account_label: string | null
-  linked_starting_balance: number
-}
-
-export type ResolvedCashAccount = {
-  id: string
-  label: string
+  kind: "checking" | "savings"
   balance: number
-  isLinked: boolean
-  updatedAt: string | null
+  balance_as_of: string // ISO date
 }
 
-export type StartingCashSource = "lastPaycheck" | "accounts"
+export type StartingCashSource = "lastPaycheck" | "checking"
 
 export type StartingCash = {
   amount: number
   source: StartingCashSource
-  // A friendly description of what fed the total -- the single account's
-  // name, "N accounts", or null for the lastPaycheck fallback.
-  label: string | null
-  accounts: ResolvedCashAccount[]
+  // The balance_as_of date for a "checking" source -- lets the UI say
+  // "as of Sept 1, projected to today" instead of implying a live balance.
+  asOf: string | null
 }
 
-// Resolves one account row to its current balance. `linkedTransactionSum`
-// is the sum of transactions.amount for that row's linked_account_label,
-// or null when the row isn't linked to an imported account.
-export function resolveAccountBalance(
-  row: CashAccountRow,
-  linkedTransactionSum: number | null
-): ResolvedCashAccount {
-  if (row.linked_account_label && linkedTransactionSum != null) {
-    return {
-      id: row.id,
-      label: row.label,
-      balance: Math.round((Number(row.linked_starting_balance || 0) + linkedTransactionSum) * 100) / 100,
-      isLinked: true,
-      updatedAt: null,
-    }
+export function resolveStartingCash(
+  checkingRow: CashAccountRow | null,
+  input: { income: CycleIncome[]; bills: CycleBill[]; debts: CycleDebt[]; todayISO: string },
+  lastPaycheckAmount: number
+): StartingCash {
+  if (!checkingRow) {
+    return { amount: lastPaycheckAmount, source: "lastPaycheck", asOf: null }
   }
-  return {
-    id: row.id,
-    label: row.label,
-    balance: Number(row.manual_balance ?? 0),
-    isLinked: false,
-    updatedAt: row.manual_balance_updated_at ?? null,
-  }
-}
-
-export function resolveStartingCash(accounts: ResolvedCashAccount[], lastPaycheckAmount: number): StartingCash {
-  if (accounts.length === 0) {
-    return { amount: lastPaycheckAmount, source: "lastPaycheck", label: null, accounts: [] }
-  }
-  const amount = Math.round(accounts.reduce((sum, a) => sum + a.balance, 0) * 100) / 100
-  const label = accounts.length === 1 ? accounts[0].label : `${accounts.length} accounts`
-  return { amount, source: "accounts", label, accounts }
+  const amount = projectRunningBalance({
+    anchorBalance: checkingRow.balance,
+    anchorDateISO: checkingRow.balance_as_of,
+    asOfISO: input.todayISO,
+    income: input.income,
+    bills: input.bills,
+    debts: input.debts,
+  })
+  return { amount, source: "checking", asOf: checkingRow.balance_as_of }
 }

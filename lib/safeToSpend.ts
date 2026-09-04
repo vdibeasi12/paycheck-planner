@@ -67,11 +67,14 @@ export type SafeToSpendResult = {
   dailyLimit: number | null
   // What safeToSpend was actually computed from -- defaults to
   // lastPaycheckAmount/"lastPaycheck" here; see withStartingCash() below for
-  // grounding this in real account balances (lib/cashBalance.ts) instead of
-  // the projection-only default.
+  // grounding this in a real Checking balance (lib/cashBalance.ts) projected
+  // forward to today, instead of the projection-only default.
   startingCash: number
-  startingCashSource: "lastPaycheck" | "accounts"
-  startingCashLabel: string | null
+  startingCashSource: "lastPaycheck" | "checking"
+  // The Checking balance's balance_as_of date when startingCashSource is
+  // "checking" -- null otherwise. Lets the UI say "as of Sept 1" instead of
+  // implying a live bank feed.
+  startingCashAsOf: string | null
 }
 
 export type WhatIfVerdict = "fine" | "tight" | "not-recommended"
@@ -112,7 +115,7 @@ export function computeSafeToSpend(input: {
     dailyLimit: null,
     startingCash: 0,
     startingCashSource: "lastPaycheck",
-    startingCashLabel: null,
+    startingCashAsOf: null,
   }
   if (!hasIncome || missingPayDate) return empty
 
@@ -182,20 +185,20 @@ export function computeSafeToSpend(input: {
     dailyLimit,
     startingCash,
     startingCashSource: "lastPaycheck",
-    startingCashLabel: null,
+    startingCashAsOf: null,
   }
 }
 
-// Re-grounds an already-computed Safe-to-Spend result in a real starting-
-// cash figure -- the sum of every account the user's told us about (see
-// lib/cashBalance.ts's resolveStartingCash()) -- instead of the
-// projection-only lastPaycheckAmount. Same billsDue/debtsDue/
-// goalContribution (still just "what's due before your next paycheck"),
-// just a more accurate number to subtract them from. A no-op when the
-// result couldn't be computed in the first place (no income/pay date).
+// Re-grounds an already-computed Safe-to-Spend result in a real Checking
+// balance projected forward to today (see lib/cashBalance.ts's
+// resolveStartingCash()) instead of the projection-only lastPaycheckAmount.
+// Same billsDue/debtsDue/goalContribution (still just "what's due before
+// your next paycheck"), just a more accurate number to subtract them from.
+// A no-op when the result couldn't be computed in the first place (no
+// income/pay date).
 export function withStartingCash(
   result: SafeToSpendResult,
-  cash: { amount: number; source: SafeToSpendResult["startingCashSource"]; label: string | null }
+  cash: { amount: number; source: SafeToSpendResult["startingCashSource"]; asOf: string | null }
 ): SafeToSpendResult {
   if (!result.hasIncome || result.missingPayDate || !result.nextPaycheckDate) {
     return result
@@ -211,7 +214,7 @@ export function withStartingCash(
     dailyLimit,
     startingCash: cash.amount,
     startingCashSource: cash.source,
-    startingCashLabel: cash.label,
+    startingCashAsOf: cash.asOf,
   }
 }
 
