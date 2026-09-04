@@ -150,7 +150,11 @@ export function computeSafeToSpend(input: {
 
   const billsDue = sumDueInWindow(input.bills, todayStr, nextPaycheckDate)
   const debtsDue = sumDueInWindow(
-    excludeTransferCoveredDebts(input.debts).map((d) => ({ amount: d.minimum_payment, due_date: d.due_date })),
+    excludeTransferCoveredDebts(input.debts).map((d) => ({
+      amount: d.minimum_payment,
+      due_date: d.due_date,
+      grace_period_days: d.grace_period_days,
+    })),
     todayStr,
     nextPaycheckDate
   )

@@ -30,6 +30,16 @@ import PaycheckShieldView from "@/app/components/PaycheckShieldView"
  *    starting cash (lib/cashBalance.ts) and feeds it in as the seed for
  *    every cycle's running balance, so "how strong is my plan" and "am I
  *    safe to spend" are answering from the same real money.
+ *
+ * QA fix (Sep 4 2026, Vince): a third, separate issue surfaced once the above
+ * two were fixed -- a debt with a real grace period (a mortgage due the 1st
+ * but not actually late until the 16th) has no accurate way to be modeled:
+ * covered_by_transfer excludes it entirely (wrong -- he pays it himself, not
+ * an automatic sweep), and without it the debt reads as due/overdue the
+ * moment day 1 passes even though he has until the 16th. grace_period_days
+ * now selected here (see lib/paycheckCycles.ts's itemsDueInWindow) shifts a
+ * debt's effective due date to due_date + grace_period_days for every
+ * calculation in this file.
  */
 export default async function PaycheckShieldPage() {
   const supabase = await createClient()
@@ -44,7 +54,7 @@ export default async function PaycheckShieldPage() {
     supabase.from("bills").select("id, name, amount, due_date").eq("user_id", user.id),
     supabase
       .from("debts")
-      .select("id, name, minimum_payment, due_date, covered_by_transfer")
+      .select("id, name, minimum_payment, due_date, covered_by_transfer, grace_period_days")
       .eq("user_id", user.id),
     supabase.from("financial_goals").select("target_amount, current_amount, deadline, status").eq("user_id", user.id),
     supabase.from("cash_accounts").select("id, kind, name, balance, balance_as_of").eq("user_id", user.id),

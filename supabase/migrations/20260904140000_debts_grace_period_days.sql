@@ -1,0 +1,19 @@
+-- Sep 4 2026, Vince: "my mortgage was paid today from checking and the due
+-- date is on the 1st but I have a grace period till the 16th without a
+-- penalty. I paid on the 9th, how can this reflect so the numbers are
+-- accurate? That's... a problem with the logic."
+--
+-- The app only ever stored a single due day per debt, with no way to say
+-- "due the 1st, but really due the 16th before it's actually late." That
+-- forced a bad choice for a debt like this: either mark it covered_by_transfer
+-- (meant for a debt that leaves automatically via a linked transfer -- see
+-- lib/paycheckCycles.ts -- which silently excludes it from Safe to
+-- Spend/Paycheck Shield forever, even though Vince pays it manually) or leave
+-- it uncovered and have it register as due/overdue the moment day 1 passes,
+-- even when he's well within a penalty-free window. Neither reflects reality.
+--
+-- grace_period_days lets a debt's *effective* due date (for "is this due
+-- yet"/"is this overdue" purposes) be due_date + grace_period_days instead of
+-- the raw due day. Scoped to debts only (mortgages, some loans/cards have
+-- grace periods; recurring bills generally don't work this way).
+alter table public.debts add column if not exists grace_period_days integer not null default 0;

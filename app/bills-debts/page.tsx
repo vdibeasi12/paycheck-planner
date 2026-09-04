@@ -33,7 +33,7 @@ import { consumeCapturePrefill } from '@/lib/capturePrefill'
 import { checkAchievementsAndCelebrate } from '@/lib/checkAchievements'
 import { celebrate, popMilestone, crossedMilestone } from '@/lib/confetti'
 import { DEBT_TYPES, debtTypeLabel } from '@/lib/debtTypes'
-import { toISODate, daysBetween } from '@/lib/paycheckCycles'
+import { toISODate, daysBetween, addDays } from '@/lib/paycheckCycles'
 import { billOccurrenceInMonth } from '@/lib/schedule'
 import { generateBillsDebtsPdf } from '@/lib/generateBillsDebtsPdf'
 
@@ -85,11 +85,19 @@ interface Debt {
   debt_type: string | null
   escrow_payment: number | null
   covered_by_transfer: boolean
+  // QA fix (Sep 4 2026, Vince): "my mortgage's due date is the 1st but I have
+  // a grace period till the 16th without a penalty." Distinct from
+  // covered_by_transfer (money that leaves automatically -- excluded from
+  // Safe to Spend entirely): a debt with a grace period still gets paid from
+  // this account, just not necessarily the instant the nominal due day hits.
+  // Shifts the effective due date used everywhere (Safe to Spend, Paycheck
+  // Shield, and the Overdue/Grace status below) to due_date + this many days.
+  grace_period_days: number | null
   created_at: string
 }
 
 type ObligationType = 'bill' | 'debt'
-type UrgencyStatus = 'overdue' | 'due-soon' | 'upcoming' | 'no-date'
+type UrgencyStatus = 'overdue' | 'due-soon' | 'upcoming' | 'no-date' | 'grace'
 type Tab = 'all' | 'bills' | 'debts' | 'due-soon' | 'overdue'
 
 type Obligation = {
@@ -108,12 +116,25 @@ type Obligation = {
 
 const SUBSCRIPTION_CATEGORY = 'Subscriptions'
 
-function statusOf(dueDay: number | null, todayISO: string): { occurrenceDate: string | null; daysUntil: number | null; status: UrgencyStatus } {
+// QA fix (Sep 4 2026, Vince): graceDays (debts only -- bills always pass 0)
+// shifts the *effective* due date used for status purposes to
+// dueDay + graceDays, so a debt within a real grace period (mortgage due the
+// 1st, no penalty till the 16th) shows as "Grace period" instead of
+// "Overdue" the moment the nominal day passes, and doesn't count as due (for
+// Safe to Spend/Paycheck Shield) until the grace window actually ends. Once
+// the grace window itself passes, it's genuinely overdue.
+function statusOf(
+  dueDay: number | null,
+  todayISO: string,
+  graceDays: number = 0
+): { occurrenceDate: string | null; daysUntil: number | null; status: UrgencyStatus } {
   if (!dueDay) return { occurrenceDate: null, daysUntil: null, status: 'no-date' }
   const today = new Date(todayISO + 'T00:00:00')
   const occurrenceDate = billOccurrenceInMonth(dueDay, today.getFullYear(), today.getMonth())
-  const daysUntil = daysBetween(todayISO, occurrenceDate)
-  const status: UrgencyStatus = daysUntil < 0 ? 'overdue' : daysUntil <= 7 ? 'due-soon' : 'upcoming'
+  const effectiveDate = graceDays > 0 ? toISODate(addDays(new Date(occurrenceDate + 'T00:00:00'), graceDays)) : occurrenceDate
+  const daysUntil = daysBetween(todayISO, effectiveDate)
+  const inGrace = graceDays > 0 && todayISO > occurrenceDate && todayISO <= effectiveDate
+  const status: UrgencyStatus = daysUntil < 0 ? 'overdue' : inGrace ? 'grace' : daysUntil <= 7 ? 'due-soon' : 'upcoming'
   return { occurrenceDate, daysUntil, status }
 }
 
@@ -122,6 +143,7 @@ function statusOf(dueDay: number | null, todayISO: string): { occurrenceDate: st
 function statusLabel(status: UrgencyStatus, daysUntil: number | null): string {
   if (status === 'no-date') return 'No due date'
   if (status === 'overdue') return 'Overdue'
+  if (status === 'grace') return 'Grace period'
   if (status === 'due-soon') return daysUntil === 0 ? 'Due today' : `Due in ${daysUntil}d`
   return 'Upcoming'
 }
@@ -146,6 +168,13 @@ function StatusPill({ status, daysUntil }: { status: UrgencyStatus; daysUntil: n
       <span className="flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-300">
         <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
         {daysUntil === 0 ? 'Due today' : `Due in ${daysUntil}d`}
+      </span>
+    )
+  }
+  if (status === 'grace') {
+    return (
+      <span className="flex items-center gap-1 rounded-full bg-sky-500/15 px-2 py-0.5 text-[11px] font-semibold text-sky-300">
+        <span className="h-1.5 w-1.5 rounded-full bg-sky-400" /> Grace period
       </span>
     )
   }
@@ -183,6 +212,7 @@ export default function BillsAndDebtsPage() {
   const [debtType, setDebtType] = useState('')
   const [escrowPayment, setEscrowPayment] = useState('')
   const [coveredByTransfer, setCoveredByTransfer] = useState(false)
+  const [gracePeriodDays, setGracePeriodDays] = useState('')
   const [showCapture, setShowCapture] = useState(false)
 
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -199,6 +229,7 @@ export default function BillsAndDebtsPage() {
   const [editDebtType, setEditDebtType] = useState('')
   const [editEscrowPayment, setEditEscrowPayment] = useState('')
   const [editCoveredByTransfer, setEditCoveredByTransfer] = useState(false)
+  const [editGracePeriodDays, setEditGracePeriodDays] = useState('')
 
   const todayISO = toISODate(new Date())
 
@@ -209,7 +240,7 @@ export default function BillsAndDebtsPage() {
         supabase
           .from('debts')
           .select(
-            'id, name, balance, original_balance, interest_rate, minimum_payment, due_date, debt_type, escrow_payment, covered_by_transfer, created_at'
+            'id, name, balance, original_balance, interest_rate, minimum_payment, due_date, debt_type, escrow_payment, covered_by_transfer, grace_period_days, created_at'
           ),
         supabase.auth.getUser(),
       ])
@@ -282,7 +313,7 @@ export default function BillsAndDebtsPage() {
       }
     })
     const debtItems: Obligation[] = debts.map((d) => {
-      const s = statusOf(d.due_date, todayISO)
+      const s = statusOf(d.due_date, todayISO, d.grace_period_days || 0)
       return {
         id: d.id,
         type: 'debt',
@@ -319,7 +350,7 @@ export default function BillsAndDebtsPage() {
   // selected below. Overdue first (most urgent), then due-soon, then a
   // capped preview of what's coming up after that.
   const attentionItems = useMemo(
-    () => obligations.filter((o) => o.status === 'overdue' || o.status === 'due-soon'),
+    () => obligations.filter((o) => o.status === 'overdue' || o.status === 'due-soon' || o.status === 'grace'),
     [obligations]
   )
   const comingUpItems = useMemo(
@@ -360,6 +391,7 @@ export default function BillsAndDebtsPage() {
     setDebtType('')
     setEscrowPayment('')
     setCoveredByTransfer(false)
+    setGracePeriodDays('')
   }
 
   async function addObligation(e: React.FormEvent) {
@@ -426,6 +458,7 @@ export default function BillsAndDebtsPage() {
           debt_type: debtType || null,
           escrow_payment: escrowPayment === '' ? null : Number(escrowPayment),
           covered_by_transfer: coveredByTransfer,
+          grace_period_days: gracePeriodDays === '' ? 0 : Number(gracePeriodDays),
         })
         if (error) throw error
         resetForm()
@@ -482,6 +515,7 @@ export default function BillsAndDebtsPage() {
       setEditDebtType(d.debt_type ?? '')
       setEditEscrowPayment(d.escrow_payment != null ? String(d.escrow_payment) : '')
       setEditCoveredByTransfer(!!d.covered_by_transfer)
+      setEditGracePeriodDays(d.grace_period_days ? String(d.grace_period_days) : '')
     }
   }
 
@@ -532,6 +566,7 @@ export default function BillsAndDebtsPage() {
             debt_type: editDebtType || null,
             escrow_payment: editEscrowPayment === '' ? null : Number(editEscrowPayment),
             covered_by_transfer: editCoveredByTransfer,
+            grace_period_days: editGracePeriodDays === '' ? 0 : Number(editGracePeriodDays),
           })
           .eq('id', o.id)
         if (error) throw error
@@ -831,6 +866,21 @@ export default function BillsAndDebtsPage() {
                       />
                     </div>
                   )}
+                  <div>
+                    <label className="text-gray-400 text-sm block mb-2">
+                      Grace period (days, optional){' '}
+                      <span className="normal-case text-gray-500">-- days past the due day before it's really late</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="60"
+                      value={gracePeriodDays}
+                      onChange={(e) => setGracePeriodDays(e.target.value)}
+                      placeholder="e.g., 15"
+                      className={inputClass}
+                    />
+                  </div>
                   <label className="flex items-start gap-2 text-sm text-gray-400 sm:col-span-2">
                     <input
                       type="checkbox"
@@ -840,7 +890,8 @@ export default function BillsAndDebtsPage() {
                     />
                     <span>
                       Paid automatically from a linked transfer -- excludes it from Safe to Spend/Survival Mode so
-                      it&apos;s not subtracted twice.
+                      it&apos;s not subtracted twice. Don&apos;t check this just because you pay it within a grace
+                      window yourself -- use Grace period above for that instead.
                     </span>
                   </label>
                 </>
@@ -1159,6 +1210,18 @@ export default function BillsAndDebtsPage() {
                             />
                           </div>
                         )}
+                        <div>
+                          <label className="text-gray-500 text-xs block mb-1">Grace period (days, optional)</label>
+                          <input
+                            type="number"
+                            min="0"
+                            max="60"
+                            value={editGracePeriodDays}
+                            onChange={(e) => setEditGracePeriodDays(e.target.value)}
+                            placeholder="e.g., 15"
+                            className={inputClass}
+                          />
+                        </div>
                         <label className="flex items-start gap-2 text-xs text-gray-400">
                           <input
                             type="checkbox"

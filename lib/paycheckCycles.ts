@@ -35,6 +35,18 @@ export type CycleDebt = {
   // twice. Debts with this set are excluded from every debtsDue calculation
   // in this file.
   covered_by_transfer?: boolean | null
+  // QA fix (Sep 4 2026, Vince): "my mortgage's due date is the 1st but I have
+  // a grace period till the 16th without a penalty -- I paid on the 9th."
+  // covered_by_transfer (above) means "already left automatically, exclude
+  // entirely" -- a debt he pays himself, whenever he chooses within a grace
+  // window, is a different thing and was being mis-modeled as one or the
+  // other of those two extremes. This shifts the *effective* due date used
+  // for window/"already due" purposes to due_date + grace_period_days (see
+  // itemsDueInWindow below) instead of changing whether it counts at all --
+  // conservative for Safe to Spend (assumes the money leaves at the latest
+  // point the grace period allows) and stops a debt with a real grace period
+  // from reading as "Overdue" the moment its nominal due day passes.
+  grace_period_days?: number | null
 }
 
 export type CycleGoal = {
@@ -198,18 +210,31 @@ export function projectRunningBalance(input: {
   const transfersOut = sumTransfersInWindow(income, anchorDateISO, asOfISO)
   const billsOut = sumDueInWindow(bills, anchorDateISO, asOfISO)
   const debtsOut = sumDueInWindow(
-    excludeTransferCoveredDebts(debts).map((d) => ({ amount: d.minimum_payment, due_date: d.due_date })),
+    excludeTransferCoveredDebts(debts).map((d) => ({
+      amount: d.minimum_payment,
+      due_date: d.due_date,
+      grace_period_days: d.grace_period_days,
+    })),
     anchorDateISO,
     asOfISO
   )
   return Math.round((anchorBalance + incomeIn - transfersOut - billsOut - debtsOut) * 100) / 100
 }
 
-// Every bill/debt occurrence whose due date falls in (fromISO, toISO],
-// tagged with the resolved occurrence date -- used both to sum a window's
-// commitments and (by Paycheck Shield) to name which specific items landed
-// in a thin cycle.
-export function itemsDueInWindow<T extends { amount: number; due_date: number | null }>(
+// Every bill/debt occurrence whose *effective* due date falls in
+// (fromISO, toISO], tagged with that resolved occurrence date -- used both to
+// sum a window's commitments and (by Paycheck Shield) to name which specific
+// items landed in a thin cycle.
+//
+// QA fix (Sep 4 2026, Vince): a row's grace_period_days (debts only -- see
+// CycleDebt) shifts its effective date forward from the raw due day, so a
+// mortgage due the 1st with a 15-day grace period isn't treated as due (or as
+// "already due, assumed paid") until the 16th. This is deliberately the
+// LATEST point the grace window allows, not the day the user might actually
+// pay -- Safe to Spend has no way to know the exact day, and assuming the
+// money leaves as late as possible is the conservative direction to be wrong
+// in (never overstates what's safe to spend).
+export function itemsDueInWindow<T extends { amount: number; due_date: number | null; grace_period_days?: number | null }>(
   rows: T[],
   fromISO: string,
   toISO: string
@@ -224,7 +249,10 @@ export function itemsDueInWindow<T extends { amount: number; due_date: number | 
     for (let idx = startIdx; idx <= endIdx; idx++) {
       const year = Math.floor(idx / 12)
       const month = idx % 12
-      const date = billOccurrenceInMonth(row.due_date, year, month)
+      const nominalDate = billOccurrenceInMonth(row.due_date, year, month)
+      const date = row.grace_period_days
+        ? toISODate(addDays(new Date(nominalDate + "T00:00:00"), row.grace_period_days))
+        : nominalDate
       if (date > fromISO && date <= toISO) {
         out.push({ ...row, occurrenceDate: date })
       }
@@ -259,7 +287,7 @@ export function classifyItemsAroundCycle<T extends { amount: number; due_date: n
 }
 
 export function sumDueInWindow(
-  rows: { amount: number; due_date: number | null }[],
+  rows: { amount: number; due_date: number | null; grace_period_days?: number | null }[],
   fromISO: string,
   toISO: string
 ): number {
@@ -447,7 +475,11 @@ export function projectPaycheckCycles(input: {
   for (const date of dates) {
     const billsDue = sumDueInWindow(input.bills, windowStart, date)
     const debtsDue = sumDueInWindow(
-      spendableDebts.map((d) => ({ amount: d.minimum_payment, due_date: d.due_date })),
+      spendableDebts.map((d) => ({
+        amount: d.minimum_payment,
+        due_date: d.due_date,
+        grace_period_days: d.grace_period_days,
+      })),
       windowStart,
       date
     )

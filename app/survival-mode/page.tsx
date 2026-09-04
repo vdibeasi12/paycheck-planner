@@ -40,7 +40,10 @@ export default async function SurvivalModePage() {
   const [incomeRes, billsRes, debtsRes, goalsRes, cashRes] = await Promise.all([
     supabase.from("income").select("amount, frequency, next_pay_date, income_type").eq("user_id", user.id),
     supabase.from("bills").select("id, name, amount, due_date").eq("user_id", user.id),
-    supabase.from("debts").select("id, name, minimum_payment, due_date, covered_by_transfer").eq("user_id", user.id),
+    supabase
+      .from("debts")
+      .select("id, name, minimum_payment, due_date, covered_by_transfer, grace_period_days")
+      .eq("user_id", user.id),
     supabase.from("financial_goals").select("target_amount, current_amount, deadline, status").eq("user_id", user.id),
     supabase.from("cash_accounts").select("id, kind, name, balance, balance_as_of").eq("user_id", user.id),
   ])
@@ -63,7 +66,13 @@ export default async function SurvivalModePage() {
   // just like they're left out of debtsDue itself, and called out
   // separately so a mortgage/car loan doesn't just silently disappear with
   // no explanation.
-  type DebtWithAmount = { id: string; name: string; amount: number; due_date: number | null }
+  type DebtWithAmount = {
+    id: string
+    name: string
+    amount: number
+    due_date: number | null
+    grace_period_days?: number | null
+  }
   const spendableDebts = excludeTransferCoveredDebts(debts)
   const coveredDebts = debts
     .filter((d) => d.covered_by_transfer)

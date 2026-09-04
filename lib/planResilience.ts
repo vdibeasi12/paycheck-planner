@@ -119,7 +119,11 @@ function applyScenario(
       const extendedTo = toISODate(addDays(new Date(c.date + "T00:00:00"), scenario.value))
       adjustedBillsDue = sumDueInWindow(bills, c.windowStart, extendedTo)
       adjustedDebtsDue = sumDueInWindow(
-        excludeTransferCoveredDebts(debts).map((d) => ({ amount: d.minimum_payment, due_date: d.due_date })),
+        excludeTransferCoveredDebts(debts).map((d) => ({
+          amount: d.minimum_payment,
+          due_date: d.due_date,
+          grace_period_days: d.grace_period_days,
+        })),
         c.windowStart,
         extendedTo
       )

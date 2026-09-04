@@ -19,7 +19,13 @@ const CAPACITY_BADGE: Record<CapacityLevel, { dot: string; text: string; label: 
 }
 
 type BillRow = { id: string; name: string; amount: number; due_date: number | null }
-type DebtRow = { id: string; name: string; minimum_payment: number; due_date: number | null }
+type DebtRow = {
+  id: string
+  name: string
+  minimum_payment: number
+  due_date: number | null
+  grace_period_days?: number | null
+}
 
 type Props = {
   result: PlanResilienceResult
