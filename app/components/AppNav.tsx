@@ -10,8 +10,7 @@ import { hardSignOut } from "@/lib/signOut"
 const LINKS = [
   { href: "/dashboard", label: "Dashboard" },
   { href: "/calendar", label: "Calendar" },
-  { href: "/debts", label: "Debts" },
-  { href: "/bills", label: "Bills" },
+  { href: "/bills-debts", label: "Bills & Debts" },
   { href: "/goals", label: "Goals" },
   { href: "/insights", label: "Insights" },
   { href: "/ai-chat", label: "AI Chat" },

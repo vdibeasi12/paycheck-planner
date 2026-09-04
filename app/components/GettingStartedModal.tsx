@@ -45,12 +45,12 @@ const STEP_DEFS: StepDef[] = [
     desc: "Enter each paycheck and how often it arrives so the budget math is right.",
   },
   {
-    key: "debts", rank: 0, kind: "data", href: "/debts", Icon: CreditCard, table: "debts",
+    key: "debts", rank: 0, kind: "data", href: "/bills-debts", Icon: CreditCard, table: "debts",
     title: "Add your first debt",
     desc: "Enter a balance, interest rate (APR), and minimum payment so we can build your payoff plan.",
   },
   {
-    key: "bills", rank: 0, kind: "data", href: "/bills", Icon: Receipt, table: "bills",
+    key: "bills", rank: 0, kind: "data", href: "/bills-debts", Icon: Receipt, table: "bills",
     title: "Add a bill",
     desc: "Track what's coming in and going out each month.",
   },

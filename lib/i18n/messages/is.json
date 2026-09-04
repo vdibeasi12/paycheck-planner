@@ -1,6 +1,7 @@
 {
   "nav": {
     "dashboard": "Yfirlit",
+    "billsDebts": "Reikningar og skuldir",
     "calendar": "Dagatal",
     "debts": "Skuldir",
     "payoffPlan": "Greiðsluáætlun",

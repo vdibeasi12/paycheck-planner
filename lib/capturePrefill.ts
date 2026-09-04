@@ -41,8 +41,8 @@ export function consumeCapturePrefill(expectedType: CapturedDocType): any | null
 }
 
 const TARGET_PATH: Record<CapturedDocType, string> = {
-  bill: "/bills",
-  debt: "/debts",
+  bill: "/bills-debts",
+  debt: "/bills-debts",
   income: "/income",
 }
 

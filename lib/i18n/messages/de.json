@@ -1,6 +1,7 @@
 {
   "nav": {
     "dashboard": "Übersicht",
+    "billsDebts": "Rechnungen & Schulden",
     "calendar": "Kalender",
     "debts": "Schulden",
     "payoffPlan": "Tilgungsplan",

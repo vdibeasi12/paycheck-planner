@@ -57,7 +57,7 @@ export default function DebtList({ debts }: { debts: Debt[] | null | undefined }
           )}
         </div>
         <Link
-          href="/debts"
+          href="/bills-debts"
           className="flex items-center gap-1 text-sm font-medium text-emerald-400 hover:text-emerald-300"
         >
           Manage debts <ArrowRight size={14} />
@@ -71,7 +71,7 @@ export default function DebtList({ debts }: { debts: Debt[] | null | undefined }
             Add a debt or connect a credit card to start building your payoff plan.
           </p>
           <Link
-            href="/debts"
+            href="/bills-debts"
             className="mt-4 inline-block rounded-lg bg-green-500 px-5 py-2 font-medium text-black transition hover:bg-green-600"
           >
             Add a debt

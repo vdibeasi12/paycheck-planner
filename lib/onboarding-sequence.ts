@@ -77,7 +77,7 @@ export const SEQUENCE: OnboardingStep[] = [
           '<p style="color:#9ca3af;">Add your recurring bills and Paycheck Planner matches each one to the ' +
           "paycheck that covers it. No more guessing whether Friday's paycheck is actually free to spend, or " +
           "already spoken for.</p>" +
-          cta("Add your bills", APP_URL + "/bills"),
+          cta("Add your bills", APP_URL + "/bills-debts"),
         unsubUrl
       ),
   },
@@ -92,7 +92,7 @@ export const SEQUENCE: OnboardingStep[] = [
           '<p style="color:#9ca3af;">Add your debts and Paycheck Planner maps out a snowball or avalanche ' +
           "payoff plan against your real paycheck schedule -- so you know not just how much you owe, but " +
           "exactly when it ends.</p>" +
-          cta("Set up your payoff plan", APP_URL + "/debts"),
+          cta("Set up your payoff plan", APP_URL + "/bills-debts"),
         unsubUrl
       ),
   },

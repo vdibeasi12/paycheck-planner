@@ -1,6 +1,7 @@
 {
   "nav": {
     "dashboard": "Pannello",
+    "billsDebts": "Bollette e debiti",
     "calendar": "Calendario",
     "debts": "Debiti",
     "payoffPlan": "Piano di rimborso",

@@ -76,7 +76,7 @@ export default function StrengthenPaycheckPanel({ cycle, bills, debts }: Props) 
                 <span className="text-emerald-400">{formatMoney(cycle.cushion + b.amount)}</span>
               </p>
             </div>
-            <Link href="/bills" className="text-xs font-semibold text-emerald-400 hover:underline shrink-0 ml-3">
+            <Link href="/bills-debts" className="text-xs font-semibold text-emerald-400 hover:underline shrink-0 ml-3">
               Edit bill &rarr;
             </Link>
           </div>
@@ -105,7 +105,7 @@ export default function StrengthenPaycheckPanel({ cycle, bills, debts }: Props) 
         <p className="mt-4 text-xs text-gray-500">
           {formatMoney(cycle.debtsDue)} of this paycheck's commitments is debt minimum payments. Adjusting those
           means revisiting your payoff plan --{" "}
-          <Link href="/debts" className="text-emerald-400 hover:underline">
+          <Link href="/bills-debts" className="text-emerald-400 hover:underline">
             see your debts
           </Link>
           .

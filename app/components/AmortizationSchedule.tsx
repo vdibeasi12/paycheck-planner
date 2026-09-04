@@ -479,7 +479,7 @@ export default function AmortizationSchedule({ debts }: Props) {
                   : selectedMissingMinCount + " of " + selectedDebts.length + " debts in this plan have no minimum payment on file yet"}
                 {" "}(common right after connecting a credit card, before your first statement posts) -- there's nothing to
                 simulate with a $0 budget. Add an extra monthly payment above, or{" "}
-                <a href="/debts" className="font-medium underline hover:text-amber-100">
+                <a href="/bills-debts" className="font-medium underline hover:text-amber-100">
                   edit these debts
                 </a>{" "}
                 to add their real minimum payments.

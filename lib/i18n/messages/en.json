@@ -1,6 +1,7 @@
 {
   "nav": {
     "dashboard": "Dashboard",
+    "billsDebts": "Bills & Debts",
     "calendar": "Calendar",
     "debts": "Debts",
     "payoffPlan": "Payoff Plan",

@@ -1,6 +1,7 @@
 {
   "nav": {
     "dashboard": "Panel",
+    "billsDebts": "Rachunki i długi",
     "calendar": "Kalendarz",
     "debts": "Długi",
     "payoffPlan": "Plan spłaty",

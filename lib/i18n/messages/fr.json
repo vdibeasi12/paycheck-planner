@@ -1,6 +1,7 @@
 {
   "nav": {
     "dashboard": "Tableau de bord",
+    "billsDebts": "Factures et dettes",
     "calendar": "Calendrier",
     "debts": "Dettes",
     "payoffPlan": "Plan de remboursement",

@@ -27,18 +27,13 @@ export default function BillDebtOverlapWarning({ overlaps }: Props) {
         <ul className="space-y-1">
           {overlaps.map((o, i) => (
             <li key={i}>
-              &ldquo;{o.bill.name}&rdquo; in{" "}
-              <Link href="/bills" className="underline hover:text-amber-50">
-                Bills &amp; Expenses
+              &ldquo;{o.bill.name}&rdquo; and &ldquo;{o.debt.name}&rdquo; in{" "}
+              <Link href="/bills-debts" className="underline hover:text-amber-50">
+                Bills &amp; Debts
               </Link>{" "}
-              and &ldquo;{o.debt.name}&rdquo; in{" "}
-              <Link href="/debts" className="underline hover:text-amber-50">
-                Debts
-              </Link>{" "}
-              -- if these are the same monthly payment, it's being counted twice. Loan and
-              mortgage payments belong in Debts (they have a real payoff plan); Bills &amp;
-              Expenses is for things like utilities, subscriptions, and rent that don't pay
-              down a balance.
+              look like the same monthly payment -- if so, it's being counted twice. Loans and
+              mortgages should stay tagged as a Debt (they have a real payoff plan); use Bill
+              for things like utilities, subscriptions, and rent that don't pay down a balance.
             </li>
           ))}
         </ul>

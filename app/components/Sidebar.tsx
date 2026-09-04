@@ -7,7 +7,6 @@ import {
   Menu,
   X,
   LayoutDashboard,
-  CreditCard,
   CalendarClock,
   Calendar,
   Receipt,
@@ -49,8 +48,7 @@ import { hardSignOut } from "@/lib/signOut"
 const LINKS = [
   { href: "/dashboard", labelKey: "nav.dashboard", Icon: LayoutDashboard, group: "money" },
   { href: "/survival-mode", labelKey: "nav.survivalMode", Icon: LifeBuoy },
-  { href: "/bills", labelKey: "nav.bills", Icon: Receipt },
-  { href: "/debts", labelKey: "nav.debts", Icon: CreditCard },
+  { href: "/bills-debts", labelKey: "nav.billsDebts", Icon: Receipt },
   { href: "/calendar", labelKey: "nav.calendar", Icon: Calendar },
   { href: "/income", labelKey: "nav.income", Icon: Wallet },
   { href: "/amortization", labelKey: "nav.payoffPlan", Icon: CalendarClock },
