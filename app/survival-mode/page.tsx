@@ -7,7 +7,7 @@ import {
   projectPaycheckCycles,
   toISODate,
 } from "@/lib/paycheckCycles"
-import { nearestWeakCycle } from "@/lib/planResilience"
+import { nearestWeakCycle, buildUpcomingForecast } from "@/lib/planResilience"
 import { resolveStartingCash, projectAllAccountBalances, type CashAccountRow } from "@/lib/cashBalance"
 import SurvivalModeView from "@/app/components/SurvivalModeView"
 
@@ -103,6 +103,16 @@ export default async function SurvivalModePage() {
   const cycles = projectPaycheckCycles({ income, bills, debts, goals, startingCash: startingCash.amount })
   const risk = nearestWeakCycle(cycles)
 
+  // "Then what" (Sep 4 2026, Vince): "if I have this much then how will I
+  // be able to pay my mortgage Oct 1, car payment Sept 15, and personal
+  // loan sept 22nd" -- see app/dashboard/page.tsx's identical comment. Same
+  // cycles/starting cash this page already grounds Safe to Spend in.
+  const lookahead = buildUpcomingForecast(
+    cycles.slice(1, 3),
+    bills,
+    spendableDebts.map((d) => ({ ...d, amount: d.minimum_payment }))
+  )
+
   // QA fix (Sep 4 2026, Vince): "checking plus savings should auto adjust"
   // -- each account's own displayed balance now auto-projects forward too
   // (see lib/cashBalance.ts's projectAccountBalance), using only what's
@@ -124,6 +134,7 @@ export default async function SurvivalModePage() {
       classifiedDebts={classifiedDebts}
       coveredDebts={coveredDebts}
       risk={risk}
+      lookahead={lookahead}
     />
   )
 }

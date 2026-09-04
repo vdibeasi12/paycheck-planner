@@ -6,10 +6,11 @@ import { Wallet, CalendarClock } from "lucide-react"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import type { SafeToSpendResult } from "@/lib/safeToSpend"
 import type { ClassifiedItem } from "@/lib/paycheckCycles"
-import type { NearTermRisk } from "@/lib/planResilience"
+import type { NearTermRisk, UpcomingCycleForecast } from "@/lib/planResilience"
 import type { StartingCash } from "@/lib/cashBalance"
 import PlanRiskBanner from "./PlanRiskBanner"
 import PaycheckItemBreakdown from "./PaycheckItemBreakdown"
+import PaycheckLookahead from "./PaycheckLookahead"
 
 type NamedRow = { name: string; amount: number; due_date: number | null }
 
@@ -20,6 +21,7 @@ type Props = {
   classifiedDebts?: ClassifiedItem<NamedRow>[]
   coveredDebts?: { name: string; amount: number }[]
   risk?: NearTermRisk | null
+  lookahead?: UpcomingCycleForecast[]
 }
 
 function sourceLabel(startingCash?: StartingCash): string {
@@ -49,14 +51,15 @@ export default function PaycheckCountdown({
   classifiedDebts = [],
   coveredDebts = [],
   risk,
+  lookahead = [],
 }: Props) {
   const formatMoney = useFormatCurrency()
   const upcomingItems = [...classifiedBills, ...classifiedDebts]
     .filter((i) => i.itemStatus === "upcoming")
-    .map((i) => ({ name: i.name, amount: i.amount }))
+    .map((i) => ({ name: i.name, amount: i.amount, date: i.occurrenceDate }))
   const alreadyDueItems = [...classifiedBills, ...classifiedDebts]
     .filter((i) => i.itemStatus === "alreadyDue")
-    .map((i) => ({ name: i.name, amount: i.amount }))
+    .map((i) => ({ name: i.name, amount: i.amount, date: i.occurrenceDate }))
 
   if (!result.hasIncome) {
     return (
@@ -191,6 +194,7 @@ export default function PaycheckCountdown({
             title="What's counted above"
             hint="These are what's actually subtracted from Safe to Spend."
             items={upcomingItems}
+            defaultOpen
           />
           <PaycheckItemBreakdown
             title="Already due earlier this cycle"
@@ -209,6 +213,8 @@ export default function PaycheckCountdown({
           />
         </div>
       )}
+
+      <PaycheckLookahead forecast={lookahead} />
       </div>
     </div>
   )

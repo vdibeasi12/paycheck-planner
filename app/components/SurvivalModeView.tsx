@@ -5,12 +5,13 @@ import { ArrowLeft, LifeBuoy } from "lucide-react"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import type { SafeToSpendResult } from "@/lib/safeToSpend"
 import type { ClassifiedItem } from "@/lib/paycheckCycles"
-import type { NearTermRisk } from "@/lib/planResilience"
+import type { NearTermRisk, UpcomingCycleForecast } from "@/lib/planResilience"
 import type { StartingCash, ProjectedCashAccountRow } from "@/lib/cashBalance"
 import WhatIfSpend from "./WhatIfSpend"
 import PlanRiskBanner from "./PlanRiskBanner"
 import CashBalanceEditor from "./CashBalanceEditor"
 import PaycheckItemBreakdown from "./PaycheckItemBreakdown"
+import PaycheckLookahead from "./PaycheckLookahead"
 
 type NamedBill = { id: string; name: string; amount: number; due_date: number | null }
 type NamedDebt = { id: string; name: string; minimum_payment: number; due_date: number | null }
@@ -23,6 +24,7 @@ type Props = {
   classifiedDebts: ClassifiedItem<{ id: string; name: string; amount: number; due_date: number | null }>[]
   coveredDebts?: { name: string; amount: number }[]
   risk: NearTermRisk | null
+  lookahead?: UpcomingCycleForecast[]
 }
 
 function Stat({ label, value, accent }: { label: string; value: string; accent?: "green" | "red" }) {
@@ -55,15 +57,16 @@ export default function SurvivalModeView({
   classifiedDebts,
   coveredDebts = [],
   risk,
+  lookahead = [],
 }: Props) {
   const formatMoney = useFormatCurrency()
 
   const cantProject = !result.hasIncome || result.missingPayDate || !result.nextPaycheckDate
 
-  const upcomingBills = classifiedBills.filter((b) => b.itemStatus === "upcoming").map((b) => ({ name: b.name, amount: b.amount }))
-  const alreadyDueBills = classifiedBills.filter((b) => b.itemStatus === "alreadyDue").map((b) => ({ name: b.name, amount: b.amount }))
-  const upcomingDebts = classifiedDebts.filter((d) => d.itemStatus === "upcoming").map((d) => ({ name: d.name, amount: d.amount }))
-  const alreadyDueDebts = classifiedDebts.filter((d) => d.itemStatus === "alreadyDue").map((d) => ({ name: d.name, amount: d.amount }))
+  const upcomingBills = classifiedBills.filter((b) => b.itemStatus === "upcoming").map((b) => ({ name: b.name, amount: b.amount, date: b.occurrenceDate }))
+  const alreadyDueBills = classifiedBills.filter((b) => b.itemStatus === "alreadyDue").map((b) => ({ name: b.name, amount: b.amount, date: b.occurrenceDate }))
+  const upcomingDebts = classifiedDebts.filter((d) => d.itemStatus === "upcoming").map((d) => ({ name: d.name, amount: d.amount, date: d.occurrenceDate }))
+  const alreadyDueDebts = classifiedDebts.filter((d) => d.itemStatus === "alreadyDue").map((d) => ({ name: d.name, amount: d.amount, date: d.occurrenceDate }))
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
@@ -128,6 +131,7 @@ export default function SurvivalModeView({
                 title="Still to come before payday"
                 hint="These are what's actually subtracted from Safe to Spend above."
                 items={[...upcomingBills, ...upcomingDebts]}
+                defaultOpen
               />
               <PaycheckItemBreakdown
                 title="Already due earlier this cycle"
@@ -144,6 +148,8 @@ export default function SurvivalModeView({
               items={coveredDebts}
             />
           )}
+
+          <PaycheckLookahead forecast={lookahead} />
 
           <div>
             <WhatIfSpend result={result} />

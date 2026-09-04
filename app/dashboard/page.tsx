@@ -18,7 +18,7 @@ import {
   projectPaycheckCycles,
   toISODate,
 } from "@/lib/paycheckCycles"
-import { nearestWeakCycle } from "@/lib/planResilience"
+import { nearestWeakCycle, buildUpcomingForecast } from "@/lib/planResilience"
 import { resolveStartingCash, type CashAccountRow } from "@/lib/cashBalance"
 import { computeCapacityForCycles, generatePaycheckTalk } from "@/lib/paycheckCapacity"
 import PaycheckTalkCard from "@/app/components/PaycheckTalkCard"
@@ -224,6 +224,19 @@ export default async function DashboardPage() {
   // Paycheck Shield already knows that later cycle is in trouble.
   const nearTermRisk = nearestWeakCycle(upcomingCycles)
 
+  // "Then what" (Sep 4 2026, Vince): "if I have this much then how will I
+  // be able to pay my mortgage Oct 1, car payment Sept 15, and personal
+  // loan sept 22nd" -- names the bills/debts landing in each of the next
+  // couple of REAL paychecks after this one (upcomingCycles[0] is the one
+  // Safe to Spend above already covers) and whether the running balance
+  // still covers them. Same cycles/starting cash as everything else on this
+  // page, so it can't disagree with Safe to Spend or Paycheck Shield.
+  const lookahead = buildUpcomingForecast(
+    upcomingCycles.slice(1, 3),
+    bills,
+    spendableDebts.map((d) => ({ ...d, amount: d.minimum_payment }))
+  )
+
   // Paycheck Surplus (Aug 26 2026): if a cycle just closed with money still
   // left in it (per the same Safe-to-Spend math above), record one decision
   // row for it -- upsert with ignoreDuplicates so this is a no-op on every
@@ -311,6 +324,7 @@ export default async function DashboardPage() {
         classifiedDebts={classifiedDebts}
         coveredDebts={coveredDebts}
         risk={nearTermRisk}
+        lookahead={lookahead}
       />
       <WhatIfSpend result={safeToSpendResult} />
       {paycheckTalk && <PaycheckTalkCard narrative={paycheckTalk} />}

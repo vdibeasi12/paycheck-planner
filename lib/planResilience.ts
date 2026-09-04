@@ -19,6 +19,20 @@ import {
   type PaycheckCycle,
 } from "./paycheckCycles"
 
+// Sep 4 2026, Vince: "if I have this much then how will I be able to pay my
+// mortgage Oct 1, car payment Sept 15, and personal loan sept 22nd" -- Safe
+// to Spend (lib/safeToSpend.ts) only ever shows the window through the VERY
+// NEXT paycheck, by design (each cycle re-grounds itself in the real
+// balance once that paycheck lands, rather than pretending to know the
+// whole month up front). That's correct, but it means a bill landing two or
+// three paychecks out just isn't on screen at all -- so a user has no way
+// to see "yes, that later bill is already accounted for" without doing the
+// cycle-by-cycle math themselves, which is exactly what led to this
+// question. buildUpcomingForecast answers it directly: for each of the next
+// few projected cycles (skip the current one -- that's what Safe to Spend
+// already shows), name the specific bills/debts landing in it and whether
+// the running balance survives paying them.
+
 // How much of a cycle's *original* (no-scenario) cushion has to survive for
 // the scenario to still count as "tight" rather than "breaks" -- mirrors the
 // 20% cushion threshold lib/safeToSpend.ts's whatIfSpend() already uses, so
@@ -237,4 +251,52 @@ export function itemsInCycleWindow<T extends { amount: number; due_date: number 
   rows: T[]
 ): (T & { occurrenceDate: string })[] {
   return itemsDueInWindow(rows, cycle.windowStart, cycle.date)
+}
+
+// Same verdict math nearestWeakCycle already uses per-cycle, pulled out so
+// a single cycle can be judged on its own (nearestWeakCycle instead scans
+// every cycle looking for the earliest break/tight one across the whole
+// plan -- a different question).
+function cycleVerdict(cycle: PaycheckCycle): ScenarioVerdict {
+  if (cycle.runningBalance < 0) return "breaks"
+  const threshold = cycle.amount > 0 ? cycle.amount * TIGHT_CUSHION_RATIO : THIN_CUSHION_FLOOR
+  if (cycle.runningBalance < threshold) return "tight"
+  return "survives"
+}
+
+export type ForecastItem = { name: string; amount: number; occurrenceDate: string }
+
+export type UpcomingCycleForecast = {
+  date: string
+  amount: number
+  items: ForecastItem[]
+  runningBalance: number
+  verdict: ScenarioVerdict
+}
+
+// "Then what" -- named bills/debts due in each of the given cycles (already
+// excluding transfer-covered debts is the caller's job, same as every other
+// consumer of these rows) plus the real running balance and verdict for
+// that cycle, so "is Sept 22's Avant payment covered" has a direct, dated
+// answer instead of requiring the user (or Claude, by hand) to add it up.
+// Callers typically pass cycles.slice(1) -- the current/next cycle is what
+// Safe to Spend already shows.
+export function buildUpcomingForecast<
+  B extends { name: string; amount: number; due_date: number | null },
+  D extends { name: string; amount: number; due_date: number | null }
+>(cycles: PaycheckCycle[], bills: B[], debts: D[]): UpcomingCycleForecast[] {
+  return cycles.map((cycle) => {
+    const billItems = itemsInCycleWindow(cycle, bills)
+    const debtItems = itemsInCycleWindow(cycle, debts)
+    const items: ForecastItem[] = [...billItems, ...debtItems]
+      .map((i) => ({ name: i.name, amount: i.amount, occurrenceDate: i.occurrenceDate }))
+      .sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate))
+    return {
+      date: cycle.date,
+      amount: cycle.amount,
+      items,
+      runningBalance: cycle.runningBalance,
+      verdict: cycleVerdict(cycle),
+    }
+  })
 }
