@@ -42,7 +42,7 @@ export default async function SurvivalModePage() {
     supabase.from("bills").select("id, name, amount, due_date").eq("user_id", user.id),
     supabase.from("debts").select("id, name, minimum_payment, due_date, covered_by_transfer").eq("user_id", user.id),
     supabase.from("financial_goals").select("target_amount, current_amount, deadline, status").eq("user_id", user.id),
-    supabase.from("cash_accounts").select("kind, balance, balance_as_of").eq("user_id", user.id),
+    supabase.from("cash_accounts").select("id, kind, name, balance, balance_as_of").eq("user_id", user.id),
   ])
 
   const income = incomeRes.data ?? []
@@ -50,13 +50,12 @@ export default async function SurvivalModePage() {
   const debts = debtsRes.data ?? []
   const goals = goalsRes.data ?? []
   const cashRows = (cashRes.data ?? []) as CashAccountRow[]
-  const checkingRow = cashRows.find((r) => r.kind === "checking") ?? null
-  const savingsRow = cashRows.find((r) => r.kind === "savings") ?? null
+  const checkingRows = cashRows.filter((r) => r.kind === "checking")
 
   let result = computeSafeToSpend({ income, bills, debts, goals })
 
   const todayISO = toISODate(new Date())
-  const startingCash = resolveStartingCash(checkingRow, { income, bills, debts, todayISO }, result.lastPaycheckAmount)
+  const startingCash = resolveStartingCash(checkingRows, { income, bills, debts, todayISO }, result.lastPaycheckAmount)
   result = withStartingCash(result, startingCash)
 
   // Debts covered_by_transfer are paid automatically from a linked transfer
@@ -80,14 +79,17 @@ export default async function SurvivalModePage() {
     )
   }
 
-  const cycles = projectPaycheckCycles({ income, bills, debts, goals })
+  // Seeded with the same real starting cash used above, so this page's own
+  // risk banner agrees with the Safe to Spend number it sits right next to
+  // (QA fix, Sep 4 2026 -- see lib/planResilience.ts).
+  const cycles = projectPaycheckCycles({ income, bills, debts, goals, startingCash: startingCash.amount })
   const risk = nearestWeakCycle(cycles)
 
   return (
     <SurvivalModeView
       result={result}
       startingCash={startingCash}
-      savings={savingsRow}
+      accounts={cashRows}
       classifiedBills={classifiedBills}
       classifiedDebts={classifiedDebts}
       coveredDebts={coveredDebts}

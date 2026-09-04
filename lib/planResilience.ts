@@ -48,8 +48,11 @@ export type Scenario = {
 
 export type ScenarioCycleResult = {
   date: string
-  baselineCushion: number
-  adjustedCushion: number
+  // Real cumulative cash position at this cycle, with and without the
+  // scenario applied (see PaycheckCycle.runningBalance) -- grounded in
+  // actual starting cash rather than pretending this cycle starts at zero.
+  baselineRunningBalance: number
+  adjustedRunningBalance: number
   verdict: ScenarioVerdict
 }
 
@@ -122,12 +125,17 @@ function applyScenario(
       )
     }
 
+    // Only this one cycle is shocked ("if this happened during THIS
+    // paycheck's window") -- everything carried in from before stays the
+    // real, unshocked running balance, same as the baseline.
+    const balanceCarriedIn = c.runningBalance - c.cushion
     const adjustedCushion = adjustedAmount - adjustedBillsDue - adjustedDebtsDue - c.goalContribution
+    const adjustedRunningBalance = balanceCarriedIn + adjustedCushion
     return {
       date: c.date,
-      baselineCushion: c.cushion,
-      adjustedCushion,
-      verdict: verdictFor(c.cushion, adjustedCushion),
+      baselineRunningBalance: c.runningBalance,
+      adjustedRunningBalance,
+      verdict: verdictFor(c.runningBalance, adjustedRunningBalance),
     }
   })
 
@@ -149,6 +157,13 @@ export function computePlanResilience(input: {
   today?: Date
   monthsForward?: number
   scenarios?: Scenario[]
+  // Real cash on hand right now (see lib/cashBalance.ts) -- grounds every
+  // projected cycle's runningBalance in actual money instead of treating
+  // each paycheck as if it starts from zero. Without this, a plan can look
+  // "vulnerable" here while Safe to Spend (which already grounds the very
+  // next paycheck in this same real balance) shows plenty of room -- the
+  // exact contradiction this field exists to close.
+  startingCash?: number
 }): PlanResilienceResult {
   const cycles = projectPaycheckCycles({
     income: input.income,
@@ -157,13 +172,14 @@ export function computePlanResilience(input: {
     goals: input.goals,
     today: input.today,
     monthsForward: input.monthsForward ?? 3,
+    startingCash: input.startingCash ?? 0,
   })
 
   if (cycles.length === 0) {
     return { hasPlan: false, cycles: [], weakestCycle: null, strengthScore: 0, scenarioResults: [] }
   }
 
-  const weakestCycle = cycles.reduce((worst, c) => (c.cushion < worst.cushion ? c : worst), cycles[0])
+  const weakestCycle = cycles.reduce((worst, c) => (c.runningBalance < worst.runningBalance ? c : worst), cycles[0])
 
   const scenarios = input.scenarios ?? DEFAULT_SCENARIOS
   const scenarioResults = scenarios.map((s) => applyScenario(cycles, s, input.bills, input.debts))
@@ -191,16 +207,19 @@ export type NearTermRisk = {
 // Mode/the Dashboard, which otherwise only ever look at the very next
 // paycheck and can read as reassuring even when a later cycle (a mortgage
 // landing two paychecks out, say) is already projected to come up short.
-// Each cycle here is evaluated independently (no carried-over balance from
-// a prior cycle -- see projectPaycheckCycles), so "breaks" means "if you
-// don't have anything held back from an earlier paycheck," not a certainty.
+// Judges each cycle by its real runningBalance (real starting cash plus
+// every cycle's net so far -- see projectPaycheckCycles), not its isolated
+// cushion, so this agrees with Safe to Spend's own real-cash-grounded
+// number instead of flagging a cycle as "breaks" just because that one
+// paycheck's own bills outweigh its own size, when the money to cover it
+// is actually already sitting in the account.
 export function nearestWeakCycle(cycles: PaycheckCycle[]): NearTermRisk | null {
   for (const c of cycles) {
-    if (c.cushion < 0) return { cycle: c, level: "breaks" }
+    if (c.runningBalance < 0) return { cycle: c, level: "breaks" }
   }
   for (const c of cycles) {
     const threshold = c.amount > 0 ? c.amount * TIGHT_CUSHION_RATIO : THIN_CUSHION_FLOOR
-    if (c.cushion < threshold) return { cycle: c, level: "tight" }
+    if (c.runningBalance < threshold) return { cycle: c, level: "tight" }
   }
   return null
 }

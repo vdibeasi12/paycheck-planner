@@ -59,7 +59,21 @@ export type PaycheckCycle = {
   // above, broken out here so the UI can show it as its own line instead of
   // folding it silently into a smaller paycheck.
   transfersOut: number
+  // This cycle's own paycheck vs its own bills/debts/goal, in isolation --
+  // "does this specific paycheck cover what's due in its own window."
+  // Useful for per-paycheck presentation (Paycheck Capacity's %, "If This
+  // Paycheck Could Talk"), but NOT a real risk signal on its own: a cycle
+  // can show a negative cushion here and still be perfectly fine in
+  // practice if there's real money sitting in checking already covering
+  // it. See runningBalance below for that.
   cushion: number
+  // Real cumulative cash position at the end of this cycle's window: the
+  // starting cash actually on hand (see lib/cashBalance.ts -- 0 when none
+  // entered) plus every cycle's cushion up through and including this one.
+  // This is what should actually decide "is my plan in trouble," since it
+  // carries forward real money instead of pretending every cycle starts
+  // from zero.
+  runningBalance: number
 }
 
 // A debt not paid from this account's own money -- see CycleDebt's
@@ -371,6 +385,11 @@ export function projectPaycheckCycles(input: {
   goals: CycleGoal[]
   today?: Date
   monthsForward?: number
+  // Real cash on hand right now (pooled/projected Checking balance -- see
+  // lib/cashBalance.ts), used to seed runningBalance. Defaults to 0, which
+  // reproduces the old "assume nothing carried in" behavior for callers
+  // that don't have a real balance to ground with (or don't care to).
+  startingCash?: number
 }): PaycheckCycle[] {
   const today = input.today ?? new Date()
   const todayStr = toISODate(today)
@@ -424,6 +443,7 @@ export function projectPaycheckCycles(input: {
 
   const cycles: PaycheckCycle[] = []
   let windowStart = past.length > 0 ? past[past.length - 1].date : todayStr
+  let runningBalance = input.startingCash ?? 0
   for (const date of dates) {
     const billsDue = sumDueInWindow(input.bills, windowStart, date)
     const debtsDue = sumDueInWindow(
@@ -434,6 +454,8 @@ export function projectPaycheckCycles(input: {
     const goalContribution = goalContributions.get(date) || 0
     const transfersOut = transfersByDate.get(date) || 0
     const amount = (byDate.get(date) || 0) - transfersOut
+    const cushion = amount - billsDue - debtsDue - goalContribution
+    runningBalance = Math.round((runningBalance + cushion) * 100) / 100
     cycles.push({
       date,
       windowStart,
@@ -442,7 +464,8 @@ export function projectPaycheckCycles(input: {
       debtsDue,
       goalContribution,
       transfersOut,
-      cushion: amount - billsDue - debtsDue - goalContribution,
+      cushion,
+      runningBalance,
     })
     windowStart = date
   }

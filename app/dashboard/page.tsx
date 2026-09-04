@@ -169,11 +169,12 @@ export default async function DashboardPage() {
   const todayISOForCash = toISODate(new Date())
   const { data: cashRowsData } = await supabase
     .from("cash_accounts")
-    .select("kind, balance, balance_as_of")
+    .select("id, kind, name, balance, balance_as_of")
     .eq("user_id", user.id)
-  const checkingRow = ((cashRowsData ?? []) as CashAccountRow[]).find((r) => r.kind === "checking") ?? null
+  const cashRows = (cashRowsData ?? []) as CashAccountRow[]
+  const checkingRows = cashRows.filter((r) => r.kind === "checking")
   const startingCash = resolveStartingCash(
-    checkingRow,
+    checkingRows,
     { income, bills, debts, todayISO: todayISOForCash },
     safeToSpendResult.lastPaycheckAmount
   )
@@ -210,7 +211,11 @@ export default async function DashboardPage() {
   // absorb an optional extra payment. Null when there's no projectable plan
   // yet (no income/pay date), same condition safeToSpendResult and the
   // Surplus/Drift detectors below already handle gracefully.
-  const upcomingCycles = projectPaycheckCycles({ income, bills, debts, goals })
+  // Seeded with the same real starting cash Safe to Spend above already
+  // grounds itself in (see lib/cashBalance.ts), so nearTermRisk below
+  // agrees with the Safe to Spend number instead of judging every cycle as
+  // if it started from zero (QA fix, Sep 4 2026 -- see lib/planResilience.ts).
+  const upcomingCycles = projectPaycheckCycles({ income, bills, debts, goals, startingCash: startingCash.amount })
   const paycheckTalk = generatePaycheckTalk(computeCapacityForCycles(upcomingCycles))
 
   // Cross-links Paycheck Shield's own projection right here -- Safe to

@@ -19,10 +19,14 @@ import {
   Lock,
   AlertCircle,
   Clock,
+  Download,
+  FileText,
+  Loader2,
 } from 'lucide-react'
 import SmartCapture from '../components/SmartCapture'
 import { isPremium, getMaxDebts } from '@/lib/permissions'
 import { useFormatCurrency } from '@/lib/i18n/formatCurrency'
+import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { monthlyFactor } from '@/lib/monthlyFactor'
 import { findBillDebtOverlaps } from '@/lib/billDebtOverlap'
 import { consumeCapturePrefill } from '@/lib/capturePrefill'
@@ -31,6 +35,7 @@ import { celebrate, popMilestone, crossedMilestone } from '@/lib/confetti'
 import { DEBT_TYPES, debtTypeLabel } from '@/lib/debtTypes'
 import { toISODate, daysBetween } from '@/lib/paycheckCycles'
 import { billOccurrenceInMonth } from '@/lib/schedule'
+import { generateBillsDebtsPdf } from '@/lib/generateBillsDebtsPdf'
 
 // Sep 4 2026, Vince: Bills and Debts used to be two separate pages built
 // around an accounting distinction (a recurring expense vs. money you
@@ -47,6 +52,17 @@ import { billOccurrenceInMonth } from '@/lib/schedule'
 // The Snowball/Avalanche payoff-plan preview that used to live inline here
 // stays on its own destination (Payoff Plan, /amortization) per the same
 // "what do I owe" vs. "how do I eliminate it faster" split.
+//
+// QA fix (Sep 4 2026, Vince): reflowed into a single top-to-bottom column
+// instead of a form-beside-list grid -- Recurring costs now sits above Add
+// Bill or Debt, and the full schedule (attention summary + tabs + list)
+// sits below it, matching how people actually read the page. Dropped the
+// "Review subscriptions / Show all bills" toggle: it did filter correctly,
+// but nothing about it looked different from the tab bar and its own active
+// state didn't visibly update, so it read as broken -- the Subscription
+// badge already on each row plus the Bills tab cover the same need without
+// a second, confusing control. Added CSV/PDF export of whatever the tabs
+// are currently showing, so "what do I actually have" can leave the app.
 
 interface Bill {
   id: string
@@ -101,6 +117,15 @@ function statusOf(dueDay: number | null, todayISO: string): { occurrenceDate: st
   return { occurrenceDate, daysUntil, status }
 }
 
+// Shared with CSV/PDF export so the plain-text status always matches what
+// the StatusPill shows on screen.
+function statusLabel(status: UrgencyStatus, daysUntil: number | null): string {
+  if (status === 'no-date') return 'No due date'
+  if (status === 'overdue') return 'Overdue'
+  if (status === 'due-soon') return daysUntil === 0 ? 'Due today' : `Due in ${daysUntil}d`
+  return 'Upcoming'
+}
+
 function StatusPill({ status, daysUntil }: { status: UrgencyStatus; daysUntil: number | null }) {
   if (status === 'no-date') {
     return (
@@ -133,6 +158,7 @@ function StatusPill({ status, daysUntil }: { status: UrgencyStatus; daysUntil: n
 
 export default function BillsAndDebtsPage() {
   const formatMoney = useFormatCurrency()
+  const { currency, locale } = useLocale()
   const router = useRouter()
 
   const [bills, setBills] = useState<Bill[]>([])
@@ -142,7 +168,7 @@ export default function BillsAndDebtsPage() {
   const [isAdmin, setIsAdmin] = useState(false)
 
   const [tab, setTab] = useState<Tab>('all')
-  const [subscriptionsOnly, setSubscriptionsOnly] = useState(false)
+  const [exportingPdf, setExportingPdf] = useState(false)
 
   // Add form -- one panel, a Bill/Debt toggle switches which fields show.
   const [formType, setFormType] = useState<ObligationType>('bill')
@@ -289,9 +315,9 @@ export default function BillsAndDebtsPage() {
     [bills, debts]
   )
 
-  // "What needs your attention" -- the default-visible summary, independent
-  // of whichever tab is selected below. Overdue first (most urgent), then
-  // due-soon, then a capped preview of what's coming up after that.
+  // "What needs your attention" -- shown independent of whichever tab is
+  // selected below. Overdue first (most urgent), then due-soon, then a
+  // capped preview of what's coming up after that.
   const attentionItems = useMemo(
     () => obligations.filter((o) => o.status === 'overdue' || o.status === 'due-soon'),
     [obligations]
@@ -302,21 +328,19 @@ export default function BillsAndDebtsPage() {
   )
 
   const tabbed = useMemo(() => {
-    let list = obligations
-    if (subscriptionsOnly) list = list.filter((o) => o.isSubscription)
     switch (tab) {
       case 'bills':
-        return list.filter((o) => o.type === 'bill')
+        return obligations.filter((o) => o.type === 'bill')
       case 'debts':
-        return list.filter((o) => o.type === 'debt')
+        return obligations.filter((o) => o.type === 'debt')
       case 'due-soon':
-        return list.filter((o) => o.status === 'due-soon')
+        return obligations.filter((o) => o.status === 'due-soon')
       case 'overdue':
-        return list.filter((o) => o.status === 'overdue')
+        return obligations.filter((o) => o.status === 'overdue')
       default:
-        return list
+        return obligations
     }
-  }, [obligations, tab, subscriptionsOnly])
+  }, [obligations, tab])
 
   const tabTotal = tabbed.reduce((sum, o) => sum + o.amount, 0)
 
@@ -541,6 +565,57 @@ export default function BillsAndDebtsPage() {
     }
   }
 
+  function exportCsv() {
+    const header = ['Item', 'Type', 'Amount', 'Due', 'Status']
+    const esc = (v: string) => {
+      if (v.indexOf(',') >= 0 || v.indexOf('"') >= 0 || v.indexOf('\n') >= 0) {
+        return '"' + v.replace(/"/g, '""') + '"'
+      }
+      return v
+    }
+    const lines = [
+      header.join(','),
+      ...tabbed.map((o) =>
+        [
+          esc(o.name),
+          o.type === 'bill' ? 'Bill' : 'Debt',
+          String(o.amount),
+          o.due_date ? `Day ${o.due_date}` : '',
+          statusLabel(o.status, o.daysUntil),
+        ].join(',')
+      ),
+    ]
+    const csv = lines.join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = 'bills-and-debts.csv'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    URL.revokeObjectURL(url)
+  }
+
+  async function exportPdf() {
+    setExportingPdf(true)
+    try {
+      await generateBillsDebtsPdf(
+        tabbed.map((o) => ({
+          name: o.name,
+          type: o.type,
+          amount: o.amount,
+          due_date: o.due_date,
+          status: statusLabel(o.status, o.daysUntil),
+        })),
+        currency,
+        locale
+      )
+    } finally {
+      setExportingPdf(false)
+    }
+  }
+
   const inputClass = 'w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white placeholder-gray-500'
 
   const TABS: { key: Tab; label: string }[] = [
@@ -553,7 +628,7 @@ export default function BillsAndDebtsPage() {
 
   return (
     <div className="min-h-screen bg-[#020617] text-white py-12">
-      <div className="max-w-6xl mx-auto px-6">
+      <div className="max-w-4xl mx-auto px-6">
         <h1 className="text-4xl font-bold mb-2">Bills &amp; Debts</h1>
         <p className="text-gray-300 mb-6">Everything you owe, organized by due date and paycheck.</p>
 
@@ -575,32 +650,276 @@ export default function BillsAndDebtsPage() {
         )}
 
         {!loading && subscriptionBills.length > 0 && (
-          <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4 mb-6 flex flex-wrap items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <Repeat className="text-green-400 shrink-0" size={22} />
-              <div>
-                <p className="font-semibold">Recurring costs detected</p>
-                <p className="text-gray-400 text-sm">
-                  {subscriptionBills.length} subscription{subscriptionBills.length === 1 ? '' : 's'} &middot; potential
-                  monthly cost {formatMoney(combinedMonthlyTotal)}
-                </p>
-              </div>
+          <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4 mb-6 flex items-center gap-3">
+            <Repeat className="text-green-400 shrink-0" size={22} />
+            <div>
+              <p className="font-semibold">Recurring costs detected</p>
+              <p className="text-gray-400 text-sm">
+                {subscriptionBills.length} subscription{subscriptionBills.length === 1 ? '' : 's'} tagged below
+                &middot; potential monthly cost {formatMoney(combinedMonthlyTotal)}
+              </p>
             </div>
-            <button
-              onClick={() => {
-                setTab('bills')
-                setSubscriptionsOnly((v) => !v)
-              }}
-              className="text-sm text-green-400 hover:text-green-300 font-semibold whitespace-nowrap"
-            >
-              {subscriptionsOnly ? 'Show all bills' : 'Review subscriptions'} &rarr;
-            </button>
           </div>
         )}
 
-        {/* What needs your attention -- the default view, independent of the
-            tabs below. This is the actual UX improvement: don't make someone
-            choose "Bills or Debts?" before they can see what's urgent. */}
+        {/* Add form -- full width now that it isn't sharing a grid row with
+            the schedule below it. */}
+        <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-6 mb-8">
+          <h2 className="text-2xl font-bold mb-4">Add Bill or Debt</h2>
+
+          <div className="mb-5 inline-flex w-full max-w-sm rounded-lg border border-gray-700 bg-[#1a233a] p-1">
+            <button
+              type="button"
+              onClick={() => setFormType('bill')}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                formType === 'bill' ? 'bg-green-500 text-black' : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              <Receipt size={15} /> Bill
+            </button>
+            <button
+              type="button"
+              onClick={() => setFormType('debt')}
+              className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold transition ${
+                formType === 'debt' ? 'bg-green-500 text-black' : 'text-gray-300 hover:text-white'
+              }`}
+            >
+              <CreditCard size={15} /> Debt
+            </button>
+          </div>
+          <p className="mb-4 text-xs text-gray-500">
+            {formType === 'bill'
+              ? 'A recurring expense with no balance to pay off -- rent, utilities, insurance, subscriptions.'
+              : 'Money you borrowed and still owe -- credit card, auto loan, student loan, mortgage.'}
+          </p>
+
+          <form onSubmit={addObligation} className="mb-6 pb-6 border-b border-gray-700">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="sm:col-span-2">
+                <label className="text-gray-400 text-sm block mb-2">Name</label>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder={formType === 'bill' ? 'e.g., Electric Bill' : 'e.g., Visa card'}
+                  className={inputClass}
+                />
+              </div>
+
+              {formType === 'bill' ? (
+                <>
+                  <div>
+                    <label className="text-gray-400 text-sm block mb-2">Amount ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={amount}
+                      onChange={(e) => setAmount(e.target.value)}
+                      placeholder="0.00"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-400 text-sm block mb-2">Due Day (1-31)</label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={dueDay}
+                      onChange={(e) => setDueDay(e.target.value)}
+                      placeholder="15"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-400 text-sm block mb-2">How Often</label>
+                    <select
+                      value={frequency}
+                      onChange={(e) => setFrequency(e.target.value as 'monthly' | 'bimonthly')}
+                      className={inputClass}
+                    >
+                      <option value="monthly">Monthly</option>
+                      <option value="bimonthly">Every 2 months (Bi-Monthly)</option>
+                    </select>
+                  </div>
+                  <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer sm:col-span-2">
+                    <input
+                      type="checkbox"
+                      checked={isSubscription}
+                      onChange={(e) => setIsSubscription(e.target.checked)}
+                      className="rounded border-gray-700 bg-[#1a233a] text-green-500 focus:ring-green-500"
+                    />
+                    This is a subscription (Netflix, Spotify, etc.)
+                  </label>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <label className="text-gray-400 text-sm block mb-2">Balance ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={balance}
+                      onChange={(e) => setBalance(e.target.value)}
+                      placeholder="0.00"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-400 text-sm block mb-2">APR (%)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={rate}
+                      onChange={(e) => setRate(e.target.value)}
+                      placeholder="19.99"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-400 text-sm block mb-2">Minimum payment ($)</label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={minPayment}
+                      onChange={(e) => setMinPayment(e.target.value)}
+                      placeholder="0.00"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-400 text-sm block mb-2">
+                      Due Day (1-31){' '}
+                      <span className="normal-case text-gray-500">-- which paycheck should cover this</span>
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="31"
+                      value={dueDay}
+                      onChange={(e) => setDueDay(e.target.value)}
+                      placeholder="14"
+                      className={inputClass}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-gray-400 text-sm block mb-2">Debt type</label>
+                    <select value={debtType} onChange={(e) => setDebtType(e.target.value)} className={inputClass}>
+                      {DEBT_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>
+                          {t.label}
+                        </option>
+                      ))}
+                    </select>
+                    {debtType === 'mortgage' && (
+                      <p className="mt-1.5 text-xs text-gray-500">
+                        Mortgages keep their own minimum payment but won&apos;t automatically get extra/freed-up
+                        payments in your Payoff Plan unless you turn that on there.
+                      </p>
+                    )}
+                  </div>
+                  {debtType === 'mortgage' && (
+                    <div>
+                      <label className="text-gray-400 text-sm block mb-2">Escrow included above ($/mo, optional)</label>
+                      <input
+                        type="number"
+                        step="0.01"
+                        value={escrowPayment}
+                        onChange={(e) => setEscrowPayment(e.target.value)}
+                        placeholder="e.g., 450.00"
+                        className={inputClass}
+                      />
+                    </div>
+                  )}
+                  <label className="flex items-start gap-2 text-sm text-gray-400 sm:col-span-2">
+                    <input
+                      type="checkbox"
+                      checked={coveredByTransfer}
+                      onChange={(e) => setCoveredByTransfer(e.target.checked)}
+                      className="mt-0.5 shrink-0"
+                    />
+                    <span>
+                      Paid automatically from a linked transfer -- excludes it from Safe to Spend/Survival Mode so
+                      it&apos;s not subtracted twice.
+                    </span>
+                  </label>
+                </>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              disabled={formType === 'debt' && atDebtLimit}
+              className="w-full max-w-sm mt-4 bg-green-500 hover:bg-green-600 text-black font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-500"
+            >
+              <Plus size={20} /> Add {formType === 'bill' ? 'Bill' : 'Debt'}
+            </button>
+
+            {formType === 'debt' && atDebtLimit && (
+              <div className="mt-4 max-w-sm rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
+                <p className="flex items-center gap-2 text-sm font-semibold text-amber-300">
+                  <Lock size={14} /> Plan limit reached
+                </p>
+                <p className="mt-1 text-xs text-amber-200/80">
+                  You are tracking the maximum of {maxDebts} debts on your current plan.
+                </p>
+                <Link
+                  href="/pricing"
+                  className="mt-2 inline-block rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-amber-400"
+                >
+                  Upgrade to track more
+                </Link>
+              </div>
+            )}
+          </form>
+
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {showCapture ? (
+              <div className="sm:col-span-2">
+                <SmartCapture
+                  docType={formType}
+                  onExtracted={(formType === 'bill' ? handleExtractedBill : handleExtractedDebt) as any}
+                />
+              </div>
+            ) : (
+              <button
+                onClick={() => {
+                  if (formType === 'bill' && !isPremium(plan)) {
+                    router.push('/pricing')
+                    return
+                  }
+                  setShowCapture(true)
+                }}
+                className="bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
+              >
+                <Camera size={20} /> Scan a {formType === 'bill' ? 'bill' : 'statement'} photo
+              </button>
+            )}
+
+            <button
+              onClick={() => router.push('/import')}
+              className="border border-gray-700 text-gray-200 hover:bg-[#1a233a] font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
+            >
+              <FileSpreadsheet size={20} /> Import bank statement
+            </button>
+          </div>
+
+          <p className="text-gray-500 text-xs mt-4">
+            {unlimitedDebts
+              ? debts.length + ' debts tracked - unlimited on your plan'
+              : debts.length + ' of ' + maxDebts + ' debts used on your plan'}
+          </p>
+
+          <Link
+            href="/amortization"
+            className="mt-4 block rounded-lg border border-gray-700 px-3 py-2.5 text-center text-sm font-semibold text-emerald-400 hover:bg-[#1a233a]"
+          >
+            View your payoff plan &rarr;
+          </Link>
+        </div>
+
+        {/* The schedule -- what needs attention, then the full itemized,
+            filterable list. Sits below Add Bill or Debt now. */}
         {!loading && attentionItems.length > 0 && (
           <div className="mb-6 rounded-xl border border-gray-700 bg-[#0f172a] p-5">
             <div className="mb-3 flex items-center gap-2">
@@ -646,535 +965,296 @@ export default function BillsAndDebtsPage() {
           </div>
         )}
 
-        <div className="grid lg:grid-cols-3 gap-6">
-          {/* Add form */}
-          <div className="lg:col-span-1">
-            <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-6 sticky top-6">
-              <h2 className="text-2xl font-bold mb-4">Add Bill or Debt</h2>
-
-              <div className="mb-5 inline-flex w-full rounded-lg border border-gray-700 bg-[#1a233a] p-1">
+        <div className="flex flex-wrap items-center justify-between gap-3 mb-6 border-b border-gray-700 pb-3">
+          <div className="flex flex-wrap gap-2">
+            {TABS.map((t) => {
+              const count =
+                t.key === 'all'
+                  ? obligations.length
+                  : t.key === 'bills'
+                    ? obligations.filter((o) => o.type === 'bill').length
+                    : t.key === 'debts'
+                      ? obligations.filter((o) => o.type === 'debt').length
+                      : t.key === 'due-soon'
+                        ? obligations.filter((o) => o.status === 'due-soon').length
+                        : obligations.filter((o) => o.status === 'overdue').length
+              return (
                 <button
-                  type="button"
-                  onClick={() => setFormType('bill')}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold transition ${
-                    formType === 'bill' ? 'bg-green-500 text-black' : 'text-gray-300 hover:text-white'
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
+                    tab === t.key
+                      ? 'bg-green-500 text-black'
+                      : 'bg-[#0f172a] border border-gray-700 text-gray-300 hover:bg-[#1a233a]'
                   }`}
                 >
-                  <Receipt size={15} /> Bill
+                  {t.label}
+                  {count > 0 && <span className="text-xs opacity-70">{count}</span>}
                 </button>
-                <button
-                  type="button"
-                  onClick={() => setFormType('debt')}
-                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-3 py-2 text-sm font-semibold transition ${
-                    formType === 'debt' ? 'bg-green-500 text-black' : 'text-gray-300 hover:text-white'
-                  }`}
-                >
-                  <CreditCard size={15} /> Debt
-                </button>
-              </div>
-              <p className="mb-4 text-xs text-gray-500">
-                {formType === 'bill'
-                  ? 'A recurring expense with no balance to pay off -- rent, utilities, insurance, subscriptions.'
-                  : 'Money you borrowed and still owe -- credit card, auto loan, student loan, mortgage.'}
-              </p>
-
-              <form onSubmit={addObligation} className="space-y-4 mb-6 pb-6 border-b border-gray-700">
-                <div>
-                  <label className="text-gray-400 text-sm block mb-2">Name</label>
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder={formType === 'bill' ? 'e.g., Electric Bill' : 'e.g., Visa card'}
-                    className={inputClass}
-                  />
-                </div>
-
-                {formType === 'bill' ? (
-                  <>
-                    <div>
-                      <label className="text-gray-400 text-sm block mb-2">Amount ($)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={amount}
-                        onChange={(e) => setAmount(e.target.value)}
-                        placeholder="0.00"
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-gray-400 text-sm block mb-2">Due Day (1-31)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="31"
-                        value={dueDay}
-                        onChange={(e) => setDueDay(e.target.value)}
-                        placeholder="15"
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-gray-400 text-sm block mb-2">How Often</label>
-                      <select
-                        value={frequency}
-                        onChange={(e) => setFrequency(e.target.value as 'monthly' | 'bimonthly')}
-                        className={inputClass}
-                      >
-                        <option value="monthly">Monthly</option>
-                        <option value="bimonthly">Every 2 months (Bi-Monthly)</option>
-                      </select>
-                    </div>
-                    <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={isSubscription}
-                        onChange={(e) => setIsSubscription(e.target.checked)}
-                        className="rounded border-gray-700 bg-[#1a233a] text-green-500 focus:ring-green-500"
-                      />
-                      This is a subscription (Netflix, Spotify, etc.)
-                    </label>
-                  </>
-                ) : (
-                  <>
-                    <div>
-                      <label className="text-gray-400 text-sm block mb-2">Balance ($)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={balance}
-                        onChange={(e) => setBalance(e.target.value)}
-                        placeholder="0.00"
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-gray-400 text-sm block mb-2">APR (%)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={rate}
-                        onChange={(e) => setRate(e.target.value)}
-                        placeholder="19.99"
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-gray-400 text-sm block mb-2">Minimum payment ($)</label>
-                      <input
-                        type="number"
-                        step="0.01"
-                        value={minPayment}
-                        onChange={(e) => setMinPayment(e.target.value)}
-                        placeholder="0.00"
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-gray-400 text-sm block mb-2">
-                        Due Day (1-31){' '}
-                        <span className="normal-case text-gray-500">-- which paycheck should cover this</span>
-                      </label>
-                      <input
-                        type="number"
-                        min="1"
-                        max="31"
-                        value={dueDay}
-                        onChange={(e) => setDueDay(e.target.value)}
-                        placeholder="14"
-                        className={inputClass}
-                      />
-                    </div>
-                    <div>
-                      <label className="text-gray-400 text-sm block mb-2">Debt type</label>
-                      <select value={debtType} onChange={(e) => setDebtType(e.target.value)} className={inputClass}>
-                        {DEBT_TYPES.map((t) => (
-                          <option key={t.value} value={t.value}>
-                            {t.label}
-                          </option>
-                        ))}
-                      </select>
-                      {debtType === 'mortgage' && (
-                        <p className="mt-1.5 text-xs text-gray-500">
-                          Mortgages keep their own minimum payment but won&apos;t automatically get extra/freed-up
-                          payments in your Payoff Plan unless you turn that on there.
-                        </p>
-                      )}
-                    </div>
-                    {debtType === 'mortgage' && (
-                      <div>
-                        <label className="text-gray-400 text-sm block mb-2">Escrow included above ($/mo, optional)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={escrowPayment}
-                          onChange={(e) => setEscrowPayment(e.target.value)}
-                          placeholder="e.g., 450.00"
-                          className={inputClass}
-                        />
-                      </div>
-                    )}
-                    <label className="flex items-start gap-2 text-sm text-gray-400">
-                      <input
-                        type="checkbox"
-                        checked={coveredByTransfer}
-                        onChange={(e) => setCoveredByTransfer(e.target.checked)}
-                        className="mt-0.5 shrink-0"
-                      />
-                      <span>
-                        Paid automatically from a linked transfer -- excludes it from Safe to Spend/Survival Mode so
-                        it&apos;s not subtracted twice.
-                      </span>
-                    </label>
-                  </>
-                )}
-
-                <button
-                  type="submit"
-                  disabled={formType === 'debt' && atDebtLimit}
-                  className="w-full bg-green-500 hover:bg-green-600 text-black font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-500"
-                >
-                  <Plus size={20} /> Add {formType === 'bill' ? 'Bill' : 'Debt'}
-                </button>
-
-                {formType === 'debt' && atDebtLimit && (
-                  <div className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3">
-                    <p className="flex items-center gap-2 text-sm font-semibold text-amber-300">
-                      <Lock size={14} /> Plan limit reached
-                    </p>
-                    <p className="mt-1 text-xs text-amber-200/80">
-                      You are tracking the maximum of {maxDebts} debts on your current plan.
-                    </p>
-                    <Link
-                      href="/pricing"
-                      className="mt-2 inline-block rounded-md bg-amber-500 px-3 py-1.5 text-xs font-semibold text-black hover:bg-amber-400"
-                    >
-                      Upgrade to track more
-                    </Link>
-                  </div>
-                )}
-              </form>
-
-              {showCapture ? (
-                <SmartCapture
-                  docType={formType}
-                  onExtracted={(formType === 'bill' ? handleExtractedBill : handleExtractedDebt) as any}
-                />
-              ) : (
-                <button
-                  onClick={() => {
-                    if (formType === 'bill' && !isPremium(plan)) {
-                      router.push('/pricing')
-                      return
-                    }
-                    setShowCapture(true)
-                  }}
-                  className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
-                >
-                  <Camera size={20} /> Scan a {formType === 'bill' ? 'bill' : 'statement'} photo
-                </button>
-              )}
-
-              <button
-                onClick={() => router.push('/import')}
-                className="w-full mt-3 border border-gray-700 text-gray-200 hover:bg-[#1a233a] font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
-              >
-                <FileSpreadsheet size={20} /> Import bank statement
-              </button>
-
-              <p className="text-gray-500 text-xs mt-4">
-                {unlimitedDebts
-                  ? debts.length + ' debts tracked - unlimited on your plan'
-                  : debts.length + ' of ' + maxDebts + ' debts used on your plan'}
-              </p>
-
-              <Link
-                href="/amortization"
-                className="mt-4 block rounded-lg border border-gray-700 px-3 py-2.5 text-center text-sm font-semibold text-emerald-400 hover:bg-[#1a233a]"
-              >
-                View your payoff plan &rarr;
-              </Link>
-            </div>
+              )
+            })}
           </div>
 
-          {/* List */}
-          <div className="lg:col-span-2">
-            <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-700 pb-3">
-              {TABS.map((t) => {
-                const count =
-                  t.key === 'all'
-                    ? obligations.length
-                    : t.key === 'bills'
-                      ? obligations.filter((o) => o.type === 'bill').length
-                      : t.key === 'debts'
-                        ? obligations.filter((o) => o.type === 'debt').length
-                        : t.key === 'due-soon'
-                          ? obligations.filter((o) => o.status === 'due-soon').length
-                          : obligations.filter((o) => o.status === 'overdue').length
-                return (
-                  <button
-                    key={t.key}
-                    onClick={() => {
-                      setTab(t.key)
-                      setSubscriptionsOnly(false)
-                    }}
-                    className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-sm font-semibold transition ${
-                      tab === t.key && !subscriptionsOnly
-                        ? 'bg-green-500 text-black'
-                        : 'bg-[#0f172a] border border-gray-700 text-gray-300 hover:bg-[#1a233a]'
-                    }`}
-                  >
-                    {t.label}
-                    {count > 0 && <span className="text-xs opacity-70">{count}</span>}
-                  </button>
-                )
-              })}
+          {tabbed.length > 0 && (
+            <div className="flex gap-2">
+              <button
+                onClick={exportCsv}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-[#0f172a] px-3 py-1.5 text-sm font-semibold text-gray-300 hover:bg-[#1a233a]"
+              >
+                <Download size={14} /> CSV
+              </button>
+              <button
+                onClick={exportPdf}
+                disabled={exportingPdf}
+                className="flex items-center gap-1.5 rounded-lg border border-gray-700 bg-[#0f172a] px-3 py-1.5 text-sm font-semibold text-gray-300 hover:bg-[#1a233a] disabled:opacity-60"
+              >
+                {exportingPdf ? <Loader2 size={14} className="animate-spin" /> : <FileText size={14} />} PDF
+              </button>
             </div>
+          )}
+        </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-6">
-              <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
-                <p className="text-gray-400 text-sm">Total (this view)</p>
-                <p className="text-3xl font-bold text-green-400">{formatMoney(tabTotal)}</p>
-              </div>
-              <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
-                <p className="text-gray-400 text-sm">Number of items</p>
-                <p className="text-3xl font-bold text-blue-400">{tabbed.length}</p>
-              </div>
-            </div>
-
-            {loading ? (
-              <div className="text-center py-12 text-gray-400">Loading...</div>
-            ) : tabbed.length > 0 ? (
-              <div className="space-y-3">
-                {tabbed.map((o) => (
-                  <div key={o.type + o.id} className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
-                    {editingId === o.id ? (
-                      <div className="space-y-3">
-                        <input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          placeholder="Name"
-                          className={inputClass}
-                        />
-                        {editType === 'bill' ? (
-                          <>
-                            <div className="grid grid-cols-2 gap-2">
-                              <div>
-                                <label className="text-gray-500 text-xs block mb-1">Amount ($)</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={editAmount}
-                                  onChange={(e) => setEditAmount(e.target.value)}
-                                  className={inputClass}
-                                />
-                              </div>
-                              <div>
-                                <label className="text-gray-500 text-xs block mb-1">Due day</label>
-                                <input
-                                  type="number"
-                                  min="1"
-                                  max="31"
-                                  value={editDueDay}
-                                  onChange={(e) => setEditDueDay(e.target.value)}
-                                  className={inputClass}
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="text-gray-500 text-xs block mb-1">How often</label>
-                              <select
-                                value={editFrequency}
-                                onChange={(e) => setEditFrequency(e.target.value as 'monthly' | 'bimonthly')}
-                                className={inputClass}
-                              >
-                                <option value="monthly">Monthly</option>
-                                <option value="bimonthly">Every 2 months (Bi-Monthly)</option>
-                              </select>
-                            </div>
-                            <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={editIsSubscription}
-                                onChange={(e) => setEditIsSubscription(e.target.checked)}
-                                className="rounded border-gray-700 bg-[#1a233a] text-green-500 focus:ring-green-500"
-                              />
-                              This is a subscription
-                            </label>
-                          </>
-                        ) : (
-                          <>
-                            <div className="grid grid-cols-3 gap-2">
-                              <div>
-                                <label className="text-gray-500 text-xs block mb-1">Balance</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={editBalance}
-                                  onChange={(e) => setEditBalance(e.target.value)}
-                                  className={inputClass}
-                                />
-                              </div>
-                              <div>
-                                <label className="text-gray-500 text-xs block mb-1">APR %</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={editRate}
-                                  onChange={(e) => setEditRate(e.target.value)}
-                                  className={inputClass}
-                                />
-                              </div>
-                              <div>
-                                <label className="text-gray-500 text-xs block mb-1">Min</label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={editMinPayment}
-                                  onChange={(e) => setEditMinPayment(e.target.value)}
-                                  className={inputClass}
-                                />
-                              </div>
-                            </div>
-                            <div>
-                              <label className="text-gray-500 text-xs block mb-1">Due day (1-31)</label>
-                              <input
-                                type="number"
-                                min="1"
-                                max="31"
-                                value={editDueDay}
-                                onChange={(e) => setEditDueDay(e.target.value)}
-                                className={inputClass}
-                              />
-                            </div>
-                            <div>
-                              <label className="text-gray-500 text-xs block mb-1">Debt type</label>
-                              <select
-                                value={editDebtType}
-                                onChange={(e) => setEditDebtType(e.target.value)}
-                                className={inputClass}
-                              >
-                                {DEBT_TYPES.map((t) => (
-                                  <option key={t.value} value={t.value}>
-                                    {t.label}
-                                  </option>
-                                ))}
-                              </select>
-                            </div>
-                            {editDebtType === 'mortgage' && (
-                              <div>
-                                <label className="text-gray-500 text-xs block mb-1">
-                                  Escrow included above ($/mo, optional)
-                                </label>
-                                <input
-                                  type="number"
-                                  step="0.01"
-                                  value={editEscrowPayment}
-                                  onChange={(e) => setEditEscrowPayment(e.target.value)}
-                                  placeholder="e.g., 450.00"
-                                  className={inputClass}
-                                />
-                              </div>
-                            )}
-                            <label className="flex items-start gap-2 text-xs text-gray-400">
-                              <input
-                                type="checkbox"
-                                checked={editCoveredByTransfer}
-                                onChange={(e) => setEditCoveredByTransfer(e.target.checked)}
-                                className="mt-0.5 shrink-0"
-                              />
-                              <span>Paid automatically from a linked transfer (excludes it from Safe to Spend)</span>
-                            </label>
-                          </>
-                        )}
-                        <div className="flex gap-2">
-                          <button
-                            onClick={() => saveEdit(o)}
-                            className="flex items-center gap-1 rounded-lg bg-green-500 px-3 py-1.5 text-sm font-semibold text-black hover:bg-green-600"
-                          >
-                            <Check size={16} /> Save
-                          </button>
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="flex items-center gap-1 rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-[#1a233a]"
-                          >
-                            <X size={16} /> Cancel
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="min-w-0">
-                          <h3 className="font-semibold text-lg flex flex-wrap items-center gap-2">
-                            {o.type === 'bill' ? (
-                              <Receipt size={16} className="text-emerald-400 shrink-0" />
-                            ) : (
-                              <CreditCard size={16} className="text-rose-400 shrink-0" />
-                            )}
-                            {o.name}
-                            <span className="rounded-full bg-[#1a233a] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
-                              {o.type}
-                            </span>
-                            {o.badge && (
-                              <span className="rounded-full bg-[#1a233a] px-2 py-0.5 text-xs font-medium text-gray-400">
-                                {o.badge}
-                              </span>
-                            )}
-                            {o.isSubscription && (
-                              <span className="rounded-full bg-[#1a233a] px-2 py-0.5 text-xs font-medium text-gray-400">
-                                Subscription
-                              </span>
-                            )}
-                            {o.type === 'debt' && (o.raw as Debt).covered_by_transfer && (
-                              <span
-                                className="rounded-full bg-sky-500/10 px-2 py-0.5 text-xs font-medium text-sky-300"
-                                title="Excluded from Safe to Spend/Survival Mode -- paid automatically from a linked transfer instead."
-                              >
-                                paid via transfer
-                              </span>
-                            )}
-                            <StatusPill status={o.status} daysUntil={o.daysUntil} />
-                          </h3>
-                          <p className="text-gray-400 text-sm">
-                            {o.due_date
-                              ? `${o.type === 'bill' && o.isSubscription ? 'Renews' : 'Due'} on day ${o.due_date}${
-                                  o.type === 'bill' && (o.raw as Bill).frequency === 'bimonthly' ? ' every 2 months' : ' of each month'
-                                }`
-                              : 'No due day set -- edit to add one so this counts toward a specific paycheck.'}
-                            {o.type === 'debt' && Number((o.raw as Debt).interest_rate) > 0
-                              ? ` · ${Number((o.raw as Debt).interest_rate).toFixed(2)}% APR`
-                              : ''}
-                          </p>
-                        </div>
-                        <div className="flex shrink-0 items-center gap-3">
-                          <p className={`text-2xl font-bold ${o.type === 'bill' ? 'text-green-400' : 'text-rose-400'}`}>
-                            {formatMoney(o.type === 'debt' ? Number((o.raw as Debt).balance) : o.amount)}
-                          </p>
-                          <button onClick={() => startEdit(o)} className="text-gray-400 hover:text-white transition p-2" aria-label="Edit">
-                            <Pencil size={18} />
-                          </button>
-                          <button
-                            onClick={() => deleteObligation(o)}
-                            className="text-red-400 hover:text-red-300 transition p-2"
-                            aria-label="Delete"
-                          >
-                            <Trash2 size={18} />
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-12 text-gray-400">
-                <p>Nothing here yet</p>
-                <p className="text-sm mt-2">Add a bill or debt to see it show up here.</p>
-              </div>
-            )}
+        <div className="grid grid-cols-2 gap-4 mb-6">
+          <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
+            <p className="text-gray-400 text-sm">Total (this view)</p>
+            <p className="text-3xl font-bold text-green-400">{formatMoney(tabTotal)}</p>
+          </div>
+          <div className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
+            <p className="text-gray-400 text-sm">Number of items</p>
+            <p className="text-3xl font-bold text-blue-400">{tabbed.length}</p>
           </div>
         </div>
+
+        {loading ? (
+          <div className="text-center py-12 text-gray-400">Loading...</div>
+        ) : tabbed.length > 0 ? (
+          <div className="space-y-3">
+            {tabbed.map((o) => (
+              <div key={o.type + o.id} className="bg-[#0f172a] border border-gray-700 rounded-lg p-4">
+                {editingId === o.id ? (
+                  <div className="space-y-3">
+                    <input
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      placeholder="Name"
+                      className={inputClass}
+                    />
+                    {editType === 'bill' ? (
+                      <>
+                        <div className="grid grid-cols-2 gap-2">
+                          <div>
+                            <label className="text-gray-500 text-xs block mb-1">Amount ($)</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editAmount}
+                              onChange={(e) => setEditAmount(e.target.value)}
+                              className={inputClass}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-gray-500 text-xs block mb-1">Due day</label>
+                            <input
+                              type="number"
+                              min="1"
+                              max="31"
+                              value={editDueDay}
+                              onChange={(e) => setEditDueDay(e.target.value)}
+                              className={inputClass}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-gray-500 text-xs block mb-1">How often</label>
+                          <select
+                            value={editFrequency}
+                            onChange={(e) => setEditFrequency(e.target.value as 'monthly' | 'bimonthly')}
+                            className={inputClass}
+                          >
+                            <option value="monthly">Monthly</option>
+                            <option value="bimonthly">Every 2 months (Bi-Monthly)</option>
+                          </select>
+                        </div>
+                        <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={editIsSubscription}
+                            onChange={(e) => setEditIsSubscription(e.target.checked)}
+                            className="rounded border-gray-700 bg-[#1a233a] text-green-500 focus:ring-green-500"
+                          />
+                          This is a subscription
+                        </label>
+                      </>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div>
+                            <label className="text-gray-500 text-xs block mb-1">Balance</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editBalance}
+                              onChange={(e) => setEditBalance(e.target.value)}
+                              className={inputClass}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-gray-500 text-xs block mb-1">APR %</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editRate}
+                              onChange={(e) => setEditRate(e.target.value)}
+                              className={inputClass}
+                            />
+                          </div>
+                          <div>
+                            <label className="text-gray-500 text-xs block mb-1">Min</label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editMinPayment}
+                              onChange={(e) => setEditMinPayment(e.target.value)}
+                              className={inputClass}
+                            />
+                          </div>
+                        </div>
+                        <div>
+                          <label className="text-gray-500 text-xs block mb-1">Due day (1-31)</label>
+                          <input
+                            type="number"
+                            min="1"
+                            max="31"
+                            value={editDueDay}
+                            onChange={(e) => setEditDueDay(e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-gray-500 text-xs block mb-1">Debt type</label>
+                          <select
+                            value={editDebtType}
+                            onChange={(e) => setEditDebtType(e.target.value)}
+                            className={inputClass}
+                          >
+                            {DEBT_TYPES.map((t) => (
+                              <option key={t.value} value={t.value}>
+                                {t.label}
+                              </option>
+                            ))}
+                          </select>
+                        </div>
+                        {editDebtType === 'mortgage' && (
+                          <div>
+                            <label className="text-gray-500 text-xs block mb-1">
+                              Escrow included above ($/mo, optional)
+                            </label>
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editEscrowPayment}
+                              onChange={(e) => setEditEscrowPayment(e.target.value)}
+                              placeholder="e.g., 450.00"
+                              className={inputClass}
+                            />
+                          </div>
+                        )}
+                        <label className="flex items-start gap-2 text-xs text-gray-400">
+                          <input
+                            type="checkbox"
+                            checked={editCoveredByTransfer}
+                            onChange={(e) => setEditCoveredByTransfer(e.target.checked)}
+                            className="mt-0.5 shrink-0"
+                          />
+                          <span>Paid automatically from a linked transfer (excludes it from Safe to Spend)</span>
+                        </label>
+                      </>
+                    )}
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => saveEdit(o)}
+                        className="flex items-center gap-1 rounded-lg bg-green-500 px-3 py-1.5 text-sm font-semibold text-black hover:bg-green-600"
+                      >
+                        <Check size={16} /> Save
+                      </button>
+                      <button
+                        onClick={() => setEditingId(null)}
+                        className="flex items-center gap-1 rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-[#1a233a]"
+                      >
+                        <X size={16} /> Cancel
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="min-w-0">
+                      <h3 className="font-semibold text-lg flex flex-wrap items-center gap-2">
+                        {o.type === 'bill' ? (
+                          <Receipt size={16} className="text-emerald-400 shrink-0" />
+                        ) : (
+                          <CreditCard size={16} className="text-rose-400 shrink-0" />
+                        )}
+                        {o.name}
+                        <span className="rounded-full bg-[#1a233a] px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-gray-400">
+                          {o.type}
+                        </span>
+                        {o.badge && (
+                          <span className="rounded-full bg-[#1a233a] px-2 py-0.5 text-xs font-medium text-gray-400">
+                            {o.badge}
+                          </span>
+                        )}
+                        {o.isSubscription && (
+                          <span className="rounded-full bg-[#1a233a] px-2 py-0.5 text-xs font-medium text-gray-400">
+                            Subscription
+                          </span>
+                        )}
+                        {o.type === 'debt' && (o.raw as Debt).covered_by_transfer && (
+                          <span
+                            className="rounded-full bg-sky-500/10 px-2 py-0.5 text-xs font-medium text-sky-300"
+                            title="Excluded from Safe to Spend/Survival Mode -- paid automatically from a linked transfer instead."
+                          >
+                            paid via transfer
+                          </span>
+                        )}
+                        <StatusPill status={o.status} daysUntil={o.daysUntil} />
+                      </h3>
+                      <p className="text-gray-400 text-sm">
+                        {o.due_date
+                          ? `${o.type === 'bill' && o.isSubscription ? 'Renews' : 'Due'} on day ${o.due_date}${
+                              o.type === 'bill' && (o.raw as Bill).frequency === 'bimonthly' ? ' every 2 months' : ' of each month'
+                            }`
+                          : 'No due day set -- edit to add one so this counts toward a specific paycheck.'}
+                        {o.type === 'debt' && Number((o.raw as Debt).interest_rate) > 0
+                          ? ` · ${Number((o.raw as Debt).interest_rate).toFixed(2)}% APR`
+                          : ''}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <p className={`text-2xl font-bold ${o.type === 'bill' ? 'text-green-400' : 'text-rose-400'}`}>
+                        {formatMoney(o.type === 'debt' ? Number((o.raw as Debt).balance) : o.amount)}
+                      </p>
+                      <button onClick={() => startEdit(o)} className="text-gray-400 hover:text-white transition p-2" aria-label="Edit">
+                        <Pencil size={18} />
+                      </button>
+                      <button
+                        onClick={() => deleteObligation(o)}
+                        className="text-red-400 hover:text-red-300 transition p-2"
+                        aria-label="Delete"
+                      >
+                        <Trash2 size={18} />
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 text-gray-400">
+            <p>Nothing here yet</p>
+            <p className="text-sm mt-2">Add a bill or debt to see it show up here.</p>
+          </div>
+        )}
       </div>
     </div>
   )

@@ -18,7 +18,7 @@ type NamedDebt = { id: string; name: string; minimum_payment: number; due_date: 
 type Props = {
   result: SafeToSpendResult
   startingCash: StartingCash
-  savings: CashAccountRow | null
+  accounts: CashAccountRow[]
   classifiedBills: ClassifiedItem<NamedBill>[]
   classifiedDebts: ClassifiedItem<{ id: string; name: string; amount: number; due_date: number | null }>[]
   coveredDebts?: { name: string; amount: number }[]
@@ -50,7 +50,7 @@ function Stat({ label, value, accent }: { label: string; value: string; accent?:
 export default function SurvivalModeView({
   result,
   startingCash,
-  savings,
+  accounts,
   classifiedBills,
   classifiedDebts,
   coveredDebts = [],
@@ -90,7 +90,7 @@ export default function SurvivalModeView({
         <div className="mt-8 space-y-4">
           {risk && <PlanRiskBanner risk={risk} />}
 
-          <CashBalanceEditor startingCash={startingCash} savings={savings} />
+          <CashBalanceEditor startingCash={startingCash} accounts={accounts} />
 
           {startingCash.source === "lastPaycheck" && result.transfersOut > 0 && (
             <p className="text-xs text-gray-500">

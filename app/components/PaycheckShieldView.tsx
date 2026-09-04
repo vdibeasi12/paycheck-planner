@@ -105,10 +105,10 @@ export default function PaycheckShieldView({ result, bills, debts }: Props) {
               result.weakestCycle.billsDue + result.weakestCycle.debtsDue + result.weakestCycle.goalContribution
             )}{" "}
             already committed, leaving{" "}
-            <span className={result.weakestCycle.cushion >= 0 ? "text-emerald-300" : "text-red-300"}>
-              {formatMoney(result.weakestCycle.cushion)}
+            <span className={result.weakestCycle.runningBalance >= 0 ? "text-emerald-300" : "text-red-300"}>
+              {formatMoney(result.weakestCycle.runningBalance)}
             </span>{" "}
-            of cushion.
+            in your account by then -- this paycheck's own math plus whatever's really left over from before it.
           </p>
         </div>
       )}
