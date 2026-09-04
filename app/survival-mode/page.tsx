@@ -105,10 +105,12 @@ export default async function SurvivalModePage() {
 
   // "Then what" (Sep 4 2026, Vince): "if I have this much then how will I
   // be able to pay my mortgage Oct 1, car payment Sept 15, and personal
-  // loan sept 22nd" -- see app/dashboard/page.tsx's identical comment. Same
-  // cycles/starting cash this page already grounds Safe to Spend in.
+  // loan sept 22nd" -- see app/dashboard/page.tsx's identical comment (3
+  // lookahead cycles, not 2, so a grace-period-shifted debt landing 3
+  // paychecks out is actually shown). Same cycles/starting cash this page
+  // already grounds Safe to Spend in.
   const lookahead = buildUpcomingForecast(
-    cycles.slice(1, 3),
+    cycles.slice(1, 4),
     bills,
     spendableDebts.map((d) => ({ ...d, amount: d.minimum_payment }))
   )

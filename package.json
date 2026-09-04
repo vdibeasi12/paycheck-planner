@@ -13,6 +13,7 @@
     "test:safe-to-spend": "npx tsx lib/__tests__/safeToSpend.test.ts",
     "test:cash-balance": "npx tsx lib/__tests__/cashBalance.test.ts",
     "test:plan-resilience": "npx tsx lib/__tests__/planResilience.test.ts",
+    "test:debt-payoff-safety": "npx tsx lib/__tests__/debtPayoffSafety.test.ts",
     "cap:sync": "npx cap sync",
     "ios": "npx cap open ios",
     "android": "npx cap open android"

@@ -35,9 +35,11 @@ import { consumeCapturePrefill } from '@/lib/capturePrefill'
 import { checkAchievementsAndCelebrate } from '@/lib/checkAchievements'
 import { celebrate, popMilestone, crossedMilestone } from '@/lib/confetti'
 import { DEBT_TYPES, debtTypeLabel } from '@/lib/debtTypes'
-import { toISODate, daysBetween, addDays } from '@/lib/paycheckCycles'
+import { toISODate, daysBetween, addDays, type CycleIncome } from '@/lib/paycheckCycles'
 import { billOccurrenceInMonth } from '@/lib/schedule'
 import { generateBillsDebtsPdf } from '@/lib/generateBillsDebtsPdf'
+import { resolveStartingCash, type CashAccountRow } from '@/lib/cashBalance'
+import DebtPayoffAffordability from '../components/DebtPayoffAffordability'
 
 // Sep 4 2026, Vince: Bills and Debts used to be two separate pages built
 // around an accounting distinction (a recurring expense vs. money you
@@ -99,7 +101,7 @@ interface Bill {
   created_at: string
 }
 
-type CashAccountOption = { id: string; kind: 'checking' | 'savings'; name: string; balance: number }
+type CashAccountOption = { id: string; kind: 'checking' | 'savings'; name: string; balance: number; balance_as_of: string }
 
 interface Debt {
   id: string
@@ -277,6 +279,10 @@ export default function BillsAndDebtsPage() {
   // subtracted again later) and immediately debits the account they paid it
   // from, so that balance stops sitting "static" between manual updates.
   const [cashAccounts, setCashAccounts] = useState<CashAccountOption[]>([])
+  // "Can I pay this off?" (Sep 4 2026, Vince) -- needs the same paycheck
+  // projection Safe to Spend/Paycheck Shield already run, which needs
+  // income. Nothing else on this page reads it.
+  const [income, setIncome] = useState<CycleIncome[]>([])
   const [payingId, setPayingId] = useState<string | null>(null)
   const [payAccountId, setPayAccountId] = useState('')
   const [payAmount, setPayAmount] = useState('')
@@ -286,19 +292,21 @@ export default function BillsAndDebtsPage() {
 
   async function loadAll() {
     try {
-      const [{ data: billsData }, { data: debtsData }, { data: cashData }, { data: auth }] = await Promise.all([
+      const [{ data: billsData }, { data: debtsData }, { data: cashData }, { data: incomeData }, { data: auth }] = await Promise.all([
         supabase.from('bills').select('*'),
         supabase
           .from('debts')
           .select(
             'id, name, balance, original_balance, interest_rate, minimum_payment, due_date, debt_type, escrow_payment, covered_by_transfer, grace_period_days, paid_through, cash_account_id, created_at'
           ),
-        supabase.from('cash_accounts').select('id, kind, name, balance').order('kind').order('name'),
+        supabase.from('cash_accounts').select('id, kind, name, balance, balance_as_of').order('kind').order('name'),
+        supabase.from('income').select('amount, frequency, next_pay_date, income_type'),
         supabase.auth.getUser(),
       ])
       if (billsData) setBills(billsData)
       if (debtsData) setDebts(debtsData as Debt[])
       if (cashData) setCashAccounts(cashData as CashAccountOption[])
+      if (incomeData) setIncome(incomeData as CycleIncome[])
       if (auth.user) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -390,6 +398,17 @@ export default function BillsAndDebtsPage() {
   }, [bills, debts, todayISO])
 
   const overlaps = useMemo(() => findBillDebtOverlaps(bills, debts), [bills, debts])
+
+  // "Can I pay this off?" (Sep 4 2026, Vince) needs the same real pooled
+  // Checking balance, projected to today, that Safe to Spend/Paycheck
+  // Shield/"Then what" already ground themselves in -- see
+  // lib/cashBalance.ts's resolveStartingCash.
+  const startingCash = useMemo(() => {
+    const checkingRows: CashAccountRow[] = cashAccounts
+      .filter((a) => a.kind === 'checking')
+      .map((a) => ({ id: a.id, kind: a.kind, name: a.name, balance: Number(a.balance) || 0, balance_as_of: a.balance_as_of }))
+    return resolveStartingCash(checkingRows, { income, bills, debts, todayISO }, 0)
+  }, [cashAccounts, income, bills, debts, todayISO])
 
   const subscriptionBills = useMemo(() => obligations.filter((o) => o.isSubscription), [obligations])
   const combinedMonthlyTotal = useMemo(
@@ -1143,6 +1162,25 @@ export default function BillsAndDebtsPage() {
             View your payoff plan &rarr;
           </Link>
         </div>
+
+        {!loading && debts.length > 0 && (
+          <DebtPayoffAffordability
+            debts={debts.map((d) => ({
+              id: d.id,
+              name: d.name,
+              balance: Number(d.balance) || 0,
+              minimum_payment: Number(d.minimum_payment) || 0,
+              due_date: d.due_date,
+              grace_period_days: d.grace_period_days,
+              paid_through: d.paid_through,
+              covered_by_transfer: d.covered_by_transfer,
+            }))}
+            bills={bills}
+            income={income}
+            startingCash={startingCash.amount}
+            todayISO={todayISO}
+          />
+        )}
 
         {/* The schedule -- what needs attention, then the full itemized,
             filterable list. Sits below Add Bill or Debt now. */}
