@@ -123,6 +123,7 @@ function applyScenario(
           amount: d.minimum_payment,
           due_date: d.due_date,
           grace_period_days: d.grace_period_days,
+          paid_through: d.paid_through,
         })),
         c.windowStart,
         extendedTo

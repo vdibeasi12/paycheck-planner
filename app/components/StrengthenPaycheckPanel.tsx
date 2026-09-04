@@ -14,6 +14,7 @@ type DebtRow = {
   due_date: number | null
   covered_by_transfer?: boolean | null
   grace_period_days?: number | null
+  paid_through?: string | null
 }
 
 type Props = {

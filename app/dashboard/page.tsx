@@ -127,7 +127,7 @@ export default async function DashboardPage() {
 
   const { data: billsData } = await supabase
     .from("bills")
-    .select("id, name, amount, frequency, due_date")
+    .select("id, name, amount, frequency, due_date, paid_through")
     .eq("user_id", user.id)
   const bills = Array.isArray(billsData) ? billsData : []
   const monthlyBills = bills.reduce(

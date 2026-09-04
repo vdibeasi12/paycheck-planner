@@ -22,6 +22,8 @@ import {
   Download,
   FileText,
   Loader2,
+  Wallet,
+  CheckCircle2,
 } from 'lucide-react'
 import SmartCapture from '../components/SmartCapture'
 import { isPremium, getMaxDebts } from '@/lib/permissions'
@@ -71,8 +73,18 @@ interface Bill {
   due_date: number
   category: string | null
   frequency?: string | null
+  // QA fix (Sep 4 2026, Vince): "I paid the mortgage today from 53rd, this
+  // should change my amount" -- no live bank feed (no Plaid Auth), so the
+  // only way the app finds out a bill/debt actually got paid is if the user
+  // says so. paid_through is the nominal due date (day-of-month resolved to
+  // an actual date) of the most recent occurrence confirmed via "Mark as
+  // paid" below -- see lib/paycheckCycles.ts's itemsDueInWindow for how this
+  // keeps that occurrence from being subtracted again later.
+  paid_through: string | null
   created_at: string
 }
+
+type CashAccountOption = { id: string; kind: 'checking' | 'savings'; name: string; balance: number }
 
 interface Debt {
   id: string
@@ -93,6 +105,8 @@ interface Debt {
   // Shifts the effective due date used everywhere (Safe to Spend, Paycheck
   // Shield, and the Overdue/Grace status below) to due_date + this many days.
   grace_period_days: number | null
+  // See Bill.paid_through above -- same mechanism, same field, for debts.
+  paid_through: string | null
   created_at: string
 }
 
@@ -231,21 +245,34 @@ export default function BillsAndDebtsPage() {
   const [editCoveredByTransfer, setEditCoveredByTransfer] = useState(false)
   const [editGracePeriodDays, setEditGracePeriodDays] = useState('')
 
+  // "Mark as paid" (Sep 4 2026, Vince) -- see Bill.paid_through above. Lets
+  // the user say "I paid this" right now instead of waiting for the due
+  // date, which both settles this cycle's occurrence (so it isn't
+  // subtracted again later) and immediately debits the account they paid it
+  // from, so that balance stops sitting "static" between manual updates.
+  const [cashAccounts, setCashAccounts] = useState<CashAccountOption[]>([])
+  const [payingId, setPayingId] = useState<string | null>(null)
+  const [payAccountId, setPayAccountId] = useState('')
+  const [payAmount, setPayAmount] = useState('')
+  const [payBusy, setPayBusy] = useState(false)
+
   const todayISO = toISODate(new Date())
 
   async function loadAll() {
     try {
-      const [{ data: billsData }, { data: debtsData }, { data: auth }] = await Promise.all([
+      const [{ data: billsData }, { data: debtsData }, { data: cashData }, { data: auth }] = await Promise.all([
         supabase.from('bills').select('*'),
         supabase
           .from('debts')
           .select(
-            'id, name, balance, original_balance, interest_rate, minimum_payment, due_date, debt_type, escrow_payment, covered_by_transfer, grace_period_days, created_at'
+            'id, name, balance, original_balance, interest_rate, minimum_payment, due_date, debt_type, escrow_payment, covered_by_transfer, grace_period_days, paid_through, created_at'
           ),
+        supabase.from('cash_accounts').select('id, kind, name, balance').order('kind').order('name'),
         supabase.auth.getUser(),
       ])
       if (billsData) setBills(billsData)
       if (debtsData) setDebts(debtsData as Debt[])
+      if (cashData) setCashAccounts(cashData as CashAccountOption[])
       if (auth.user) {
         const { data: profile } = await supabase
           .from('profiles')
@@ -597,6 +624,78 @@ export default function BillsAndDebtsPage() {
     } catch (error) {
       console.error('Error deleting:', error)
       alert('Failed to delete')
+    }
+  }
+
+  // The nominal (no-grace) occurrence date for this obligation's current
+  // monthly cycle -- what "Mark as paid" records into paid_through, and what
+  // decides whether it's already settled. Deliberately the raw due day, not
+  // the grace-adjusted one: paying early inside a grace window still
+  // settles that cycle (see lib/paycheckCycles.ts's itemsDueInWindow).
+  function currentNominalOccurrence(dueDay: number): string {
+    const today = new Date(todayISO + 'T00:00:00')
+    return billOccurrenceInMonth(dueDay, today.getFullYear(), today.getMonth())
+  }
+
+  function isPaidThisCycle(o: Obligation): boolean {
+    if (!o.due_date) return false
+    const paidThrough = o.type === 'bill' ? (o.raw as Bill).paid_through : (o.raw as Debt).paid_through
+    if (!paidThrough) return false
+    return paidThrough >= currentNominalOccurrence(o.due_date)
+  }
+
+  function startPay(o: Obligation) {
+    setPayingId(o.id)
+    setPayAmount(String(o.amount))
+    const defaultAccount = cashAccounts.find((a) => a.kind === 'checking') ?? cashAccounts[0]
+    setPayAccountId(defaultAccount?.id ?? '')
+  }
+
+  function cancelPay() {
+    setPayingId(null)
+    setPayAccountId('')
+    setPayAmount('')
+  }
+
+  // Confirms a real-world payment: settles this obligation's current cycle
+  // (paid_through) so it isn't subtracted again once its due date rolls
+  // around, and debits the chosen account right now instead of leaving that
+  // balance "static" until the next manual edit -- the whole point being
+  // this is a stand-in for a live bank balance (no Plaid Auth), so it has to
+  // move when real money moves.
+  async function confirmPay(o: Obligation) {
+    if (!o.due_date) return
+    const amountNum = Number(payAmount)
+    if (!payAccountId) {
+      alert('Choose which account this came out of')
+      return
+    }
+    if (!(amountNum > 0)) {
+      alert('Enter the amount actually paid')
+      return
+    }
+    const account = cashAccounts.find((a) => a.id === payAccountId)
+    if (!account) {
+      alert('That account could not be found -- try reloading the page')
+      return
+    }
+    setPayBusy(true)
+    try {
+      const nominalDate = currentNominalOccurrence(o.due_date)
+      const newBalance = Math.round((Number(account.balance) - amountNum) * 100) / 100
+      const [{ error: obligationError }, { error: accountError }] = await Promise.all([
+        supabase.from(o.type === 'bill' ? 'bills' : 'debts').update({ paid_through: nominalDate }).eq('id', o.id),
+        supabase.from('cash_accounts').update({ balance: newBalance, balance_as_of: todayISO }).eq('id', payAccountId),
+      ])
+      if (obligationError) throw obligationError
+      if (accountError) throw accountError
+      cancelPay()
+      loadAll()
+    } catch (error) {
+      console.error('Error marking paid:', error)
+      alert('Failed to record this payment')
+    } finally {
+      setPayBusy(false)
     }
   }
 
@@ -1248,6 +1347,51 @@ export default function BillsAndDebtsPage() {
                       </button>
                     </div>
                   </div>
+                ) : payingId === o.id ? (
+                  <div className="space-y-3">
+                    <p className="text-sm text-gray-300">
+                      Mark <span className="font-semibold text-white">{o.name}</span> as paid -- this settles it for
+                      this cycle and debits the account below right now.
+                    </p>
+                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                      <div>
+                        <label className="text-gray-500 text-xs block mb-1">Amount paid ($)</label>
+                        <input
+                          type="number"
+                          step="0.01"
+                          value={payAmount}
+                          onChange={(e) => setPayAmount(e.target.value)}
+                          className={inputClass}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-gray-500 text-xs block mb-1">Paid from</label>
+                        <select value={payAccountId} onChange={(e) => setPayAccountId(e.target.value)} className={inputClass}>
+                          {cashAccounts.length === 0 && <option value="">No accounts on file</option>}
+                          {cashAccounts.map((a) => (
+                            <option key={a.id} value={a.id}>
+                              {a.name} ({formatMoney(Number(a.balance))})
+                            </option>
+                          ))}
+                        </select>
+                      </div>
+                    </div>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => confirmPay(o)}
+                        disabled={payBusy}
+                        className="flex items-center gap-1 rounded-lg bg-green-500 px-3 py-1.5 text-sm font-semibold text-black hover:bg-green-600 disabled:opacity-50"
+                      >
+                        <Check size={16} /> {payBusy ? 'Saving...' : 'Confirm paid'}
+                      </button>
+                      <button
+                        onClick={cancelPay}
+                        className="flex items-center gap-1 rounded-lg border border-gray-700 px-3 py-1.5 text-sm text-gray-300 hover:bg-[#1a233a]"
+                      >
+                        <X size={16} /> Cancel
+                      </button>
+                    </div>
+                  </div>
                 ) : (
                   <div className="flex items-center justify-between gap-3">
                     <div className="min-w-0">
@@ -1296,6 +1440,24 @@ export default function BillsAndDebtsPage() {
                       <p className={`text-2xl font-bold ${o.type === 'bill' ? 'text-green-400' : 'text-rose-400'}`}>
                         {formatMoney(o.type === 'debt' ? Number((o.raw as Debt).balance) : o.amount)}
                       </p>
+                      {o.due_date &&
+                        (isPaidThisCycle(o) ? (
+                          <span
+                            className="flex items-center gap-1 rounded-full bg-emerald-500/10 px-2 py-1 text-xs font-semibold text-emerald-300"
+                            title="Settled for this cycle -- won't be subtracted from Safe to Spend again until next month's due date."
+                          >
+                            <CheckCircle2 size={14} /> Paid
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => startPay(o)}
+                            className="text-gray-400 hover:text-emerald-400 transition p-2"
+                            aria-label="Mark as paid"
+                            title="Mark as paid -- settles this cycle and debits the account you paid it from"
+                          >
+                            <Wallet size={18} />
+                          </button>
+                        ))}
                       <button onClick={() => startEdit(o)} className="text-gray-400 hover:text-white transition p-2" aria-label="Edit">
                         <Pencil size={18} />
                       </button>

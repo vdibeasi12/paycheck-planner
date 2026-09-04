@@ -25,6 +25,7 @@ type DebtRow = {
   minimum_payment: number
   due_date: number | null
   grace_period_days?: number | null
+  paid_through?: string | null
 }
 
 type Props = {

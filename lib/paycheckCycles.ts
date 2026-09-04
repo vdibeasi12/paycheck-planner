@@ -22,6 +22,20 @@ export type CycleIncome = {
 export type CycleBill = {
   amount: number
   due_date: number | null
+  // QA fix (Sep 4 2026, Vince): "I paid the mortgage today from 53rd, this
+  // should change my amount" -- there's no live bank feed (no Plaid Auth),
+  // so the app can't tell on its own that a scheduled bill/debt actually got
+  // paid; without a way to say so, this month's occurrence just sits in the
+  // due-window math until its date passes on its own, and the account
+  // balance the user typed in stays frozen ("static") no matter what they
+  // actually pay. paid_through is the workaround: the nominal due date
+  // (see billOccurrenceInMonth) of the most recent occurrence the user has
+  // confirmed paying, set by the "Mark as paid" action in Bills & Debts
+  // (app/bills-debts/page.tsx), which also debits the chosen cash account
+  // right then instead of waiting for the due date to roll around. Compared
+  // against the NOMINAL date, not the grace-adjusted one -- paying early
+  // (within a grace window) still settles that cycle. See itemsDueInWindow.
+  paid_through?: string | null
 }
 
 export type CycleDebt = {
@@ -65,6 +79,9 @@ export type CycleDebt = {
   // point the grace period allows) and stops a debt with a real grace period
   // from reading as "Overdue" the moment its nominal due day passes.
   grace_period_days?: number | null
+  // See CycleBill.paid_through above -- same mechanism, same field, for
+  // debts. Set by "Mark as paid" in Bills & Debts.
+  paid_through?: string | null
 }
 
 export type CycleGoal = {
@@ -232,6 +249,7 @@ export function projectRunningBalance(input: {
       amount: d.minimum_payment,
       due_date: d.due_date,
       grace_period_days: d.grace_period_days,
+      paid_through: d.paid_through,
     })),
     anchorDateISO,
     asOfISO
@@ -252,7 +270,17 @@ export function projectRunningBalance(input: {
 // pay -- Safe to Spend has no way to know the exact day, and assuming the
 // money leaves as late as possible is the conservative direction to be wrong
 // in (never overstates what's safe to spend).
-export function itemsDueInWindow<T extends { amount: number; due_date: number | null; grace_period_days?: number | null }>(
+//
+// QA fix (Sep 4 2026, Vince, same day): a row's paid_through (see
+// CycleBill/CycleDebt) skips a specific month's occurrence entirely once the
+// user has confirmed paying it via "Mark as paid" -- checked against the
+// NOMINAL due date (before any grace shift), since paying early inside a
+// grace window still settles that cycle. Without this, a payment made ahead
+// of the due date would get manually deducted from the account balance right
+// away (see lib/cashBalance.ts) and then get projected/subtracted AGAIN once
+// the projection catches up to the due date -- the exact double-count shape
+// this file exists to prevent everywhere else.
+export function itemsDueInWindow<T extends { amount: number; due_date: number | null; grace_period_days?: number | null; paid_through?: string | null }>(
   rows: T[],
   fromISO: string,
   toISO: string
@@ -268,6 +296,7 @@ export function itemsDueInWindow<T extends { amount: number; due_date: number | 
       const year = Math.floor(idx / 12)
       const month = idx % 12
       const nominalDate = billOccurrenceInMonth(row.due_date, year, month)
+      if (row.paid_through && nominalDate <= row.paid_through) continue
       const date = row.grace_period_days
         ? toISODate(addDays(new Date(nominalDate + "T00:00:00"), row.grace_period_days))
         : nominalDate
@@ -305,7 +334,7 @@ export function classifyItemsAroundCycle<T extends { amount: number; due_date: n
 }
 
 export function sumDueInWindow(
-  rows: { amount: number; due_date: number | null; grace_period_days?: number | null }[],
+  rows: { amount: number; due_date: number | null; grace_period_days?: number | null; paid_through?: string | null }[],
   fromISO: string,
   toISO: string
 ): number {
@@ -497,6 +526,7 @@ export function projectPaycheckCycles(input: {
         amount: d.minimum_payment,
         due_date: d.due_date,
         grace_period_days: d.grace_period_days,
+        paid_through: d.paid_through,
       })),
       windowStart,
       date

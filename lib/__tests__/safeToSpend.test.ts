@@ -201,6 +201,52 @@ console.log("  window actually ends, but IS reserved once it does (the mortgage/
   assertEqual(r.debtsDue, 2220.86, "reserved once inside the grace window, not skipped as 'already due'")
 }
 
+console.log("Test 13 (regression) -- 'Mark as paid' (paid_through) settles THIS cycle without")
+console.log("  breaking the NEXT one, even when paid early inside a grace window")
+{
+  // Same mortgage as Test 12 (due the 1st, 15-day grace -> effectively due
+  // Jan 16), but the user pays it themselves on Jan 2 -- well before the
+  // grace deadline even arrives. "Mark as paid" (app/bills-debts/page.tsx)
+  // records paid_through as the NOMINAL due date for the cycle just paid
+  // (Jan 1), not the day it was actually paid. This must do two things at
+  // once: stop the Jan 16 effective date from being reserved again this
+  // cycle (the user already paid, and the balance was already debited
+  // directly -- see lib/cashBalance.ts), while still reserving February's
+  // occurrence normally once that comes around.
+  const graceIncome: STSIncome[] = [{ amount: 3000, frequency: "monthly", next_pay_date: "2025-12-20", income_type: null }]
+
+  const paidMortgage: STSDebt = {
+    minimum_payment: 2220.86,
+    due_date: 1,
+    grace_period_days: 15,
+    covered_by_transfer: false,
+    paid_through: "2026-01-01", // settled January's occurrence
+  }
+  const januaryResult = computeSafeToSpend({
+    income: graceIncome,
+    bills: [],
+    debts: [paidMortgage],
+    goals: [],
+    today: new Date("2026-01-02T00:00:00"),
+  })
+  const january = withStartingCash(januaryResult, { amount: 5000, source: "checking", asOf: "2026-01-02" })
+  assertEqual(january.debtsDue, 0, "not reserved again -- already paid and already debited from the balance")
+
+  // February: same debt, same paid_through (nothing new has been marked
+  // paid yet for Feb) -- its Feb 1 occurrence must NOT be skipped just
+  // because January's was.
+  const febIncome: STSIncome[] = [{ amount: 3000, frequency: "monthly", next_pay_date: "2026-01-20", income_type: null }]
+  const februaryResult = computeSafeToSpend({
+    income: febIncome,
+    bills: [],
+    debts: [paidMortgage],
+    goals: [],
+    today: new Date("2026-02-02T00:00:00"),
+  })
+  const february = withStartingCash(februaryResult, { amount: 5000, source: "checking", asOf: "2026-02-02" })
+  assertEqual(february.debtsDue, 2220.86, "February's occurrence is reserved normally -- paid_through doesn't leak forward")
+}
+
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) {
   process.exit(1)
