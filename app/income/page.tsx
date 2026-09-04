@@ -30,7 +30,16 @@ interface Income {
   created_at: string
   details: IncomeDetails | null
   next_pay_date: string | null
+  // QA fix (Sep 4 2026, Vince): "add [to the account] when a paycheck will
+  // be sent on the due date so ... checking plus savings should auto
+  // adjust" -- which account this paycheck (or transfer) actually deposits
+  // into. Unset means "not linked yet," so it still counts toward the
+  // pooled Safe-to-Spend total but doesn't move any specific account's own
+  // auto-adjusted balance (see lib/cashBalance.ts's projectAccountBalance).
+  cash_account_id: string | null
 }
+
+type CashAccountOption = { id: string; kind: 'checking' | 'savings'; name: string }
 
 // A row tagged "transfer" is money moving between the user's own accounts
 // (most often detected from an imported bank statement or CSV, e.g.
@@ -71,6 +80,8 @@ export default function IncomePage() {
   const [frequency, setFrequency] = useState('monthly')
   const [nextPayDate, setNextPayDate] = useState('')
   const [isTransfer, setIsTransfer] = useState(false)
+  const [depositAccountId, setDepositAccountId] = useState('')
+  const [cashAccounts, setCashAccounts] = useState<CashAccountOption[]>([])
   const [loading, setLoading] = useState(true)
   const [showCapture, setShowCapture] = useState(false)
 
@@ -84,11 +95,16 @@ export default function IncomePage() {
   const [editFrequency, setEditFrequency] = useState('monthly')
   const [editNextPayDate, setEditNextPayDate] = useState('')
   const [editIsTransfer, setEditIsTransfer] = useState(false)
+  const [editDepositAccountId, setEditDepositAccountId] = useState('')
 
   async function loadIncome() {
     try {
-      const { data } = await supabase.from('income').select('*')
+      const [{ data }, { data: cashData }] = await Promise.all([
+        supabase.from('income').select('*'),
+        supabase.from('cash_accounts').select('id, kind, name').order('kind').order('name'),
+      ])
       if (data) setItems(data as Income[])
+      if (cashData) setCashAccounts(cashData as CashAccountOption[])
     } catch (error) {
       console.error('Error loading income:', error)
     } finally {
@@ -163,6 +179,7 @@ export default function IncomePage() {
         income_type: isTransfer ? TRANSFER_TYPE : null,
         next_pay_date: nextPayDate || null,
         details: detailsPayload(),
+        cash_account_id: depositAccountId || null,
       })
       if (error) throw error
       setSource('')
@@ -170,6 +187,7 @@ export default function IncomePage() {
       setFrequency('monthly')
       setNextPayDate('')
       setIsTransfer(false)
+      setDepositAccountId('')
       setShowDetails(false)
       setDetails(EMPTY_DETAILS)
       loadIncome()
@@ -238,6 +256,7 @@ export default function IncomePage() {
     setEditFrequency(i.frequency ?? 'monthly')
     setEditNextPayDate(i.next_pay_date ?? '')
     setEditIsTransfer(i.income_type === TRANSFER_TYPE)
+    setEditDepositAccountId(i.cash_account_id ?? '')
   }
 
   async function saveEdit(id: string) {
@@ -254,6 +273,7 @@ export default function IncomePage() {
           frequency: editFrequency,
           income_type: editIsTransfer ? TRANSFER_TYPE : null,
           next_pay_date: editNextPayDate || null,
+          cash_account_id: editDepositAccountId || null,
         })
         .eq('id', id)
       if (error) throw error
@@ -360,6 +380,27 @@ export default function IncomePage() {
                   />
                   This is a transfer between my own accounts (not income)
                 </label>
+
+                <div>
+                  <label className="text-gray-400 text-sm block mb-2">
+                    Deposited to (optional){' '}
+                    <span className="normal-case text-gray-500">
+                      -- lets that account&apos;s balance auto-adjust on payday
+                    </span>
+                  </label>
+                  <select
+                    value={depositAccountId}
+                    onChange={(e) => setDepositAccountId(e.target.value)}
+                    className="w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white"
+                  >
+                    <option value="">Not linked yet</option>
+                    {cashAccounts.map((a) => (
+                      <option key={a.id} value={a.id}>
+                        {a.name} ({a.kind === 'checking' ? 'Checking' : 'Savings'})
+                      </option>
+                    ))}
+                  </select>
+                </div>
 
                 {/* Optional paycheck breakdown */}
                 <label className="flex items-center gap-2 text-sm text-gray-300 select-none cursor-pointer">
@@ -617,6 +658,21 @@ export default function IncomePage() {
                           />
                           This is a transfer between my own accounts (not income)
                         </label>
+                        <div>
+                          <label className="text-gray-500 text-xs block mb-1">Deposited to (optional)</label>
+                          <select
+                            value={editDepositAccountId}
+                            onChange={(e) => setEditDepositAccountId(e.target.value)}
+                            className="w-full bg-[#1a233a] border border-gray-700 rounded px-3 py-2 text-white"
+                          >
+                            <option value="">Not linked yet</option>
+                            {cashAccounts.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.name} ({a.kind === 'checking' ? 'Checking' : 'Savings'})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                         <div className="flex gap-2">
                           <button
                             onClick={() => saveEdit(i.id)}

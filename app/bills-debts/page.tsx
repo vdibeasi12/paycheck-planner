@@ -89,6 +89,13 @@ interface Bill {
   // paid" below -- see lib/paycheckCycles.ts's itemsDueInWindow for how this
   // keeps that occurrence from being subtracted again later.
   paid_through: string | null
+  // QA fix (Sep 4 2026, Vince): "have the credit cards and debt use
+  // transaction which will minus the amount in checking and savings...
+  // should auto adjust" -- which account this bill is actually paid from.
+  // Unset means "not linked yet," so it still counts toward the pooled
+  // Safe-to-Spend total but doesn't move any specific account's own
+  // auto-adjusted balance (see lib/cashBalance.ts's projectAccountBalance).
+  cash_account_id: string | null
   created_at: string
 }
 
@@ -115,6 +122,8 @@ interface Debt {
   grace_period_days: number | null
   // See Bill.paid_through above -- same mechanism, same field, for debts.
   paid_through: string | null
+  // See Bill.cash_account_id above -- same idea, same field, for debts.
+  cash_account_id: string | null
   created_at: string
 }
 
@@ -236,6 +245,12 @@ export default function BillsAndDebtsPage() {
   const [escrowPayment, setEscrowPayment] = useState('')
   const [coveredByTransfer, setCoveredByTransfer] = useState(false)
   const [gracePeriodDays, setGracePeriodDays] = useState('')
+  // QA fix (Sep 4 2026, Vince): "have the credit cards and debt use
+  // transaction which will minus the amount in checking and savings" --
+  // which account this bill/debt is actually paid from, so that account's
+  // own balance can auto-adjust (see lib/cashBalance.ts's
+  // projectAccountBalance). '' means "not linked yet."
+  const [payFromAccountId, setPayFromAccountId] = useState('')
   const [showCapture, setShowCapture] = useState(false)
 
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -254,6 +269,7 @@ export default function BillsAndDebtsPage() {
   const [editEscrowPayment, setEditEscrowPayment] = useState('')
   const [editCoveredByTransfer, setEditCoveredByTransfer] = useState(false)
   const [editGracePeriodDays, setEditGracePeriodDays] = useState('')
+  const [editPayFromAccountId, setEditPayFromAccountId] = useState('')
 
   // "Mark as paid" (Sep 4 2026, Vince) -- see Bill.paid_through above. Lets
   // the user say "I paid this" right now instead of waiting for the due
@@ -275,7 +291,7 @@ export default function BillsAndDebtsPage() {
         supabase
           .from('debts')
           .select(
-            'id, name, balance, original_balance, interest_rate, minimum_payment, due_date, debt_type, escrow_payment, covered_by_transfer, grace_period_days, paid_through, created_at'
+            'id, name, balance, original_balance, interest_rate, minimum_payment, due_date, debt_type, escrow_payment, covered_by_transfer, grace_period_days, paid_through, cash_account_id, created_at'
           ),
         supabase.from('cash_accounts').select('id, kind, name, balance').order('kind').order('name'),
         supabase.auth.getUser(),
@@ -430,6 +446,7 @@ export default function BillsAndDebtsPage() {
     setEscrowPayment('')
     setCoveredByTransfer(false)
     setGracePeriodDays('')
+    setPayFromAccountId('')
   }
 
   async function addObligation(e: React.FormEvent) {
@@ -466,6 +483,7 @@ export default function BillsAndDebtsPage() {
           frequency,
           bimonthly_parity: frequency === 'bimonthly' ? bimonthlyParity : null,
           category: isSubscription ? SUBSCRIPTION_CATEGORY : null,
+          cash_account_id: payFromAccountId || null,
         })
         if (error) throw error
         resetForm()
@@ -498,6 +516,7 @@ export default function BillsAndDebtsPage() {
           escrow_payment: escrowPayment === '' ? null : Number(escrowPayment),
           covered_by_transfer: coveredByTransfer,
           grace_period_days: gracePeriodDays === '' ? 0 : Number(gracePeriodDays),
+          cash_account_id: payFromAccountId || null,
         })
         if (error) throw error
         resetForm()
@@ -545,6 +564,7 @@ export default function BillsAndDebtsPage() {
       setEditBimonthlyParity(b.bimonthly_parity === 'even' ? 'even' : 'odd')
       setEditIsSubscription(b.category === SUBSCRIPTION_CATEGORY)
       setEditOriginalCategory(b.category ?? null)
+      setEditPayFromAccountId(b.cash_account_id ?? '')
     } else {
       const d = o.raw as Debt
       setEditName(d.name ?? '')
@@ -556,6 +576,7 @@ export default function BillsAndDebtsPage() {
       setEditEscrowPayment(d.escrow_payment != null ? String(d.escrow_payment) : '')
       setEditCoveredByTransfer(!!d.covered_by_transfer)
       setEditGracePeriodDays(d.grace_period_days ? String(d.grace_period_days) : '')
+      setEditPayFromAccountId(d.cash_account_id ?? '')
     }
   }
 
@@ -580,6 +601,7 @@ export default function BillsAndDebtsPage() {
             frequency: editFrequency,
             bimonthly_parity: editFrequency === 'bimonthly' ? editBimonthlyParity : null,
             category,
+            cash_account_id: editPayFromAccountId || null,
           })
           .eq('id', o.id)
         if (error) throw error
@@ -608,6 +630,7 @@ export default function BillsAndDebtsPage() {
             escrow_payment: editEscrowPayment === '' ? null : Number(editEscrowPayment),
             covered_by_transfer: editCoveredByTransfer,
             grace_period_days: editGracePeriodDays === '' ? 0 : Number(editGracePeriodDays),
+            cash_account_id: editPayFromAccountId || null,
           })
           .eq('id', o.id)
         if (error) throw error
@@ -661,7 +684,13 @@ export default function BillsAndDebtsPage() {
   function startPay(o: Obligation) {
     setPayingId(o.id)
     setPayAmount(String(o.amount))
-    const defaultAccount = cashAccounts.find((a) => a.kind === 'checking') ?? cashAccounts[0]
+    // Default to whichever account this item is already linked to pay
+    // from (see cash_account_id) -- that's the whole point of linking it --
+    // falling back to the first Checking account, then any account at all,
+    // for anything not yet linked.
+    const linkedAccountId = o.type === 'bill' ? (o.raw as Bill).cash_account_id : (o.raw as Debt).cash_account_id
+    const linkedAccount = linkedAccountId ? cashAccounts.find((a) => a.id === linkedAccountId) : null
+    const defaultAccount = linkedAccount ?? cashAccounts.find((a) => a.kind === 'checking') ?? cashAccounts[0]
     setPayAccountId(defaultAccount?.id ?? '')
   }
 
@@ -1022,6 +1051,26 @@ export default function BillsAndDebtsPage() {
                   </label>
                 </>
               )}
+              <div className="sm:col-span-2">
+                <label className="text-gray-400 text-sm block mb-2">
+                  Paid from account (optional){' '}
+                  <span className="normal-case text-gray-500">
+                    -- lets that account&apos;s balance auto-adjust when this comes due
+                  </span>
+                </label>
+                <select
+                  value={payFromAccountId}
+                  onChange={(e) => setPayFromAccountId(e.target.value)}
+                  className={inputClass}
+                >
+                  <option value="">Not linked yet</option>
+                  {cashAccounts.map((a) => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} ({a.kind === 'checking' ? 'Checking' : 'Savings'})
+                    </option>
+                  ))}
+                </select>
+              </div>
             </div>
 
             <button
@@ -1372,6 +1421,21 @@ export default function BillsAndDebtsPage() {
                         </label>
                       </>
                     )}
+                    <div>
+                      <label className="text-gray-500 text-xs block mb-1">Paid from account (optional)</label>
+                      <select
+                        value={editPayFromAccountId}
+                        onChange={(e) => setEditPayFromAccountId(e.target.value)}
+                        className={inputClass}
+                      >
+                        <option value="">Not linked yet</option>
+                        {cashAccounts.map((a) => (
+                          <option key={a.id} value={a.id}>
+                            {a.name} ({a.kind === 'checking' ? 'Checking' : 'Savings'})
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                     <div className="flex gap-2">
                       <button
                         onClick={() => saveEdit(o)}

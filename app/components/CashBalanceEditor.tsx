@@ -5,11 +5,18 @@ import { useRouter } from "next/navigation"
 import { Wallet, PiggyBank, Pencil, Trash2, Plus, ShieldAlert, X } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
-import { poolBalance, type StartingCash, type CashAccountRow } from "@/lib/cashBalance"
+import { type StartingCash, type ProjectedCashAccountRow } from "@/lib/cashBalance"
 
 type Props = {
   startingCash: StartingCash
-  accounts: CashAccountRow[]
+  accounts: ProjectedCashAccountRow[]
+}
+
+// Rounding-safe: treat anything under half a cent as "no scheduled
+// movement yet" rather than showing a confusing "projected" caption for
+// float noise.
+function roughlyEqual(a: number, b: number): boolean {
+  return Math.abs(a - b) < 0.005
 }
 
 type FormState = { name: string; amount: string; asOf: string }
@@ -34,7 +41,7 @@ function AccountRow({
   onSave,
   onDelete,
 }: {
-  account: CashAccountRow
+  account: ProjectedCashAccountRow
   formatMoney: (n: number) => string
   onSave: (id: string, name: string, amount: number, asOfDate: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
@@ -135,14 +142,26 @@ function AccountRow({
     )
   }
 
+  // QA fix (Sep 4 2026, Vince): "checking plus savings should auto adjust"
+  // -- shows the AUTO-ADJUSTED number (account.projectedBalance) as the
+  // headline figure once anything's actually linked to this account (see
+  // lib/cashBalance.ts's projectAccountBalance), falling back to a plain
+  // "As of <date>" caption when nothing's linked yet and it's identical to
+  // what was last typed in.
+  const isProjected = !roughlyEqual(account.projectedBalance, account.balance)
+
   return (
     <div className="flex items-center justify-between gap-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3.5">
       <div className="min-w-0">
         <p className="truncate text-base font-semibold text-gray-100">{account.name}</p>
-        <p className="text-sm text-gray-500">As of {formatAsOf(account.balance_as_of)}</p>
+        <p className="text-sm text-gray-500">
+          {isProjected
+            ? `Auto-adjusted from ${formatMoney(account.balance)} on ${formatAsOf(account.balance_as_of)}`
+            : `As of ${formatAsOf(account.balance_as_of)}`}
+        </p>
       </div>
       <div className="flex items-center gap-3">
-        <span className="text-xl font-bold tabular-nums text-gray-100">{formatMoney(account.balance)}</span>
+        <span className="text-xl font-bold tabular-nums text-gray-100">{formatMoney(account.projectedBalance)}</span>
         <button
           type="button"
           onClick={() => setEditing(true)}
@@ -254,11 +273,18 @@ function AddAccountRow({
  * your bank, and Checking keeps itself current between updates by
  * projecting the pooled total forward through your income/bills/debts (see
  * lib/cashBalance.ts's resolveStartingCash) -- so it doesn't quietly go
- * stale the day after you enter it. Savings has no scheduled money moving
- * in or out of it in this app, so it's pooled and shown exactly as
- * entered. Supports any number of accounts per kind (Sep 4 2026, Vince) --
- * bigger type throughout and a dedicated "Add another account" row per
- * kind replace the old single-slot-per-kind layout.
+ * stale the day after you enter it. Supports any number of accounts per
+ * kind (Sep 4 2026, Vince) -- bigger type throughout and a dedicated "Add
+ * another account" row per kind replace the old single-slot-per-kind
+ * layout.
+ *
+ * Per-account auto-adjust (Sep 4 2026, Vince): each account now shows its
+ * OWN auto-adjusted balance (account.projectedBalance, from
+ * lib/cashBalance.ts's projectAccountBalance) once at least one bill, debt,
+ * or paycheck has actually been linked to it in Bills & Debts / Income --
+ * before that, an account just shows what was last typed in, same as
+ * always. Savings can auto-adjust now too, for exactly the same reason
+ * (something can finally be linked to it).
  */
 export default function CashBalanceEditor({ startingCash, accounts }: Props) {
   const router = useRouter()
@@ -266,6 +292,15 @@ export default function CashBalanceEditor({ startingCash, accounts }: Props) {
 
   const checking = accounts.filter((a) => a.kind === "checking")
   const savings = accounts.filter((a) => a.kind === "savings")
+  const savingsTotal = savings.reduce((sum, a) => sum + a.projectedBalance, 0)
+  const projectedCheckingTotal = checking.reduce((sum, a) => sum + a.projectedBalance, 0)
+  // The pooled Checking total below is startingCash.amount -- the same
+  // tested figure Safe to Spend uses -- not just the sum of per-account
+  // rows, because those only reflect bills/debts/income actually LINKED to
+  // one specific account (see CashBalanceEditor's doc comment above); an
+  // unlinked item still counts toward startingCash.amount but not toward
+  // any single row. When the two disagree, something is still unlinked.
+  const hasUnlinkedChecking = checking.length > 0 && !roughlyEqual(projectedCheckingTotal, startingCash.amount)
 
   async function addAccount(kind: "checking" | "savings", name: string, amount: number, asOfDate: string) {
     const {
@@ -302,9 +337,10 @@ export default function CashBalanceEditor({ startingCash, accounts }: Props) {
         <ShieldAlert size={18} className="mt-0.5 shrink-0 text-amber-400" />
         <p>
           <span className="font-semibold">Not linked to your bank.</span> These balances are numbers you enter
-          yourself -- nothing here reads or moves money in a real account. All your Checking accounts are pooled
-          into one total that stays current between updates by projecting your income, bills, and debts forward;
-          Savings accounts are pooled and shown exactly as you left them.
+          yourself -- nothing here reads or moves money in a real account. Each account auto-adjusts on its own
+          (bills/debts subtract, paychecks add) once you've told it in Bills &amp; Debts / Income which account they
+          actually move through -- anything not yet linked keeps counting toward the combined total below without
+          moving any one account's own number.
         </p>
       </div>
 
@@ -315,12 +351,12 @@ export default function CashBalanceEditor({ startingCash, accounts }: Props) {
             <h3 className="text-lg font-bold text-white">Checking</h3>
           </div>
           <div className="text-right">
-            <p className="text-2xl font-bold tabular-nums text-white">{formatMoney(poolBalance(checking))}</p>
+            <p className="text-2xl font-bold tabular-nums text-white">{formatMoney(startingCash.amount)}</p>
             {checking.length > 0 && (
               <p className="text-sm text-gray-500">
                 {startingCash.asOf === todayISO()
                   ? "as of today"
-                  : `projected to today from ${formatAsOf(startingCash.asOf)}`}
+                  : `auto-adjusted to today from ${formatAsOf(startingCash.asOf)}`}
               </p>
             )}
           </div>
@@ -339,6 +375,13 @@ export default function CashBalanceEditor({ startingCash, accounts }: Props) {
             projection.
           </p>
         )}
+        {hasUnlinkedChecking && (
+          <p className="mt-2 text-xs text-amber-300/80">
+            The accounts above ({formatMoney(projectedCheckingTotal)} combined) don&apos;t yet add up to the total
+            above -- some of your bills, debts, or paychecks aren&apos;t linked to a specific account yet, so they're
+            still counted overall but aren&apos;t reflected on any one account's own number.
+          </p>
+        )}
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-4">
@@ -347,7 +390,7 @@ export default function CashBalanceEditor({ startingCash, accounts }: Props) {
             <PiggyBank size={20} className="text-sky-400 shrink-0" />
             <h3 className="text-lg font-bold text-white">Savings</h3>
           </div>
-          <p className="text-2xl font-bold tabular-nums text-white">{formatMoney(poolBalance(savings))}</p>
+          <p className="text-2xl font-bold tabular-nums text-white">{formatMoney(savingsTotal)}</p>
         </div>
 
         <div className="mt-3 space-y-2">

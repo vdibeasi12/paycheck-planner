@@ -17,6 +17,15 @@ export type CycleIncome = {
   frequency: string | null
   next_pay_date: string | null
   income_type?: string | null
+  // QA fix (Sep 4 2026, Vince): "add [to the account] when a paycheck will
+  // be sent... checking plus savings should auto adjust" -- which account
+  // this paycheck (or, for an income_type "transfer" row, this sweep)
+  // actually deposits into. See lib/cashBalance.ts's projectAccountBalance,
+  // which is the only place this is read. Unset means "not linked to a
+  // specific account yet" -- it still counts toward the POOLED Safe-to-
+  // Spend total (resolveStartingCash doesn't filter by this), it just
+  // doesn't move any single account's own projected balance until assigned.
+  cash_account_id?: string | null
 }
 
 export type CycleBill = {
@@ -54,6 +63,12 @@ export type CycleBill = {
   // lib/__tests__/safeToSpend.test.ts (Test 14/15).
   frequency?: string | null
   bimonthly_parity?: "odd" | "even" | null
+  // QA fix (Sep 4 2026, Vince): "have the credit cards and debt use
+  // transaction which will minus the amount in checking" -- which account
+  // this bill is actually paid from. See CycleIncome.cash_account_id above
+  // (same idea, opposite direction) and lib/cashBalance.ts's
+  // projectAccountBalance, the only place this is read.
+  cash_account_id?: string | null
 }
 
 export type CycleDebt = {
@@ -100,6 +115,8 @@ export type CycleDebt = {
   // See CycleBill.paid_through above -- same mechanism, same field, for
   // debts. Set by "Mark as paid" in Bills & Debts.
   paid_through?: string | null
+  // See CycleBill.cash_account_id above -- same idea, same field, for debts.
+  cash_account_id?: string | null
 }
 
 export type CycleGoal = {

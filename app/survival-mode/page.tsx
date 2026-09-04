@@ -8,7 +8,7 @@ import {
   toISODate,
 } from "@/lib/paycheckCycles"
 import { nearestWeakCycle } from "@/lib/planResilience"
-import { resolveStartingCash, type CashAccountRow } from "@/lib/cashBalance"
+import { resolveStartingCash, projectAllAccountBalances, type CashAccountRow } from "@/lib/cashBalance"
 import SurvivalModeView from "@/app/components/SurvivalModeView"
 
 /**
@@ -38,14 +38,19 @@ export default async function SurvivalModePage() {
   if (!user) redirect("/login")
 
   const [incomeRes, billsRes, debtsRes, goalsRes, cashRes] = await Promise.all([
-    supabase.from("income").select("amount, frequency, next_pay_date, income_type").eq("user_id", user.id),
+    supabase
+      .from("income")
+      .select("amount, frequency, next_pay_date, income_type, cash_account_id")
+      .eq("user_id", user.id),
     supabase
       .from("bills")
-      .select("id, name, amount, due_date, paid_through, frequency, bimonthly_parity")
+      .select("id, name, amount, due_date, paid_through, frequency, bimonthly_parity, cash_account_id")
       .eq("user_id", user.id),
     supabase
       .from("debts")
-      .select("id, name, minimum_payment, due_date, covered_by_transfer, grace_period_days, paid_through")
+      .select(
+        "id, name, minimum_payment, due_date, covered_by_transfer, grace_period_days, paid_through, cash_account_id"
+      )
       .eq("user_id", user.id),
     supabase.from("financial_goals").select("target_amount, current_amount, deadline, status").eq("user_id", user.id),
     supabase.from("cash_accounts").select("id, kind, name, balance, balance_as_of").eq("user_id", user.id),
@@ -98,11 +103,23 @@ export default async function SurvivalModePage() {
   const cycles = projectPaycheckCycles({ income, bills, debts, goals, startingCash: startingCash.amount })
   const risk = nearestWeakCycle(cycles)
 
+  // QA fix (Sep 4 2026, Vince): "checking plus savings should auto adjust"
+  // -- each account's own displayed balance now auto-projects forward too
+  // (see lib/cashBalance.ts's projectAccountBalance), using only what's
+  // actually linked to that specific account (cash_account_id on
+  // bills/debts/income). Unaffected: startingCash above (still the pooled,
+  // unfiltered figure Safe to Spend/Paycheck Shield rely on).
+  const projectedBalances = projectAllAccountBalances(cashRows, { income, bills, debts, todayISO })
+  const accountsWithProjection = cashRows.map((a) => ({
+    ...a,
+    projectedBalance: projectedBalances.get(a.id) ?? Number(a.balance),
+  }))
+
   return (
     <SurvivalModeView
       result={result}
       startingCash={startingCash}
-      accounts={cashRows}
+      accounts={accountsWithProjection}
       classifiedBills={classifiedBills}
       classifiedDebts={classifiedDebts}
       coveredDebts={coveredDebts}

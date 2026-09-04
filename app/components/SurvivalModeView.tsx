@@ -6,7 +6,7 @@ import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import type { SafeToSpendResult } from "@/lib/safeToSpend"
 import type { ClassifiedItem } from "@/lib/paycheckCycles"
 import type { NearTermRisk } from "@/lib/planResilience"
-import type { StartingCash, CashAccountRow } from "@/lib/cashBalance"
+import type { StartingCash, ProjectedCashAccountRow } from "@/lib/cashBalance"
 import WhatIfSpend from "./WhatIfSpend"
 import PlanRiskBanner from "./PlanRiskBanner"
 import CashBalanceEditor from "./CashBalanceEditor"
@@ -18,7 +18,7 @@ type NamedDebt = { id: string; name: string; minimum_payment: number; due_date: 
 type Props = {
   result: SafeToSpendResult
   startingCash: StartingCash
-  accounts: CashAccountRow[]
+  accounts: ProjectedCashAccountRow[]
   classifiedBills: ClassifiedItem<NamedBill>[]
   classifiedDebts: ClassifiedItem<{ id: string; name: string; amount: number; due_date: number | null }>[]
   coveredDebts?: { name: string; amount: number }[]
