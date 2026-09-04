@@ -39,7 +39,10 @@ export default async function SurvivalModePage() {
 
   const [incomeRes, billsRes, debtsRes, goalsRes, cashRes] = await Promise.all([
     supabase.from("income").select("amount, frequency, next_pay_date, income_type").eq("user_id", user.id),
-    supabase.from("bills").select("id, name, amount, due_date, paid_through").eq("user_id", user.id),
+    supabase
+      .from("bills")
+      .select("id, name, amount, due_date, paid_through, frequency, bimonthly_parity")
+      .eq("user_id", user.id),
     supabase
       .from("debts")
       .select("id, name, minimum_payment, due_date, covered_by_transfer, grace_period_days, paid_through")

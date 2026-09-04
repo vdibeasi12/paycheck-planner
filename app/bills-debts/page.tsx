@@ -73,6 +73,14 @@ interface Bill {
   due_date: number
   category: string | null
   frequency?: string | null
+  // QA fix (Sep 4 2026, Vince): a bimonthly bill (every 2 months) has no
+  // anchor date to say WHICH of the two months it lands on -- only a
+  // day-of-month. Without this, lib/paycheckCycles.ts's itemsDueInWindow had
+  // no choice but to treat it as due every single month, which is what
+  // silently inflated a live "Still Due Before Payday" figure. 'odd' = Jan,
+  // Mar, May, Jul, Sep, Nov; 'even' = Feb, Apr, Jun, Aug, Oct, Dec. Only
+  // meaningful when frequency is 'bimonthly'.
+  bimonthly_parity?: 'odd' | 'even' | null
   // QA fix (Sep 4 2026, Vince): "I paid the mortgage today from 53rd, this
   // should change my amount" -- no live bank feed (no Plaid Auth), so the
   // only way the app finds out a bill/debt actually got paid is if the user
@@ -219,6 +227,7 @@ export default function BillsAndDebtsPage() {
   const [amount, setAmount] = useState('') // bill amount
   const [dueDay, setDueDay] = useState('')
   const [frequency, setFrequency] = useState<'monthly' | 'bimonthly'>('monthly')
+  const [bimonthlyParity, setBimonthlyParity] = useState<'odd' | 'even'>('odd')
   const [isSubscription, setIsSubscription] = useState(false)
   const [balance, setBalance] = useState('')
   const [rate, setRate] = useState('')
@@ -235,6 +244,7 @@ export default function BillsAndDebtsPage() {
   const [editAmount, setEditAmount] = useState('')
   const [editDueDay, setEditDueDay] = useState('')
   const [editFrequency, setEditFrequency] = useState<'monthly' | 'bimonthly'>('monthly')
+  const [editBimonthlyParity, setEditBimonthlyParity] = useState<'odd' | 'even'>('odd')
   const [editIsSubscription, setEditIsSubscription] = useState(false)
   const [editOriginalCategory, setEditOriginalCategory] = useState<string | null>(null)
   const [editBalance, setEditBalance] = useState('')
@@ -411,6 +421,7 @@ export default function BillsAndDebtsPage() {
     setAmount('')
     setDueDay('')
     setFrequency('monthly')
+    setBimonthlyParity('odd')
     setIsSubscription(false)
     setBalance('')
     setRate('')
@@ -453,6 +464,7 @@ export default function BillsAndDebtsPage() {
           amount: Number(amount),
           due_date: Number(dueDay),
           frequency,
+          bimonthly_parity: frequency === 'bimonthly' ? bimonthlyParity : null,
           category: isSubscription ? SUBSCRIPTION_CATEGORY : null,
         })
         if (error) throw error
@@ -530,6 +542,7 @@ export default function BillsAndDebtsPage() {
       setEditAmount(String(b.amount ?? ''))
       setEditDueDay(String(b.due_date ?? ''))
       setEditFrequency(b.frequency === 'bimonthly' ? 'bimonthly' : 'monthly')
+      setEditBimonthlyParity(b.bimonthly_parity === 'even' ? 'even' : 'odd')
       setEditIsSubscription(b.category === SUBSCRIPTION_CATEGORY)
       setEditOriginalCategory(b.category ?? null)
     } else {
@@ -565,6 +578,7 @@ export default function BillsAndDebtsPage() {
             amount: Number(editAmount),
             due_date: Number(editDueDay),
             frequency: editFrequency,
+            bimonthly_parity: editFrequency === 'bimonthly' ? editBimonthlyParity : null,
             category,
           })
           .eq('id', o.id)
@@ -876,6 +890,19 @@ export default function BillsAndDebtsPage() {
                       <option value="bimonthly">Every 2 months (Bi-Monthly)</option>
                     </select>
                   </div>
+                  {frequency === 'bimonthly' && (
+                    <div>
+                      <label className="text-gray-400 text-sm block mb-2">Which months?</label>
+                      <select
+                        value={bimonthlyParity}
+                        onChange={(e) => setBimonthlyParity(e.target.value as 'odd' | 'even')}
+                        className={inputClass}
+                      >
+                        <option value="odd">Jan, Mar, May, Jul, Sep, Nov</option>
+                        <option value="even">Feb, Apr, Jun, Aug, Oct, Dec</option>
+                      </select>
+                    </div>
+                  )}
                   <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer sm:col-span-2">
                     <input
                       type="checkbox"
@@ -1225,6 +1252,19 @@ export default function BillsAndDebtsPage() {
                             <option value="bimonthly">Every 2 months (Bi-Monthly)</option>
                           </select>
                         </div>
+                        {editFrequency === 'bimonthly' && (
+                          <div>
+                            <label className="text-gray-500 text-xs block mb-1">Which months?</label>
+                            <select
+                              value={editBimonthlyParity}
+                              onChange={(e) => setEditBimonthlyParity(e.target.value as 'odd' | 'even')}
+                              className={inputClass}
+                            >
+                              <option value="odd">Jan, Mar, May, Jul, Sep, Nov</option>
+                              <option value="even">Feb, Apr, Jun, Aug, Oct, Dec</option>
+                            </select>
+                          </div>
+                        )}
                         <label className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer">
                           <input
                             type="checkbox"
@@ -1428,7 +1468,13 @@ export default function BillsAndDebtsPage() {
                       <p className="text-gray-400 text-sm">
                         {o.due_date
                           ? `${o.type === 'bill' && o.isSubscription ? 'Renews' : 'Due'} on day ${o.due_date}${
-                              o.type === 'bill' && (o.raw as Bill).frequency === 'bimonthly' ? ' every 2 months' : ' of each month'
+                              o.type === 'bill' && (o.raw as Bill).frequency === 'bimonthly'
+                                ? (o.raw as Bill).bimonthly_parity === 'even'
+                                  ? ' (Feb, Apr, Jun, Aug, Oct, Dec)'
+                                  : (o.raw as Bill).bimonthly_parity === 'odd'
+                                    ? ' (Jan, Mar, May, Jul, Sep, Nov)'
+                                    : ' every 2 months -- edit to set which months so it isn\'t counted every month'
+                                : ' of each month'
                             }`
                           : 'No due day set -- edit to add one so this counts toward a specific paycheck.'}
                         {o.type === 'debt' && Number((o.raw as Debt).interest_rate) > 0

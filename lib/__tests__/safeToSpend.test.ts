@@ -247,6 +247,47 @@ console.log("  breaking the NEXT one, even when paid early inside a grace window
   assertEqual(february.debtsDue, 2220.86, "February's occurrence is reserved normally -- paid_through doesn't leak forward")
 }
 
+console.log("Test 14 (regression) -- a bimonthly bill only lands every OTHER month once its")
+console.log("  parity is set. This is the Sep 4 2026 bug rendered as a real bill: Addison Water")
+console.log("  Bill, $201.54, bimonthly, due the 11th -- correctly due in September ('odd'")
+console.log("  months) but must NOT show up again in October")
+{
+  const waterBill: STSBill = { amount: 201.54, due_date: 11, frequency: "bimonthly", bimonthly_parity: "odd" }
+
+  const septemberIncome: STSIncome[] = [
+    { amount: 2578.4, frequency: "biweekly", next_pay_date: "2026-09-16", income_type: null },
+  ]
+  const septemberResult = computeSafeToSpend({
+    income: septemberIncome,
+    bills: [waterBill],
+    debts: [],
+    goals: [],
+    today: new Date("2026-09-04T00:00:00"),
+  })
+  assertEqual(septemberResult.billsDue, 201.54, "correctly due in September (an odd month)")
+
+  const octoberIncome: STSIncome[] = [
+    { amount: 2578.4, frequency: "biweekly", next_pay_date: "2026-10-16", income_type: null },
+  ]
+  const octoberResult = computeSafeToSpend({
+    income: octoberIncome,
+    bills: [waterBill],
+    debts: [],
+    goals: [],
+    today: new Date("2026-10-04T00:00:00"),
+  })
+  assertEqual(octoberResult.billsDue, 0, "NOT due in October -- an off month for an 'odd'-parity bimonthly bill")
+}
+
+console.log("Test 15 (regression) -- a bimonthly bill with NO parity set yet (older data, from")
+console.log("  before this fix existed) falls back to the old every-month behavior rather than")
+console.log("  guessing which months, or silently excluding a real bill")
+{
+  const legacyBimonthlyBill: STSBill = { amount: 85, due_date: 15, frequency: "bimonthly" } // bimonthly_parity intentionally unset
+  const r = run([legacyBimonthlyBill], [], 4000)
+  assertEqual(r.billsDue, 85, "unset parity keeps the conservative every-month fallback")
+}
+
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) {
   process.exit(1)

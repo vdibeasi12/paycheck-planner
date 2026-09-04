@@ -36,6 +36,24 @@ export type CycleBill = {
   // against the NOMINAL date, not the grace-adjusted one -- paying early
   // (within a grace window) still settles that cycle. See itemsDueInWindow.
   paid_through?: string | null
+  // QA fix (Sep 4 2026, Vince): found while tracing a live $897.03
+  // "Still Due Before Payday" figure -- billOccurrenceInMonth (see
+  // lib/schedule.ts) "always recur[s] monthly today," so a bill's own
+  // `frequency` column was being read everywhere EXCEPT here, and a
+  // bimonthly bill (e.g. a water bill only actually billed every other
+  // month) was silently treated as due in every single month instead of
+  // every other one. There's no anchor date on a bill (only a day-of-month),
+  // so knowing WHICH of the two months a bimonthly bill lands on needs one
+  // more bit of information from the user: bimonthly_parity, 'odd' (Jan,
+  // Mar, May, Jul, Sep, Nov) or 'even' (Feb, Apr, Jun, Aug, Oct, Dec), set
+  // in Bills & Debts when frequency is bimonthly. When frequency is
+  // 'bimonthly' but parity hasn't been set (older rows created before this
+  // fix), itemsDueInWindow deliberately falls back to the old
+  // every-month behavior rather than guessing or silently excluding a
+  // real bill -- see itemsDueInWindow below and
+  // lib/__tests__/safeToSpend.test.ts (Test 14/15).
+  frequency?: string | null
+  bimonthly_parity?: "odd" | "even" | null
 }
 
 export type CycleDebt = {
@@ -280,11 +298,24 @@ export function projectRunningBalance(input: {
 // away (see lib/cashBalance.ts) and then get projected/subtracted AGAIN once
 // the projection catches up to the due date -- the exact double-count shape
 // this file exists to prevent everywhere else.
-export function itemsDueInWindow<T extends { amount: number; due_date: number | null; grace_period_days?: number | null; paid_through?: string | null }>(
-  rows: T[],
-  fromISO: string,
-  toISO: string
-): (T & { occurrenceDate: string })[] {
+// A bimonthly bill only lands in every OTHER month -- 'odd' means Jan/Mar/
+// May/Jul/Sep/Nov, 'even' means Feb/Apr/Jun/Aug/Oct/Dec. `month` is
+// 0-indexed (JS Date convention), so add 1 before checking its parity.
+function matchesBimonthlyParity(month0: number, parity: "odd" | "even"): boolean {
+  const isOddMonth = (month0 + 1) % 2 === 1
+  return parity === "odd" ? isOddMonth : !isOddMonth
+}
+
+export function itemsDueInWindow<
+  T extends {
+    amount: number
+    due_date: number | null
+    grace_period_days?: number | null
+    paid_through?: string | null
+    frequency?: string | null
+    bimonthly_parity?: "odd" | "even" | null
+  }
+>(rows: T[], fromISO: string, toISO: string): (T & { occurrenceDate: string })[] {
   const from = new Date(fromISO + "T00:00:00")
   const to = new Date(toISO + "T00:00:00")
   const startIdx = from.getFullYear() * 12 + from.getMonth()
@@ -295,6 +326,12 @@ export function itemsDueInWindow<T extends { amount: number; due_date: number | 
     for (let idx = startIdx; idx <= endIdx; idx++) {
       const year = Math.floor(idx / 12)
       const month = idx % 12
+      // See CycleBill.bimonthly_parity -- only skip the "off" months once
+      // the user has actually told us which parity this bill is on; an
+      // unset parity keeps the old (safe, if imprecise) every-month behavior.
+      if (row.frequency === "bimonthly" && row.bimonthly_parity && !matchesBimonthlyParity(month, row.bimonthly_parity)) {
+        continue
+      }
       const nominalDate = billOccurrenceInMonth(row.due_date, year, month)
       if (row.paid_through && nominalDate <= row.paid_through) continue
       const date = row.grace_period_days
@@ -334,7 +371,14 @@ export function classifyItemsAroundCycle<T extends { amount: number; due_date: n
 }
 
 export function sumDueInWindow(
-  rows: { amount: number; due_date: number | null; grace_period_days?: number | null; paid_through?: string | null }[],
+  rows: {
+    amount: number
+    due_date: number | null
+    grace_period_days?: number | null
+    paid_through?: string | null
+    frequency?: string | null
+    bimonthly_parity?: "odd" | "even" | null
+  }[],
   fromISO: string,
   toISO: string
 ): number {
