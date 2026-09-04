@@ -269,6 +269,19 @@ export type ForecastItem = { name: string; amount: number; occurrenceDate: strin
 
 export type UpcomingCycleForecast = {
   date: string
+  // QA fix (Sep 4 2026, Vince): "your Safe to Spend window ends September
+  // 16, but Then what shows September 30 -- what happened to the paycheck
+  // in between?" Nothing -- Sep 16 IS the real next paycheck, and it's
+  // exactly what Safe to Spend already answers on the main card. Callers of
+  // buildUpcomingForecast deliberately skip that cycle (see below) so this
+  // list starts at the SECOND paycheck out -- but with nothing on screen
+  // saying so, jumping straight to "September 30 paycheck" reads exactly
+  // like a missing cycle instead of an intentionally skipped one. windowStart
+  // (the previous projected paycheck -- i.e. the one Safe to Spend already
+  // covers, for the first entry) lets the UI show the range instead of just
+  // the end date, e.g. "Sep 16 -> Sep 30," so the continuity is visible
+  // instead of something the user has to reverse-engineer.
+  windowStart: string
   amount: number
   items: ForecastItem[]
   runningBalance: number
@@ -294,6 +307,7 @@ export function buildUpcomingForecast<
       .sort((a, b) => a.occurrenceDate.localeCompare(b.occurrenceDate))
     return {
       date: cycle.date,
+      windowStart: cycle.windowStart,
       amount: cycle.amount,
       items,
       runningBalance: cycle.runningBalance,

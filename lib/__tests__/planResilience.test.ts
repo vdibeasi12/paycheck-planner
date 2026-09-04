@@ -133,6 +133,18 @@ console.log("  with no projectable cycles)")
   assertEqual(empty.length, 0, "no cycles in, no forecast entries out")
 }
 
+console.log("\nTest 5 (regression) -- the first forecasted cycle's windowStart is the Sep 16")
+console.log("  paycheck -- the exact one Safe to Spend's own window already ends at. Sep 4")
+console.log("  2026, Vince: \"your Safe to Spend window ends September 16, but Then what")
+console.log("  shows September 30 -- what happened to the paycheck in between?\" Nothing did:")
+console.log("  cycles.slice(1) deliberately skips the Sep 16 cycle because Safe to Spend")
+console.log("  already answers for it, so this proves there's no missing paycheck, just one")
+console.log("  intentionally not repeated")
+{
+  const cycle1 = forecast[0]
+  assertEqual(cycle1.windowStart, "2026-09-16", "the Sep 30 forecast picks up exactly where the Sep 16 paycheck (already shown above) leaves off")
+}
+
 console.log(`\n${passed} passed, ${failed} failed`)
 if (failed > 0) {
   process.exit(1)

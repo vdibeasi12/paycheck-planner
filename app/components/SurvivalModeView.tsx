@@ -67,6 +67,12 @@ export default function SurvivalModeView({
   const alreadyDueBills = classifiedBills.filter((b) => b.itemStatus === "alreadyDue").map((b) => ({ name: b.name, amount: b.amount, date: b.occurrenceDate }))
   const upcomingDebts = classifiedDebts.filter((d) => d.itemStatus === "upcoming").map((d) => ({ name: d.name, amount: d.amount, date: d.occurrenceDate }))
   const alreadyDueDebts = classifiedDebts.filter((d) => d.itemStatus === "alreadyDue").map((d) => ({ name: d.name, amount: d.amount, date: d.occurrenceDate }))
+  // See PaycheckCountdown.tsx's matching comment -- Sep 4 2026, Vince confirmed
+  // his own live "already due" trio (BitDefender/DiBeasi/Meijer, $124.99) was
+  // genuinely still unpaid, not yet reflected in his entered balance. Math
+  // stays as-is (an unconfirmed item could just as easily have cleared
+  // already); the risk now surfaces plainly instead of hiding in a collapsed list.
+  const alreadyDueTotal = [...alreadyDueBills, ...alreadyDueDebts].reduce((sum, i) => sum + i.amount, 0)
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
@@ -123,6 +129,14 @@ export default function SurvivalModeView({
                 {formatMoney(result.dailyLimit)}/day
               </span>
             </div>
+          )}
+
+          {alreadyDueTotal > 0 && (
+            <p className="rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
+              {formatMoney(alreadyDueTotal)} in bills already past their due date isn't reserved above -- assumed
+              already paid from your last paycheck. If any of it hasn't actually gone out yet, your real Safe to
+              Spend is {formatMoney(alreadyDueTotal)} lower than shown. See "Already due earlier this cycle" below.
+            </p>
           )}
 
           {(upcomingBills.length > 0 || upcomingDebts.length > 0 || alreadyDueBills.length > 0 || alreadyDueDebts.length > 0) && (

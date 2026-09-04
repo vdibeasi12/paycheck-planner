@@ -41,10 +41,20 @@ export default function PaycheckLookahead({ forecast }: { forecast: UpcomingCycl
   return (
     <div className="mt-4 space-y-2">
       <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Then what</p>
-      {forecast.map((f) => (
+      <p className="text-xs text-gray-500">Picks up right after the paycheck above -- not a gap, just not repeating it.</p>
+      {forecast.map((f, idx) => (
         <div key={f.date} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-200">{formatDate(f.date)} paycheck</span>
+            <span className="text-sm font-semibold text-gray-200">
+              {/* QA fix (Sep 4 2026, Vince): the very first entry picks up
+                  right where the Safe to Spend card above left off -- show
+                  that start date too (not just the end), so it's visible
+                  that nothing was skipped, only the cycle already shown
+                  above. Later entries already read fine as "date paycheck"
+                  since each one's start is the previous entry, right above
+                  it in this same list. */}
+              {idx === 0 ? `${formatShortDate(f.windowStart)} → ${formatDate(f.date)}` : `${formatDate(f.date)} paycheck`}
+            </span>
             <span className={`text-xs font-semibold ${VERDICT_CLASS[f.verdict]}`}>{VERDICT_LABEL[f.verdict]}</span>
           </div>
           {f.items.length > 0 && (
