@@ -28,7 +28,7 @@ const TIER_LABEL: Record<number, string> = { 1: "Momentum", 2: "Accelerate", 3: 
 type StepDef = {
   key: string
   rank: number
-  kind: "data" | "action" | "locked" | "mfa"
+  kind: "data" | "action" | "locked" | "mfa" | "plaid"
   href: string
   Icon: any
   title: string
@@ -75,7 +75,7 @@ const STEP_DEFS: StepDef[] = [
     desc: "Ask a question in plain English and get answers tied to your numbers.",
   },
   {
-    key: "connect_bank", rank: 3, kind: "data", href: "/account", Icon: CreditCard, table: "plaid_items",
+    key: "connect_bank", rank: 3, kind: "plaid", href: "/account", Icon: CreditCard,
     title: "Connect your credit card - Autopilot",
     desc: "Securely link an institution so balances and APRs update on their own. Let balances refresh automatically so your plan stays accurate without manual entry.",
   },
@@ -197,6 +197,27 @@ export default function GettingStartedModal({ open, onClose, firstRun = false }:
             return { ...d, done: hasVerified, locked: false, upgrade: false }
           }
           if (d.kind === "action") return { ...d, done: doneKeys.has(d.progressKey || ""), locked: false, upgrade: false }
+          if (d.kind === "plaid") {
+            // QA fix (Sep 4 2026, Vince): plaid_items has RLS enabled with NO
+            // policy granting the signed-in user's own client any access at
+            // all (every other plaid_items read in this app goes through a
+            // service-role client for exactly this reason -- see
+            // app/api/plaid/items/route.ts). The old generic "count this
+            // table" check below silently always returned 0 rows here, so
+            // this step could never check off no matter how many banks were
+            // actually connected. Going through the same /api/plaid/items
+            // route the Connected Accounts UI already uses fixes it without
+            // loosening plaid_items' RLS (which would otherwise let a client
+            // query for access_token directly).
+            try {
+              const res = await fetch("/api/plaid/items")
+              const json = await res.json().catch(() => ({}))
+              const items = Array.isArray(json?.items) ? json.items : []
+              return { ...d, done: items.length > 0, locked: false, upgrade: false }
+            } catch {
+              return { ...d, done: false, locked: false, upgrade: false }
+            }
+          }
           const { count } = await supabase
             .from(d.table as string)
             .select("id", { count: "exact", head: true })
