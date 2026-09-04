@@ -10,6 +10,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "test:safe-to-spend": "npx tsx lib/__tests__/safeToSpend.test.ts",
     "cap:sync": "npx cap sync",
     "ios": "npx cap open ios",
     "android": "npx cap open android"

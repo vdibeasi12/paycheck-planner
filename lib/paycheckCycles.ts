@@ -34,6 +34,24 @@ export type CycleDebt = {
   // sumTransfersInWindow below), so counting the debt too would subtract it
   // twice. Debts with this set are excluded from every debtsDue calculation
   // in this file.
+  //
+  // CRITICAL CONSTRAINT (root-caused Sep 4 2026 after a real bug: Safe to
+  // Spend showed $3,377.77 with two required debt payments -- Capital One
+  // Auto, $596.50; Avant, $507.61 -- silently missing from the reservation):
+  // this flag is only valid when the linked transfer's money actually
+  // leaves every account Safe to Spend pools together (see
+  // lib/cashBalance.ts's multi-account pooling). If the transfer's
+  // destination is itself one of the user's OTHER pooled Checking accounts
+  // (e.g. a dedicated bill-pay account the app also tracks), the money
+  // never actually leaves the pooled cash system -- it just moves from one
+  // pooled account to another -- and the debt's required payment still has
+  // to be reserved like any normal debt, or it vanishes from Safe to Spend
+  // with nothing else accounting for it. There is currently no field
+  // recording a transfer's destination account, so this can't be validated
+  // automatically; when marking a debt covered_by_transfer, confirm the
+  // money is actually leaving the app's tracked accounts entirely, not
+  // moving between two of them. See lib/__tests__/safeToSpend.test.ts
+  // (Test 11) for the exact regression this caused.
   covered_by_transfer?: boolean | null
   // QA fix (Sep 4 2026, Vince): "my mortgage's due date is the 1st but I have
   // a grace period till the 16th without a penalty -- I paid on the 9th."
