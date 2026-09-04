@@ -19,7 +19,7 @@ import {
   toISODate,
 } from "@/lib/paycheckCycles"
 import { nearestWeakCycle } from "@/lib/planResilience"
-import { resolveStartingCash, resolveAccountBalance, type CashAccountRow } from "@/lib/cashBalance"
+import { resolveStartingCash, type CashAccountRow } from "@/lib/cashBalance"
 import { computeCapacityForCycles, generatePaycheckTalk } from "@/lib/paycheckCapacity"
 import PaycheckTalkCard from "@/app/components/PaycheckTalkCard"
 import AchievementsStrip from "@/app/components/AchievementsStrip"
@@ -32,6 +32,7 @@ import { maybeSendWelcomeEmail } from "@/lib/sendWelcomeEmail"
 import { monthlyFactor } from "@/lib/monthlyFactor"
 import { findBillDebtOverlaps } from "@/lib/billDebtOverlap"
 import BillDebtOverlapWarning from "@/app/components/BillDebtOverlapWarning"
+import { bumpActivityStreak } from "@/lib/activityStreak"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -45,8 +46,10 @@ export default async function DashboardPage() {
   }
 
   // Best-effort last-seen timestamp for the inactivity push trigger
-  // (app/api/cron/inactivity-nudge). Not awaited -- a dashboard load
-  // shouldn't wait on this, and a failure here shouldn't break the page.
+  // (app/api/cron/inactivity-nudge), plus the "On a Roll"/"Streak Master"
+  // activity streak bump (lib/activityStreak.ts). Not awaited -- a dashboard
+  // load shouldn't wait on either, and a failure in one shouldn't break the
+  // other or the page.
   void (async () => {
     try {
       await supabase
@@ -57,6 +60,7 @@ export default async function DashboardPage() {
       // best-effort only
     }
   })()
+  void bumpActivityStreak(supabase, user.id)
 
   const { data: profile, error } = await supabase
     .from("profiles")
@@ -157,31 +161,22 @@ export default async function DashboardPage() {
   // due this month" -- the math was right (the mortgage's due day had
   // already passed this month, so it's assumed already paid from the PRIOR
   // paycheck), but the number was still just a projection off "last
-  // paycheck," not real money. Ground it in the user's real accounts when
-  // they've added any (see lib/cashBalance.ts) -- summed together, since
-  // bills/debts often draw from more than one bank -- falling back to the
-  // original projection when they haven't added any yet.
-  const { data: cashAccountRows } = await supabase
+  // paycheck," not real money. Ground it in the user's real Checking
+  // balance when they've entered one (see lib/cashBalance.ts) -- projected
+  // forward from whenever it was accurate using the same income/bills/debts
+  // already on file, so it doesn't go stale -- falling back to the original
+  // projection when they haven't entered one yet.
+  const todayISOForCash = toISODate(new Date())
+  const { data: cashRowsData } = await supabase
     .from("cash_accounts")
-    .select("id, label, manual_balance, manual_balance_updated_at, linked_account_label, linked_starting_balance")
+    .select("kind, balance, balance_as_of")
     .eq("user_id", user.id)
-    .order("sort_order", { ascending: true })
-  const cashRows = (cashAccountRows ?? []) as CashAccountRow[]
-  const resolvedAccounts = await Promise.all(
-    cashRows.map(async (row) => {
-      let linkedSum: number | null = null
-      if (row.linked_account_label) {
-        const { data: txns } = await supabase
-          .from("transactions")
-          .select("amount")
-          .eq("user_id", user.id)
-          .eq("account_label", row.linked_account_label)
-        linkedSum = (txns ?? []).reduce((sum, t) => sum + Number(t.amount || 0), 0)
-      }
-      return resolveAccountBalance(row, linkedSum)
-    })
+  const checkingRow = ((cashRowsData ?? []) as CashAccountRow[]).find((r) => r.kind === "checking") ?? null
+  const startingCash = resolveStartingCash(
+    checkingRow,
+    { income, bills, debts, todayISO: todayISOForCash },
+    safeToSpendResult.lastPaycheckAmount
   )
-  const startingCash = resolveStartingCash(resolvedAccounts, safeToSpendResult.lastPaycheckAmount)
   safeToSpendResult = withStartingCash(safeToSpendResult, startingCash)
 
   // Same "why isn't my mortgage counted" transparency as Survival Mode --

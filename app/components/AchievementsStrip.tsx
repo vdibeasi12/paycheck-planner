@@ -86,7 +86,12 @@ export default function AchievementsStrip() {
               <span
                 key={b.key}
                 title={b.title}
-                className="flex h-9 w-9 items-center justify-center rounded-full border border-emerald-500/40 bg-emerald-500/10 text-emerald-300"
+                className="flex h-9 w-9 items-center justify-center rounded-full"
+                style={{
+                  border: `1px solid ${b.accent}66`,
+                  background: `${b.accent}1a`,
+                  color: b.accent,
+                }}
               >
                 <BadgeIcon name={b.icon} size={18} />
               </span>

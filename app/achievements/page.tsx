@@ -1,12 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { Lock, Check, Loader2 } from "lucide-react"
+import { Loader2, Trophy } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
 import { withTimeout } from "@/lib/withTimeout"
 import { BADGES } from "@/lib/achievements"
 import { celebrate } from "@/lib/confetti"
-import BadgeIcon from "@/components/badgeIcon"
+import BadgeCard from "@/app/components/BadgeCard"
 
 type EarnedRow = { badge_key: string; earned_at: string | null }
 
@@ -76,8 +76,13 @@ export default function AchievementsPage() {
   return (
     <div className="min-h-screen bg-[#020617] p-6 md:p-10">
       <div className="mx-auto max-w-4xl">
-        <h1 className="text-2xl font-bold text-white">Achievements</h1>
-        <p className="mt-1 text-sm text-gray-400">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-10 w-10 items-center justify-center rounded-full border border-amber-500/30 bg-amber-500/10">
+            <Trophy size={18} className="text-amber-400" />
+          </span>
+          <h1 className="text-2xl font-bold text-white">Achievements</h1>
+        </div>
+        <p className="mt-2 text-sm text-gray-400">
           Earn badges as you take control of your money.
           {earned ? " " + earnedCount + " of " + trackable.length + " unlocked." : ""}
         </p>
@@ -88,44 +93,9 @@ export default function AchievementsPage() {
           </div>
         ) : (
           <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {BADGES.map((b) => {
-              const isEarned = b.key in earned
-              const comingSoon = !b.trackable && !isEarned
-              const cardClass =
-                "rounded-2xl border p-4 transition " +
-                (isEarned
-                  ? "border-emerald-500/40 bg-emerald-500/10"
-                  : comingSoon
-                  ? "border-gray-800 bg-[#0b1322] opacity-60"
-                  : "border-gray-800 bg-[#0f172a]")
-              const ringClass =
-                "flex h-11 w-11 items-center justify-center rounded-full " +
-                (isEarned ? "bg-emerald-500/20 text-emerald-300" : "bg-gray-800 text-gray-500")
-              return (
-                <div key={b.key} className={cardClass}>
-                  <div className="flex items-center justify-between">
-                    <span className={ringClass}>
-                      <BadgeIcon name={b.icon} size={20} />
-                    </span>
-                    {isEarned ? (
-                      <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-emerald-400">
-                        <Check size={12} strokeWidth={3} /> Earned
-                      </span>
-                    ) : comingSoon ? (
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">
-                        Coming soon
-                      </span>
-                    ) : (
-                      <span className="flex items-center gap-1 text-[10px] font-semibold uppercase tracking-wide text-gray-600">
-                        <Lock size={11} /> Locked
-                      </span>
-                    )}
-                  </div>
-                  <div className="mt-3 text-sm font-semibold text-white">{b.title}</div>
-                  <div className="mt-1 text-xs text-gray-400">{b.description}</div>
-                </div>
-              )
-            })}
+            {BADGES.map((b) => (
+              <BadgeCard key={b.key} badge={b} earned={b.key in earned} />
+            ))}
           </div>
         )}
       </div>
