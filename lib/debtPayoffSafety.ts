@@ -36,9 +36,11 @@ export type DebtPayoffAffordability = {
   reserve: number
   // Where in the forecast horizon the cushion is thinnest -- the one real
   // cycle a payoff actually has to respect, named so the number isn't a
-  // black box. Null when there's no projectable plan yet (no income/pay
-  // date), in which case maxSafeToPayoff falls back to today's real cash
-  // minus the reserve -- the only number available.
+  // black box. Null in two cases, both meaning "today's real cash is the
+  // binding constraint, not a future paycheck cycle": there's no
+  // projectable plan yet (no income/pay date), or every projected cycle
+  // ahead is actually healthier than what's on hand right now. Either way
+  // maxSafeToPayoff falls back to today's real cash minus the reserve.
   tightestDate: string | null
   tightestRunningBalance: number
 }
@@ -84,11 +86,38 @@ export function computeDebtPayoffAffordability(input: {
     }
   }
 
-  const tightest = cycles.reduce((worst, c) => (c.runningBalance < worst.runningBalance ? c : worst), cycles[0])
+  // CRITICAL FIX (Sep 5 2026, Vince): a projected cycle's runningBalance is
+  // only ever checked AFTER that cycle's own paycheck has already landed
+  // and paid that cycle's own bills -- so if the very next paycheck
+  // comfortably covers thin near-term bills, every projected runningBalance
+  // can come back HIGHER than today's actual startingCash, even while some
+  // LATER cycle's own paycheck doesn't cover that cycle's own bills (the
+  // shortfall gets absorbed by cash carried forward, not by borrowing
+  // against the future). Comparing only cycles[].runningBalance -- as this
+  // used to -- means "tightest" could be a number bigger than what's
+  // actually in the bank right now, and maxSafeToPayoff would recommend
+  // withdrawing more than the user currently has, days before any of that
+  // relief ever arrives. Confirmed live: Vince's real Sep 2026 numbers
+  // (startingCash $3,678.30) produced a $5,159.67 "safe to pay off"
+  // recommendation under the old code -- more than a thousand dollars he
+  // doesn't have yet. Today's actual cash on hand is now itself a
+  // checkpoint in the comparison, same as any future cycle.
+  const tightestCycle = cycles.reduce((worst, c) => (c.runningBalance < worst.runningBalance ? c : worst), cycles[0])
+  if (input.startingCash <= tightestCycle.runningBalance) {
+    // Nothing projected ahead is actually tighter than what's on hand right
+    // now -- today's real balance is the binding constraint, not a future
+    // paycheck cycle.
+    return {
+      maxSafeToPayoff: input.startingCash - reserve,
+      reserve,
+      tightestDate: null,
+      tightestRunningBalance: input.startingCash,
+    }
+  }
   return {
-    maxSafeToPayoff: tightest.runningBalance - reserve,
+    maxSafeToPayoff: tightestCycle.runningBalance - reserve,
     reserve,
-    tightestDate: tightest.date,
-    tightestRunningBalance: tightest.runningBalance,
+    tightestDate: tightestCycle.date,
+    tightestRunningBalance: tightestCycle.runningBalance,
   }
 }

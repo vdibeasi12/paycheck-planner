@@ -91,14 +91,35 @@ console.log("  same total worked out by hand in chat")
   assertEqual(cost, 1129.85, "5 credit cards + the $0 one + the -$9.33 credit nets to 1,129.85")
 }
 
-console.log("\nTest 2 -- with nothing paid off yet, the plan's own tightest point sets")
-console.log("  maxSafeToPayoff = tightestRunningBalance - reserve, exactly")
+console.log("\nTest 2 -- with nothing paid off yet, and Vince's plan genuinely healthy enough")
+console.log("  that every projected cycle comes back stronger than today's actual cash,")
+console.log("  TODAY's balance is the binding constraint, not a future cycle")
 {
   const result = computeDebtPayoffAffordability({ startingCash, income, bills, debts: allDebts, goals, today })
   assertEqual(result.reserve, DEFAULT_PAYOFF_RESERVE, "default reserve is $150")
   assertEqual(result.maxSafeToPayoff, result.tightestRunningBalance - result.reserve, "maxSafeToPayoff is tightestRunningBalance minus reserve")
-  assertTrue(result.tightestDate !== null, "a tightest cycle date is named, not a black box")
+  assertEqual(result.tightestRunningBalance, startingCash, "today's real balance -- not a future cycle -- is the tightest point")
+  assertTrue(result.tightestDate === null, "null correctly means 'today,' not a black box -- no future cycle is actually tighter")
   console.log(`  (tightest point: ${result.tightestRunningBalance} on ${result.tightestDate}, maxSafeToPayoff ${result.maxSafeToPayoff})`)
+}
+
+console.log("\nTest 2b (regression) -- the Sep 5 2026 bug: maxSafeToPayoff must never exceed")
+console.log("  what's actually in the bank today, no matter how healthy future cycles look")
+{
+  // This is the exact live shape of the bug: Vince's Sep 16 paycheck easily
+  // covers its own thin bills, so cycles[0].runningBalance (5,309.67) comes
+  // back HIGHER than his real startingCash (3,678.30) -- even though the
+  // Oct 28 cycle's OWN paycheck doesn't cover that cycle's OWN bills
+  // (cushion -1,159.59; only the cash carried forward from earlier cycles
+  // absorbs it). The old code compared only cycles[].runningBalance and
+  // recommended $5,159.67 -- more than a thousand dollars Vince doesn't
+  // have yet. The fix floors the recommendation at today's real cash.
+  const result = computeDebtPayoffAffordability({ startingCash, income, bills, debts: allDebts, goals, today })
+  assertTrue(
+    result.maxSafeToPayoff <= startingCash,
+    `maxSafeToPayoff (${result.maxSafeToPayoff}) must never exceed today's real starting cash (${startingCash})`
+  )
+  assertEqual(result.maxSafeToPayoff, startingCash - DEFAULT_PAYOFF_RESERVE, "3,678.30 - 150 = 3,528.30, not the old buggy 5,159.67")
 }
 
 console.log("\nTest 3 -- paying off the real credit-card selection ($1,129.85) is actually safe:")
