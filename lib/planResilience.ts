@@ -18,6 +18,8 @@ import {
   type CycleGoal,
   type PaycheckCycle,
 } from "./paycheckCycles"
+import { shouldSplitByAccount } from "./accountSafeToSpend"
+import { projectAccountBalance, type CashAccountRow } from "./cashBalance"
 
 // Sep 4 2026, Vince: "if I have this much then how will I be able to pay my
 // mortgage Oct 1, car payment Sept 15, and personal loan sept 22nd" -- Safe
@@ -314,4 +316,116 @@ export function buildUpcomingForecast<
       verdict: cycleVerdict(cycle),
     }
   })
+}
+
+// CRITICAL FIX (Sep 9 2026, Vince, live screenshot: "Paycheck Shield is
+// still calculating 100% and that's incorrect"): this whole file, like
+// lib/safeToSpend.ts before Round 6, was pooling every checking account
+// into one balance and stress-testing that pool -- for someone who
+// deliberately keeps separate accounts for separate obligations (53rd for
+// the mortgage/car/personal loan, Chime for utilities/credit cards), that
+// pooling can hide a REAL, already-confirmed shortfall (Chime alone is
+// projected to -$753.78 by month-end -- see lib/accountSafeToSpend.ts) by
+// averaging it against a healthy 53rd. A stress test that can't see that is
+// a "100/100 STRONG" score built on a number that isn't actually true for
+// either real account. This is the same fix Round 6 already applied to
+// Safe to Spend/This Month/Extra Debt Payment, just for the one engine
+// that hadn't gotten it yet.
+//
+// Deliberately opt-in via the same shouldSplitByAccount evidence gate as
+// lib/accountSafeToSpend.ts -- everyone who hasn't split bills/debts/
+// income across specific accounts keeps seeing the exact pooled
+// computePlanResilience result they always have, unchanged.
+type WithAccountLink = { cash_account_id?: string | null }
+
+export type AccountPlanResilience<
+  TBill extends CycleBill & WithAccountLink = CycleBill & WithAccountLink,
+  TDebt extends CycleDebt & WithAccountLink = CycleDebt & WithAccountLink
+> = {
+  account: CashAccountRow
+  result: PlanResilienceResult
+  // This account's own linked rows -- needed by StrengthenPaycheckPanel
+  // (which names specific bills/debts) when rendering one block per
+  // account instead of the single pooled block.
+  bills: TBill[]
+  debts: TDebt[]
+  income: CycleIncome[]
+}
+
+export type AccountSplitPlanResilienceResult<
+  TBill extends CycleBill & WithAccountLink = CycleBill & WithAccountLink,
+  TDebt extends CycleDebt & WithAccountLink = CycleDebt & WithAccountLink
+> = {
+  // false means "not split" -- caller should keep using the pooled
+  // computePlanResilience result directly, unchanged. `accounts` is empty
+  // in that case.
+  isSplit: boolean
+  accounts: AccountPlanResilience<TBill, TDebt>[]
+  // A shield is only as strong as its weakest account, since money never
+  // moves between them on its own -- the minimum of each account's own
+  // strengthScore, not an average (an average would let a healthy 53rd
+  // paper over a struggling Chime the same way pooling did). 0 when no
+  // account has a projectable plan at all.
+  overallStrengthScore: number
+  // The account actually dragging the combined score down, so the UI can
+  // name it directly instead of making the user hunt for which section is
+  // the weak one. Null only when no account has a projectable plan.
+  weakestAccount: AccountPlanResilience<TBill, TDebt> | null
+}
+
+export function computeAccountSplitPlanResilience<
+  TBill extends CycleBill & WithAccountLink,
+  TDebt extends CycleDebt & WithAccountLink
+>(input: {
+  checkingAccounts: CashAccountRow[]
+  income: (CycleIncome & WithAccountLink)[]
+  bills: TBill[]
+  debts: TDebt[]
+  goals: CycleGoal[]
+  todayISO: string
+  today?: Date
+  monthsForward?: number
+  scenarios?: Scenario[]
+}): AccountSplitPlanResilienceResult<TBill, TDebt> {
+  const { checkingAccounts, income, bills, debts, todayISO } = input
+
+  const isSplit = shouldSplitByAccount(checkingAccounts, income, bills, debts)
+  if (!isSplit) {
+    return { isSplit: false, accounts: [], overallStrengthScore: 0, weakestAccount: null }
+  }
+
+  const accounts: AccountPlanResilience<TBill, TDebt>[] = checkingAccounts.map((account) => {
+    const ownIncome = income.filter((i) => i.cash_account_id === account.id)
+    // Same scheduling fallback as computeAccountSplitSafeToSpend: an account
+    // with no income linked yet still gets a real projected cycle schedule
+    // (from whichever income rows exist) rather than "no plan at all" --
+    // the dollar amounts (bills/debts/startingCash) only ever use this
+    // account's own linked items.
+    const scheduleIncome = ownIncome.length > 0 ? ownIncome : income
+    const ownBills = bills.filter((b) => b.cash_account_id === account.id)
+    const ownDebts = debts.filter((d) => d.cash_account_id === account.id)
+    const projectedBalance = projectAccountBalance(account, { income, bills, debts, todayISO })
+
+    const result = computePlanResilience({
+      income: scheduleIncome,
+      bills: ownBills,
+      debts: ownDebts,
+      goals: [],
+      today: input.today,
+      monthsForward: input.monthsForward,
+      scenarios: input.scenarios,
+      startingCash: projectedBalance,
+    })
+    return { account, result, bills: ownBills, debts: ownDebts, income: scheduleIncome }
+  })
+
+  const scored = accounts.filter((a) => a.result.hasPlan)
+  const overallStrengthScore =
+    scored.length > 0 ? Math.min(...scored.map((a) => a.result.strengthScore)) : 0
+  const weakestAccount =
+    scored.length > 0
+      ? scored.reduce((worst, a) => (a.result.strengthScore < worst.result.strengthScore ? a : worst), scored[0])
+      : null
+
+  return { isSplit: true, accounts, overallStrengthScore, weakestAccount }
 }

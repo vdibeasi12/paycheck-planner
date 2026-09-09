@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { computePlanResilience } from "@/lib/planResilience"
+import { computePlanResilience, computeAccountSplitPlanResilience } from "@/lib/planResilience"
+import { shouldSplitByAccount } from "@/lib/accountSafeToSpend"
 import { resolveStartingCash, type CashAccountRow } from "@/lib/cashBalance"
 import { toISODate } from "@/lib/paycheckCycles"
 import PaycheckShieldView from "@/app/components/PaycheckShieldView"
@@ -50,14 +51,14 @@ export default async function PaycheckShieldPage() {
   if (!user) redirect("/login")
 
   const [incomeRes, billsRes, debtsRes, goalsRes, cashRes] = await Promise.all([
-    supabase.from("income").select("amount, frequency, next_pay_date, income_type").eq("user_id", user.id),
+    supabase.from("income").select("amount, frequency, next_pay_date, income_type, cash_account_id").eq("user_id", user.id),
     supabase
       .from("bills")
-      .select("id, name, amount, due_date, paid_through, frequency, bimonthly_parity")
+      .select("id, name, amount, due_date, paid_through, frequency, bimonthly_parity, cash_account_id")
       .eq("user_id", user.id),
     supabase
       .from("debts")
-      .select("id, name, minimum_payment, due_date, covered_by_transfer, grace_period_days, paid_through")
+      .select("id, name, minimum_payment, due_date, covered_by_transfer, grace_period_days, paid_through, cash_account_id")
       .eq("user_id", user.id),
     supabase.from("financial_goals").select("target_amount, current_amount, deadline, status").eq("user_id", user.id),
     supabase.from("cash_accounts").select("id, kind, name, balance, balance_as_of").eq("user_id", user.id),
@@ -82,5 +83,32 @@ export default async function PaycheckShieldPage() {
     startingCash: startingCash.amount,
   })
 
-  return <PaycheckShieldView result={result} bills={bills} debts={debts} income={income} />
+  // CRITICAL FIX (Sep 9 2026, Vince, live screenshot): "Paycheck Shield is
+  // still calculating 100% and that's incorrect" -- same evidence-gated
+  // per-account split as Safe to Spend/This Month/Extra Debt Payment (see
+  // lib/accountSafeToSpend.ts). When it activates, the pooled `result`
+  // above is still computed (kept as a fallback/reference) but the page
+  // renders the per-account breakdown instead, so a real shortfall isolated
+  // to one account can't be averaged away by a healthier one.
+  const split = shouldSplitByAccount(checkingRows, income, bills, debts)
+    ? computeAccountSplitPlanResilience({
+        checkingAccounts: checkingRows,
+        income,
+        bills,
+        debts,
+        goals,
+        todayISO,
+      })
+    : null
+
+  return (
+    <PaycheckShieldView
+      result={result}
+      bills={bills}
+      debts={debts}
+      income={income}
+      accountSections={split?.isSplit ? split.accounts : undefined}
+      overallStrengthScore={split?.isSplit ? split.overallStrengthScore : undefined}
+    />
+  )
 }
