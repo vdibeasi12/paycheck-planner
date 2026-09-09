@@ -9,7 +9,8 @@ import {
 } from "@/lib/paycheckCycles"
 import { nearestWeakCycle, buildUpcomingForecast } from "@/lib/planResilience"
 import { resolveStartingCash, projectAllAccountBalances, type CashAccountRow } from "@/lib/cashBalance"
-import SurvivalModeView from "@/app/components/SurvivalModeView"
+import { computeAccountSplitSafeToSpend } from "@/lib/accountSafeToSpend"
+import SurvivalModeView, { type SurvivalModeAccountSection } from "@/app/components/SurvivalModeView"
 
 /**
  * "Survive until payday" -- the stripped-down view of the same
@@ -133,6 +134,29 @@ export default async function SurvivalModePage() {
     projectedBalance: projectedBalances.get(a.id) ?? Number(a.balance),
   }))
 
+  // Per-account split (Sep 9 2026, Vince) -- same reasoning and same
+  // lib/accountSafeToSpend.ts call as the Dashboard and /safe-to-spend, so
+  // this page's headline numbers never disagree with those. Only activates
+  // when the user has actually linked bills/debts/income to 2+ checking
+  // accounts.
+  const split = computeAccountSplitSafeToSpend({
+    checkingAccounts: checkingRows,
+    income,
+    bills,
+    debts,
+    goals,
+    todayISO,
+  })
+  const accountSections: SurvivalModeAccountSection[] | undefined = split.isSplit
+    ? split.accounts.map(({ account, cycle, classifiedBills: b, classifiedDebts: d, coveredDebts: c }) => ({
+        account,
+        result: cycle,
+        classifiedBills: b,
+        classifiedDebts: d,
+        coveredDebts: c,
+      }))
+    : undefined
+
   return (
     <SurvivalModeView
       result={result}
@@ -143,6 +167,7 @@ export default async function SurvivalModePage() {
       coveredDebts={coveredDebts}
       risk={risk}
       lookahead={lookahead}
+      accountSections={accountSections}
     />
   )
 }

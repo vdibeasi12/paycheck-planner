@@ -14,6 +14,7 @@ import {
   toISODate,
 } from "@/lib/paycheckCycles"
 import { resolveStartingCash, type CashAccountRow } from "@/lib/cashBalance"
+import { computeAccountSplitSafeToSpend } from "@/lib/accountSafeToSpend"
 
 // app/safe-to-spend/page.tsx
 // Sep 9 2026, Vince: "create a new section for safe to spend so it's not
@@ -45,13 +46,13 @@ export default async function SafeToSpendPage() {
 
   const { data: incomeData } = await supabase
     .from("income")
-    .select("amount, frequency, income_type, next_pay_date")
+    .select("amount, frequency, income_type, next_pay_date, cash_account_id")
     .eq("user_id", user.id)
   const income = Array.isArray(incomeData) ? incomeData : []
 
   const { data: billsData } = await supabase
     .from("bills")
-    .select("id, name, amount, frequency, due_date, paid_through, bimonthly_parity")
+    .select("id, name, amount, frequency, due_date, paid_through, bimonthly_parity, cash_account_id")
     .eq("user_id", user.id)
   const bills = Array.isArray(billsData) ? billsData : []
 
@@ -134,6 +135,22 @@ export default async function SafeToSpendPage() {
     goals: [],
   })
 
+  // Per-account split (Sep 9 2026, Vince): "53rd only gets $1660 per
+  // paycheck to save and pay [mortgage/car/personal loan]... Chime gets the
+  // rest to pay utilities and credit cards. If I spend all that [pooled]
+  // money I will not have enough for the car payment [and] personal loan."
+  // Only activates when the user has actually linked bills/debts/income to
+  // 2+ checking accounts (see lib/accountSafeToSpend.ts) -- everyone else
+  // keeps seeing the exact pooled cards above, untouched.
+  const split = computeAccountSplitSafeToSpend({
+    checkingAccounts: checkingRows,
+    income,
+    bills,
+    debts,
+    goals,
+    todayISO,
+  })
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
       <div className="mb-6 flex items-center gap-2.5">
@@ -146,19 +163,56 @@ export default async function SafeToSpendPage() {
         could safely put toward debt right now.
       </p>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <PaycheckCountdown
-          result={safeToSpendResult}
-          startingCash={startingCash}
-          classifiedBills={classifiedBills}
-          classifiedDebts={classifiedDebts}
-          coveredDebts={coveredDebts}
-        />
-        <div className="space-y-6">
-          <MonthlySafeToSpendCard result={monthlyResult} />
-          <ExtraDebtPaymentCard affordability={affordability} />
+      {split.isSplit ? (
+        <div className="space-y-10">
+          <p className="-mt-4 max-w-2xl text-sm text-muted">
+            You've linked bills, debts, or paychecks to more than one checking account, so these are split by
+            account -- money reserved for one account's bills is never counted as safe to spend out of another.
+          </p>
+          {split.accounts.map(({ account, cycle, monthly, affordability: accountAffordability, classifiedBills: accountBills, classifiedDebts: accountDebts, coveredDebts: accountCovered }) => (
+            <div key={account.id}>
+              <h2 className="mb-3 text-lg font-semibold text-primary">{account.name}</h2>
+              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+                <PaycheckCountdown
+                  result={cycle}
+                  startingCash={{ amount: cycle.startingCash, source: cycle.startingCashSource, asOf: cycle.startingCashAsOf }}
+                  classifiedBills={accountBills}
+                  classifiedDebts={accountDebts}
+                  coveredDebts={accountCovered}
+                />
+                <div className="space-y-6">
+                  <MonthlySafeToSpendCard result={monthly} />
+                  <ExtraDebtPaymentCard affordability={accountAffordability} />
+                </div>
+              </div>
+            </div>
+          ))}
+          {(split.combinedGoalContribution > 0 || split.unassignedBillsTotal > 0 || split.unassignedDebtsTotal > 0) && (
+            <p className="max-w-2xl text-xs text-muted">
+              Not tied to a specific account above, so not part of either account's numbers:{" "}
+              {split.combinedGoalContribution > 0 && <>goal contributions this cycle. </>}
+              {(split.unassignedBillsTotal > 0 || split.unassignedDebtsTotal > 0) && (
+                <>Bills/debts without an account assigned in Bills &amp; Debts. </>
+              )}
+              Assign an account to each one to have it counted.
+            </p>
+          )}
         </div>
-      </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          <PaycheckCountdown
+            result={safeToSpendResult}
+            startingCash={startingCash}
+            classifiedBills={classifiedBills}
+            classifiedDebts={classifiedDebts}
+            coveredDebts={coveredDebts}
+          />
+          <div className="space-y-6">
+            <MonthlySafeToSpendCard result={monthlyResult} />
+            <ExtraDebtPaymentCard affordability={affordability} />
+          </div>
+        </div>
+      )}
     </div>
   )
 }

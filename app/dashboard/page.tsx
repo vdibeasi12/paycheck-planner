@@ -22,6 +22,7 @@ import {
 } from "@/lib/paycheckCycles"
 import { nearestWeakCycle, buildUpcomingForecast } from "@/lib/planResilience"
 import { resolveStartingCash, type CashAccountRow } from "@/lib/cashBalance"
+import { computeAccountSplitSafeToSpend } from "@/lib/accountSafeToSpend"
 import { computeCapacityForCycles, generatePaycheckTalk } from "@/lib/paycheckCapacity"
 import PaycheckTalkCard from "@/app/components/PaycheckTalkCard"
 import AchievementsStrip from "@/app/components/AchievementsStrip"
@@ -118,7 +119,7 @@ export default async function DashboardPage() {
 
   const { data: incomeData } = await supabase
     .from("income")
-    .select("amount, frequency, income_type, next_pay_date")
+    .select("amount, frequency, income_type, next_pay_date, cash_account_id")
     .eq("user_id", user.id)
   const income = Array.isArray(incomeData) ? incomeData : []
   // "transfer" rows are money moving between the user's own accounts (e.g. a
@@ -129,7 +130,7 @@ export default async function DashboardPage() {
 
   const { data: billsData } = await supabase
     .from("bills")
-    .select("id, name, amount, frequency, due_date, paid_through, bimonthly_parity")
+    .select("id, name, amount, frequency, due_date, paid_through, bimonthly_parity, cash_account_id")
     .eq("user_id", user.id)
   const bills = Array.isArray(billsData) ? billsData : []
   const monthlyBills = bills.reduce(
@@ -211,6 +212,25 @@ export default async function DashboardPage() {
       safeToSpendResult.lastPaycheckDate
     )
   }
+
+  // Per-account split (Sep 9 2026, Vince) -- same reasoning and same
+  // lib/accountSafeToSpend.ts call as app/safe-to-spend/page.tsx; the
+  // headline "Safe to spend" card must never show a different number here
+  // than it does there for the same user. Only activates when the user has
+  // actually linked bills/debts/income to 2+ checking accounts. The
+  // forward-looking widgets below this card (What-If, Paycheck Talk,
+  // Surplus/Drift, the "Then what" lookahead, Paycheck Shield's own risk
+  // banner) still project the pooled total -- not yet made account-aware,
+  // a deliberate scope cut communicated to Vince rather than an oversight --
+  // so they're hidden (not shown with a silently-wrong number) once split.
+  const accountSplit = computeAccountSplitSafeToSpend({
+    checkingAccounts: checkingRows,
+    income,
+    bills,
+    debts,
+    goals,
+    todayISO: todayISOForCash,
+  })
 
   // Paycheck Capacity / "If This Paycheck Could Talk" (Aug 26 2026): reuses
   // the same projected cycles Paycheck Shield already computes -- no new
@@ -329,15 +349,37 @@ export default async function DashboardPage() {
           goals={goals.map((g) => ({ id: g.id, title: g.title }))}
         />
       )}
-      <PaycheckCountdown
-        result={safeToSpendResult}
-        startingCash={startingCash}
-        classifiedBills={classifiedBills}
-        classifiedDebts={classifiedDebts}
-        coveredDebts={coveredDebts}
-        risk={nearTermRisk}
-        lookahead={lookahead}
-      />
+      {accountSplit.isSplit ? (
+        <div className="space-y-6">
+          <p className="text-sm text-muted">
+            You've linked bills, debts, or paychecks to more than one checking account, so this is split by
+            account below -- money reserved for one account's bills is never counted as safe to spend out of
+            another.
+          </p>
+          {accountSplit.accounts.map(({ account, cycle, classifiedBills: accountBills, classifiedDebts: accountDebts, coveredDebts: accountCovered }) => (
+            <div key={account.id}>
+              <h2 className="mb-2 text-base font-semibold text-primary">{account.name}</h2>
+              <PaycheckCountdown
+                result={cycle}
+                startingCash={{ amount: cycle.startingCash, source: cycle.startingCashSource, asOf: cycle.startingCashAsOf }}
+                classifiedBills={accountBills}
+                classifiedDebts={accountDebts}
+                coveredDebts={accountCovered}
+              />
+            </div>
+          ))}
+        </div>
+      ) : (
+        <PaycheckCountdown
+          result={safeToSpendResult}
+          startingCash={startingCash}
+          classifiedBills={classifiedBills}
+          classifiedDebts={classifiedDebts}
+          coveredDebts={coveredDebts}
+          risk={nearTermRisk}
+          lookahead={lookahead}
+        />
+      )}
       {/* Sep 9 2026, Vince: "create a new section for safe to spend so it's
           not buried in several different places" -- this card stays exactly
           as it was (it's the frozen paycheck-cycle number), but now points
@@ -350,8 +392,12 @@ export default async function DashboardPage() {
       >
         See this month's full breakdown too <ArrowRight size={14} />
       </Link>
-      <WhatIfSpend result={safeToSpendResult} />
-      {paycheckTalk && <PaycheckTalkCard narrative={paycheckTalk} />}
+      {/* What-If and Paycheck Talk both reason against ONE pooled Safe to
+          Spend number -- not yet account-aware (see accountSplit above), so
+          they're hidden rather than shown against a number that's wrong for
+          a split household, once split is active. */}
+      {!accountSplit.isSplit && <WhatIfSpend result={safeToSpendResult} />}
+      {!accountSplit.isSplit && paycheckTalk && <PaycheckTalkCard narrative={paycheckTalk} />}
       <SummaryCards netWorth={-totalDebt} totalDebt={totalDebt} monthlyPayments={monthlyPayments} percentPaid={percentPaid} />
       <DebtList debts={debts} />
 
