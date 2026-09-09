@@ -41,9 +41,30 @@ export default function ExtraDebtPaymentCard({ affordability }: { affordability:
       </p>
       <p className="mt-1 text-sm text-muted">
         {affordability.tightestDate
-          ? `Keeps you covered through ${formatDate(affordability.tightestDate)}, your tightest upcoming cycle, after a ${formatMoney(affordability.reserve)} safety cushion`
-          : `Today's balance is the binding constraint, not a future paycheck, after a ${formatMoney(affordability.reserve)} safety cushion`}
+          ? `Keeps you covered through ${formatDate(affordability.tightestDate)}, your tightest upcoming cycle`
+          : "Today's balance is the binding constraint, not a future paycheck"}
       </p>
+
+      {/* CRITICAL FIX (Sep 9 2026, Vince, reviewing a live screenshot): the
+          $150 reserve used to only appear inside a sentence (or a hover
+          tooltip before that) -- "the $150 buffer isn't explained anywhere
+          on this screen." Same authoritative numbers
+          (computeDebtPayoffAffordability) as the headline above, just shown
+          as explicit line items instead of requiring mental math. */}
+      <div className="mt-3 space-y-1.5 border-t border-default pt-3 text-sm text-muted">
+        <div className="flex justify-between">
+          <span>{affordability.tightestDate ? `Available on ${formatDate(affordability.tightestDate)}` : "Available today"}</span>
+          <span className="text-secondary">{formatMoney(affordability.tightestRunningBalance)}</span>
+        </div>
+        <div className="flex justify-between">
+          <span>Protected cash reserve</span>
+          <span className="text-secondary">-{formatMoney(affordability.reserve)}</span>
+        </div>
+        <div className="flex justify-between border-t border-default pt-1.5 font-[600] text-primary">
+          <span>Extra debt payment</span>
+          <span>{formatMoney(affordability.maxSafeToPayoff)}</span>
+        </div>
+      </div>
 
       {!positive && (
         <p className="mt-3 text-sm text-red-300">

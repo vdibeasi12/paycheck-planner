@@ -54,12 +54,6 @@ export default function PaycheckCountdown({
   lookahead = [],
 }: Props) {
   const formatMoney = useFormatCurrency()
-  const upcomingItems = [...classifiedBills, ...classifiedDebts]
-    .filter((i) => i.itemStatus === "upcoming")
-    .map((i) => ({ name: i.name, amount: i.amount, date: i.occurrenceDate }))
-  const alreadyDueItems = [...classifiedBills, ...classifiedDebts]
-    .filter((i) => i.itemStatus === "alreadyDue")
-    .map((i) => ({ name: i.name, amount: i.amount, date: i.occurrenceDate }))
   // QA fix (Sep 4 2026, Vince): "the arithmetic is correct... but if those
   // earlier-cycle items are not already reflected in the current balance,
   // Safe to Spend is too high." Confirmed true for his own live BitDefender/
@@ -68,17 +62,34 @@ export default function PaycheckCountdown({
   //
   // CRITICAL FIX (Sep 9 2026, Vince, reviewing a live screenshot): the Sep 4
   // decision above was to leave these excluded from Safe to Spend and only
-  // warn about them ("isn't reserved above... your real Safe to Spend is
-  // lower than shown") on the theory that an unconfirmed item could just as
+  // warn about them on the theory that an unconfirmed item could just as
   // easily have already cleared. Revisited: paid_through is this app's real
   // source of truth for "was this paid" (set by "Mark as paid" in Bills &
-  // Debts), and anything reaching this list has NOT been marked paid -- so
-  // that theory doesn't hold, and the warning was describing a real
-  // understatement rather than a hypothetical one. Safe to Spend now
-  // reserves this directly (lib/safeToSpend.ts widens its own due-window to
-  // include it), so this total is informational: it's already included in
-  // the number above, not a separate risk sitting outside it.
-  const alreadyDueTotal = alreadyDueItems.reduce((sum, i) => sum + i.amount, 0)
+  // Debts), and anything classified "alreadyDue" here has NOT been marked
+  // paid -- so Safe to Spend now reserves it directly (lib/safeToSpend.ts
+  // widens its own due-window to include it).
+  //
+  // SECOND FIX, same day (Vince caught this too, from the next screenshot):
+  // once the money was correctly reserved, this file still showed it in a
+  // SEPARATE breakdown list with its own separate total -- "What's counted
+  // above" summed only the upcoming items, so it no longer matched Upcoming
+  // bills + Debt payments, which both already included the already-due
+  // amount. One list, one total, from here on: `allCommittedItems` combines
+  // both, `pastDue` is a per-item flag rather than a second bucket, and
+  // upcomingBillsAmount/upcomingDebtsAmount/pastDueTotal below split the
+  // SAME already-reserved total for display, not a second deduction.
+  const upcomingBillsAmount = classifiedBills.filter((b) => b.itemStatus === "upcoming").reduce((sum, b) => sum + b.amount, 0)
+  const upcomingDebtsAmount = classifiedDebts.filter((d) => d.itemStatus === "upcoming").reduce((sum, d) => sum + d.amount, 0)
+  const pastDueTotal = [...classifiedBills, ...classifiedDebts]
+    .filter((i) => i.itemStatus === "alreadyDue")
+    .reduce((sum, i) => sum + i.amount, 0)
+  const allCommittedItems = [...classifiedBills, ...classifiedDebts].map((i) => ({
+    name: i.name,
+    amount: i.amount,
+    date: i.occurrenceDate,
+    pastDue: i.itemStatus === "alreadyDue",
+  }))
+  const totalCommitted = result.billsDue + result.debtsDue + result.goalContribution
 
   if (!result.hasIncome) {
     return (
@@ -134,10 +145,10 @@ export default function PaycheckCountdown({
         )}
       </p>
 
-      {alreadyDueTotal > 0 && (
-        <p className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-          {formatMoney(alreadyDueTotal)} of what's reserved above is bills or debt payments already past their due
-          date that haven't been marked paid yet. See "Already due earlier this cycle" below.
+      {pastDueTotal > 0 && (
+        <p className="mt-2 rounded-lg bg-warning px-3 py-2 text-xs text-warning-heading">
+          {formatMoney(pastDueTotal)} of this is already past due and unpaid -- it's included in Safe to Spend
+          above once, not an extra deduction. Marked "Past due" in the list below.
         </p>
       )}
 
@@ -161,22 +172,34 @@ export default function PaycheckCountdown({
             )}
           </>
         )}
-        {result.billsDue > 0 && (
+        {upcomingBillsAmount > 0 && (
           <div className="flex justify-between">
             <span>Upcoming bills</span>
-            <span className="text-secondary">-{formatMoney(result.billsDue)}</span>
+            <span className="text-secondary">-{formatMoney(upcomingBillsAmount)}</span>
           </div>
         )}
-        {result.debtsDue > 0 && (
+        {upcomingDebtsAmount > 0 && (
           <div className="flex justify-between">
             <span>Debt payments</span>
-            <span className="text-secondary">-{formatMoney(result.debtsDue)}</span>
+            <span className="text-secondary">-{formatMoney(upcomingDebtsAmount)}</span>
+          </div>
+        )}
+        {pastDueTotal > 0 && (
+          <div className="flex justify-between">
+            <span className="text-warning-heading">Past-due unpaid commitments</span>
+            <span className="text-warning-heading">-{formatMoney(pastDueTotal)}</span>
           </div>
         )}
         {result.goalContribution > 0 && (
           <div className="flex justify-between">
             <span>Goal contributions</span>
             <span className="text-secondary">-{formatMoney(result.goalContribution)}</span>
+          </div>
+        )}
+        {(upcomingBillsAmount > 0 || upcomingDebtsAmount > 0 || pastDueTotal > 0 || result.goalContribution > 0) && (
+          <div className="flex justify-between border-t border-default pt-1.5 font-[600] text-primary">
+            <span>Total committed</span>
+            <span>-{formatMoney(totalCommitted)}</span>
           </div>
         )}
       </div>
@@ -214,18 +237,13 @@ export default function PaycheckCountdown({
         </p>
       )}
 
-      {(upcomingItems.length > 0 || alreadyDueItems.length > 0) && (
-        <div className="mt-4 space-y-2">
+      {allCommittedItems.length > 0 && (
+        <div className="mt-4">
           <PaycheckItemBreakdown
-            title="What's counted above"
-            hint="These, plus anything already due below, are what's actually subtracted from Safe to Spend."
-            items={upcomingItems}
+            title="What's committed"
+            hint='All unpaid bills and debt payments are included in Safe to Spend once. Items marked "Past due" already passed their due date and still need to be paid -- they are not a second deduction.'
+            items={allCommittedItems}
             defaultOpen
-          />
-          <PaycheckItemBreakdown
-            title="Already due earlier this cycle"
-            hint="Due day already passed this month and not yet marked paid, so it's included in what's subtracted above, not on top of it. Once you mark it paid, it'll drop off here."
-            items={alreadyDueItems}
           />
         </div>
       )}

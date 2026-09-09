@@ -63,20 +63,30 @@ export default function SurvivalModeView({
 
   const cantProject = !result.hasIncome || result.missingPayDate || !result.nextPaycheckDate
 
-  const upcomingBills = classifiedBills.filter((b) => b.itemStatus === "upcoming").map((b) => ({ name: b.name, amount: b.amount, date: b.occurrenceDate }))
-  const alreadyDueBills = classifiedBills.filter((b) => b.itemStatus === "alreadyDue").map((b) => ({ name: b.name, amount: b.amount, date: b.occurrenceDate }))
-  const upcomingDebts = classifiedDebts.filter((d) => d.itemStatus === "upcoming").map((d) => ({ name: d.name, amount: d.amount, date: d.occurrenceDate }))
-  const alreadyDueDebts = classifiedDebts.filter((d) => d.itemStatus === "alreadyDue").map((d) => ({ name: d.name, amount: d.amount, date: d.occurrenceDate }))
   // See PaycheckCountdown.tsx's matching comment -- CRITICAL FIX (Sep 9 2026,
   // Vince, reviewing a live screenshot): this used to be excluded from
-  // "Safe to spend" above and only shown as a warning ("isn't reserved
-  // above... your real Safe to Spend is lower than shown"), which was a
+  // "Safe to spend" above and only shown as a warning, which was a
   // self-contradiction -- these items are unpaid (paid_through already
   // excludes anything actually marked paid), so the money hasn't left yet
   // and Safe to Spend above now reserves it directly (see
-  // lib/safeToSpend.ts). This total is purely informational now: it's
-  // already part of "Still due before payday" above, not on top of it.
-  const alreadyDueTotal = [...alreadyDueBills, ...alreadyDueDebts].reduce((sum, i) => sum + i.amount, 0)
+  // lib/safeToSpend.ts).
+  //
+  // SECOND FIX, same day (Vince caught this too, from the next screenshot):
+  // once reserved correctly, this still showed the already-due amount in a
+  // SEPARATE breakdown list with its own separate total, so "Still to come
+  // before payday"'s own list total no longer matched what "Still due
+  // before payday" (the Stat above) actually summed. One combined list now
+  // -- `allCommittedItems` -- with `pastDue` as a per-item flag instead of a
+  // second bucket, so the list's total always equals the Stat exactly.
+  const pastDueTotal = [...classifiedBills, ...classifiedDebts]
+    .filter((i) => i.itemStatus === "alreadyDue")
+    .reduce((sum, i) => sum + i.amount, 0)
+  const allCommittedItems = [...classifiedBills, ...classifiedDebts].map((i) => ({
+    name: i.name,
+    amount: i.amount,
+    date: i.occurrenceDate,
+    pastDue: i.itemStatus === "alreadyDue",
+  }))
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">
@@ -135,28 +145,20 @@ export default function SurvivalModeView({
             </div>
           )}
 
-          {alreadyDueTotal > 0 && (
-            <p className="rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
-              {formatMoney(alreadyDueTotal)} of what's reserved above is bills or debt payments already past their
-              due date that haven't been marked paid yet -- included in "Still due before payday" so Safe to Spend
-              doesn't overstate what's actually free to spend. See "Already due earlier this cycle" below.
+          {pastDueTotal > 0 && (
+            <p className="rounded-lg bg-warning px-4 py-3 text-sm text-warning-heading">
+              {formatMoney(pastDueTotal)} of "Still due before payday" above is already past due and unpaid -- it's
+              included once, not an extra deduction. Marked "Past due" in the list below.
             </p>
           )}
 
-          {(upcomingBills.length > 0 || upcomingDebts.length > 0 || alreadyDueBills.length > 0 || alreadyDueDebts.length > 0) && (
-            <div className="space-y-2">
-              <PaycheckItemBreakdown
-                title="Still to come before payday"
-                hint="These, plus anything already due below, are what's actually subtracted from Safe to Spend above."
-                items={[...upcomingBills, ...upcomingDebts]}
-                defaultOpen
-              />
-              <PaycheckItemBreakdown
-                title="Already due earlier this cycle"
-                hint="Due day already passed this month and not yet marked paid, so it's included in 'Still due before payday' above, not on top of it. Once you mark it paid, it'll drop off here."
-                items={[...alreadyDueBills, ...alreadyDueDebts]}
-              />
-            </div>
+          {allCommittedItems.length > 0 && (
+            <PaycheckItemBreakdown
+              title="Still due before payday"
+              hint='All unpaid bills and debt payments are included above once. Items marked "Past due" already passed their due date and still need to be paid -- they are not a second deduction.'
+              items={allCommittedItems}
+              defaultOpen
+            />
           )}
 
           {coveredDebts.length > 0 && (
