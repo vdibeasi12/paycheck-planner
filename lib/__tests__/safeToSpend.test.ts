@@ -130,14 +130,31 @@ console.log("Test 6 -- a recurring monthly bill projects to the right occurrence
   assertEqual(feb.billsDue, 100, "picked up again for the February cycle")
 }
 
-console.log("Test 7 -- a bill already due earlier this cycle isn't reserved a second time")
+console.log("Test 7 (updated Sep 9 2026) -- a bill already due earlier THIS cycle, still unpaid,")
+console.log("  IS reserved -- but one due before the last paycheck landed is not (that's the")
+console.log("  PRIOR cycle's responsibility, and reserving it again would double-count it)")
 {
-  // Due the 5th -- before "today" (Jan 10), so it's assumed already paid out
-  // of the PRIOR paycheck. Reserving it again here would double-count the
-  // same bill against two different paychecks.
+  // Due the 5th -- before "today" (Jan 10) but AFTER the last paycheck
+  // landed (Jan 3, projected backward from the Jan 17 next_pay_date). No
+  // paid_through recorded, so as far as the app can tell this is still
+  // unpaid real money that hasn't left the account yet. CRITICAL FIX (Sep 9
+  // 2026, Vince, reviewing a live screenshot): this test used to assert
+  // billsDue stayed 0 here, on the theory that anything already past its
+  // due date was "assumed already paid out of the PRIOR paycheck" -- but
+  // that's not what paid_through actually means, and the live bug this
+  // caught (a $97.98 "isn't reserved above" warning next to a Safe to Spend
+  // figure that hadn't reserved it) was Vince pointing out exactly this.
   const bill: STSBill = { amount: 250, due_date: 5 }
   const r = run([bill], [], 4000)
-  assertEqual(r.billsDue, 0, "an already-due bill isn't reserved again this cycle")
+  assertEqual(r.billsDue, 250, "due after the last paycheck, still unpaid -- reserved, not assumed paid")
+  assertEqual(r.safeToSpend, 3750, "4000 - 250 = 3750")
+
+  // Due the 2nd -- before the last paycheck (Jan 3) even landed, so it was
+  // already that PRIOR cycle's responsibility. Still correctly excluded:
+  // this fix widens the window back to the last paycheck, not indefinitely.
+  const priorCycleBill: STSBill = { amount: 90, due_date: 2 }
+  const r2 = run([priorCycleBill], [], 4000)
+  assertEqual(r2.billsDue, 0, "due before the last paycheck landed -- the prior cycle's obligation, not this one's")
 }
 
 console.log("Test 8 -- debt BALANCE is never used, only the required minimum payment")
@@ -323,7 +340,7 @@ console.log("  live figure, and the exact buggy figure it used to produce")
   // Checking $3,303.13 + Chime Checking $375.17), next paycheck Sep 16.
   const liveIncome: STSIncome[] = [{ amount: 2578.4, frequency: "biweekly", next_pay_date: "2026-09-16", income_type: null }]
   const liveBills: STSBill[] = [
-    { amount: 24.99, due_date: 1, frequency: "monthly" }, // BitDefender -- already due before today, excluded
+    { amount: 24.99, due_date: 1, frequency: "monthly" }, // BitDefender -- due Sep 1, before the Sep 2 last paycheck, so it's the PRIOR cycle's obligation and stays excluded even after the Sep 9 2026 fix (see Test 7)
     { amount: 8.99, due_date: 6, frequency: "monthly" }, // Netflix
     { amount: 20.0, due_date: 7, frequency: "monthly" }, // Anthropic
     { amount: 201.54, due_date: 11, frequency: "bimonthly", bimonthly_parity: "odd" }, // Addison Water

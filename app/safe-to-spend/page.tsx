@@ -93,11 +93,12 @@ export default async function SafeToSpendPage() {
   let classifiedBills: ReturnType<typeof classifyItemsAroundCycle<typeof bills[number]>> = []
   let classifiedDebts: ReturnType<typeof classifyItemsAroundCycle<typeof debts[number]>> = []
   if (safeToSpendResult.nextPaycheckDate) {
-    classifiedBills = classifyItemsAroundCycle(bills, todayISO, safeToSpendResult.nextPaycheckDate)
+    classifiedBills = classifyItemsAroundCycle(bills, todayISO, safeToSpendResult.nextPaycheckDate, safeToSpendResult.lastPaycheckDate)
     classifiedDebts = classifyItemsAroundCycle(
       spendableDebts.map((d) => ({ ...d, amount: d.minimum_payment })),
       todayISO,
-      safeToSpendResult.nextPaycheckDate
+      safeToSpendResult.nextPaycheckDate,
+      safeToSpendResult.lastPaycheckDate
     )
   }
 

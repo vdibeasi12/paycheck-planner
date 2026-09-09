@@ -385,20 +385,38 @@ export type ItemStatus = "alreadyDue" | "upcoming"
 export type ClassifiedItem<T> = T & { occurrenceDate: string; itemStatus: ItemStatus }
 
 // Splits bills/debts into "already due earlier this cycle" (this month's
-// occurrence falls on or before today, so it's assumed already paid out of
-// a previous paycheck) vs "due before your next paycheck" (still to come,
-// and what Safe-to-Spend's billsDue/debtsDue actually subtracts). Built so
-// a big bill like a mortgage that quietly drops out of the subtraction --
-// because its due day already passed this month -- doesn't just vanish
-// with no explanation; the UI can show both lists instead of just a total.
+// occurrence falls on or before today) vs "due before your next paycheck"
+// (still to come). Built so a big bill like a mortgage that quietly drops
+// out of the subtraction -- because its due day already passed this month
+// -- doesn't just vanish with no explanation; the UI can show both lists
+// instead of just a total.
+//
+// CRITICAL FIX (Sep 9 2026, Vince): now takes the actual last-paycheck date
+// as its scan anchor instead of always scanning back to the start of the
+// calendar month -- that calendar-month scan could disagree with the
+// paycheck-cycle window computeSafeToSpend/computeDebtPayoffAffordability
+// use (see alreadyDueSinceLastPaycheck above), which is exactly what
+// produced the live contradiction ("$97.98 isn't reserved above" while the
+// headline number didn't reserve it either). Pass
+// SafeToSpendResult.lastPaycheckDate here so this breakdown always agrees
+// with what's actually subtracted. Falls back to the old calendar-month
+// scan only when no last-paycheck date is available yet (e.g. a brand new
+// income row with no past occurrence on record) -- same shape as before
+// this fix, just no longer the normal case.
 export function classifyItemsAroundCycle<T extends { amount: number; due_date: number | null }>(
   rows: T[],
   todayISO: string,
-  nextPaycheckISO: string
+  nextPaycheckISO: string,
+  lastPaycheckISO?: string | null
 ): ClassifiedItem<T>[] {
-  const today = new Date(todayISO + "T00:00:00")
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-  const scanFromISO = toISODate(addDays(monthStart, -1))
+  let scanFromISO: string
+  if (lastPaycheckISO) {
+    scanFromISO = lastPaycheckISO
+  } else {
+    const today = new Date(todayISO + "T00:00:00")
+    const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
+    scanFromISO = toISODate(addDays(monthStart, -1))
+  }
   const items = itemsDueInWindow(rows, scanFromISO, nextPaycheckISO)
   return items.map((it) => ({
     ...it,
@@ -481,6 +499,58 @@ export function sumDueInWindow(
   toISO: string
 ): number {
   return itemsDueInWindow(rows, fromISO, toISO).reduce((sum, r) => sum + (Number(r.amount) || 0), 0)
+}
+
+// Real, currently-outstanding obligations: due after the last paycheck that
+// actually landed, on or before today, and not yet marked paid (paid_through
+// already excludes anything settled -- see itemsDueInWindow). This is
+// exactly the "assumed already paid from your last paycheck" bucket the
+// Dashboard/Survival Mode/Safe to Spend warn about.
+//
+// CRITICAL FIX (Sep 9 2026, Vince, reviewing a live screenshot): "the app
+// says $97.98 in bills already past their due date isn't reserved above...
+// that's confusing, the dashboard is effectively saying [a higher number]
+// but the real Safe to Spend is $97.98 lower." That assumption -- an item
+// whose due date passed is "probably already paid, so don't reserve it
+// again" -- doesn't hold once paid_through is the actual source of truth
+// for "was this paid": anything still showing up here has NOT been marked
+// paid, so it's still owed and hasn't left the account. computeSafeToSpend
+// now widens its own due-window to include this instead of just warning
+// about it, and computeDebtPayoffAffordability subtracts it from today's
+// real cash before ever comparing to a future paycheck cycle -- both read
+// this one function so they can't drift apart on what "already due" means.
+export function alreadyDueSinceLastPaycheck(input: {
+  income: CycleIncome[]
+  bills: CycleBill[]
+  debts: CycleDebt[]
+  today?: Date
+}): number {
+  const today = input.today ?? new Date()
+  const todayStr = toISODate(today)
+  if (input.income.length === 0) return 0
+
+  // Same "scan back 2 months, that's plenty" convention projectPaycheckCycles
+  // uses to find the most recent past paycheck.
+  const scanStartIdx = today.getFullYear() * 12 + today.getMonth() - 2
+  const scanStartYear = Math.floor(scanStartIdx / 12)
+  const scanStartMonth = ((scanStartIdx % 12) + 12) % 12
+  const occurrences = projectIncomeOccurrences(input.income, scanStartYear, scanStartMonth, 6)
+  const past = occurrences.filter((o) => o.date <= todayStr)
+  if (past.length === 0) return 0
+  const lastPaycheckDate = past[past.length - 1].date
+
+  const billsDue = sumDueInWindow(input.bills, lastPaycheckDate, todayStr)
+  const debtsDue = sumDueInWindow(
+    excludeTransferCoveredDebts(input.debts, input.income).map((d) => ({
+      amount: d.minimum_payment,
+      due_date: d.due_date,
+      grace_period_days: d.grace_period_days,
+      paid_through: d.paid_through,
+    })),
+    lastPaycheckDate,
+    todayStr
+  )
+  return Math.round((billsDue + debtsDue) * 100) / 100
 }
 
 // Required contribution toward each active goal, expressed as a per-paycheck

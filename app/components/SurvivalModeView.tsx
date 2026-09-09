@@ -67,11 +67,15 @@ export default function SurvivalModeView({
   const alreadyDueBills = classifiedBills.filter((b) => b.itemStatus === "alreadyDue").map((b) => ({ name: b.name, amount: b.amount, date: b.occurrenceDate }))
   const upcomingDebts = classifiedDebts.filter((d) => d.itemStatus === "upcoming").map((d) => ({ name: d.name, amount: d.amount, date: d.occurrenceDate }))
   const alreadyDueDebts = classifiedDebts.filter((d) => d.itemStatus === "alreadyDue").map((d) => ({ name: d.name, amount: d.amount, date: d.occurrenceDate }))
-  // See PaycheckCountdown.tsx's matching comment -- Sep 4 2026, Vince confirmed
-  // his own live "already due" trio (BitDefender/DiBeasi/Meijer, $124.99) was
-  // genuinely still unpaid, not yet reflected in his entered balance. Math
-  // stays as-is (an unconfirmed item could just as easily have cleared
-  // already); the risk now surfaces plainly instead of hiding in a collapsed list.
+  // See PaycheckCountdown.tsx's matching comment -- CRITICAL FIX (Sep 9 2026,
+  // Vince, reviewing a live screenshot): this used to be excluded from
+  // "Safe to spend" above and only shown as a warning ("isn't reserved
+  // above... your real Safe to Spend is lower than shown"), which was a
+  // self-contradiction -- these items are unpaid (paid_through already
+  // excludes anything actually marked paid), so the money hasn't left yet
+  // and Safe to Spend above now reserves it directly (see
+  // lib/safeToSpend.ts). This total is purely informational now: it's
+  // already part of "Still due before payday" above, not on top of it.
   const alreadyDueTotal = [...alreadyDueBills, ...alreadyDueDebts].reduce((sum, i) => sum + i.amount, 0)
 
   return (
@@ -133,9 +137,9 @@ export default function SurvivalModeView({
 
           {alreadyDueTotal > 0 && (
             <p className="rounded-lg bg-amber-500/10 px-4 py-3 text-sm text-amber-300">
-              {formatMoney(alreadyDueTotal)} in bills already past their due date isn't reserved above -- assumed
-              already paid from your last paycheck. If any of it hasn't actually gone out yet, your real Safe to
-              Spend is {formatMoney(alreadyDueTotal)} lower than shown. See "Already due earlier this cycle" below.
+              {formatMoney(alreadyDueTotal)} of what's reserved above is bills or debt payments already past their
+              due date that haven't been marked paid yet -- included in "Still due before payday" so Safe to Spend
+              doesn't overstate what's actually free to spend. See "Already due earlier this cycle" below.
             </p>
           )}
 
@@ -143,13 +147,13 @@ export default function SurvivalModeView({
             <div className="space-y-2">
               <PaycheckItemBreakdown
                 title="Still to come before payday"
-                hint="These are what's actually subtracted from Safe to Spend above."
+                hint="These, plus anything already due below, are what's actually subtracted from Safe to Spend above."
                 items={[...upcomingBills, ...upcomingDebts]}
                 defaultOpen
               />
               <PaycheckItemBreakdown
                 title="Already due earlier this cycle"
-                hint="Due day already passed this month, so this is assumed already paid from your last paycheck -- not subtracted from the number above. If it hasn't actually gone out yet, your real Safe to Spend is lower than shown."
+                hint="Due day already passed this month and not yet marked paid, so it's included in 'Still due before payday' above, not on top of it. Once you mark it paid, it'll drop off here."
                 items={[...alreadyDueBills, ...alreadyDueDebts]}
               />
             </div>

@@ -64,13 +64,20 @@ export default function PaycheckCountdown({
   // earlier-cycle items are not already reflected in the current balance,
   // Safe to Spend is too high." Confirmed true for his own live BitDefender/
   // DiBeasi/Meijer trio -- $124.99 still genuinely unpaid, not yet reflected
-  // in his entered balance. This app has no live bank feed, so "already due"
-  // items are only excluded because we ASSUME the balance you typed in
-  // already accounts for them -- there's no way to verify that from here.
-  // Decision (Sep 4 2026, Vince): don't change the math (an item you
-  // haven't confirmed paid could just as easily have already cleared), but
-  // stop burying the risk inside a collapsed list -- surface it plainly,
-  // right under the headline number, whenever it's nonzero.
+  // in his entered balance.
+  //
+  // CRITICAL FIX (Sep 9 2026, Vince, reviewing a live screenshot): the Sep 4
+  // decision above was to leave these excluded from Safe to Spend and only
+  // warn about them ("isn't reserved above... your real Safe to Spend is
+  // lower than shown") on the theory that an unconfirmed item could just as
+  // easily have already cleared. Revisited: paid_through is this app's real
+  // source of truth for "was this paid" (set by "Mark as paid" in Bills &
+  // Debts), and anything reaching this list has NOT been marked paid -- so
+  // that theory doesn't hold, and the warning was describing a real
+  // understatement rather than a hypothetical one. Safe to Spend now
+  // reserves this directly (lib/safeToSpend.ts widens its own due-window to
+  // include it), so this total is informational: it's already included in
+  // the number above, not a separate risk sitting outside it.
   const alreadyDueTotal = alreadyDueItems.reduce((sum, i) => sum + i.amount, 0)
 
   if (!result.hasIncome) {
@@ -129,9 +136,8 @@ export default function PaycheckCountdown({
 
       {alreadyDueTotal > 0 && (
         <p className="mt-2 rounded-lg bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
-          {formatMoney(alreadyDueTotal)} in bills already past their due date isn't reserved above -- assumed
-          already paid from your last paycheck. If any of it hasn't actually gone out yet, your real Safe to
-          Spend is {formatMoney(alreadyDueTotal)} lower than shown. See "Already due earlier this cycle" below.
+          {formatMoney(alreadyDueTotal)} of what's reserved above is bills or debt payments already past their due
+          date that haven't been marked paid yet. See "Already due earlier this cycle" below.
         </p>
       )}
 
@@ -212,13 +218,13 @@ export default function PaycheckCountdown({
         <div className="mt-4 space-y-2">
           <PaycheckItemBreakdown
             title="What's counted above"
-            hint="These are what's actually subtracted from Safe to Spend."
+            hint="These, plus anything already due below, are what's actually subtracted from Safe to Spend."
             items={upcomingItems}
             defaultOpen
           />
           <PaycheckItemBreakdown
             title="Already due earlier this cycle"
-            hint="Due day already passed this month, so this is assumed already paid from your last paycheck -- not subtracted above. If it hasn't actually gone out yet, your real Safe to Spend is lower than shown."
+            hint="Due day already passed this month and not yet marked paid, so it's included in what's subtracted above, not on top of it. Once you mark it paid, it'll drop off here."
             items={alreadyDueItems}
           />
         </div>

@@ -17,7 +17,14 @@
 // already subtracted out, to answer "if I send this much to debt today,
 // does the rest of my plan still hold."
 
-import { projectPaycheckCycles, type CycleIncome, type CycleBill, type CycleDebt, type CycleGoal } from "./paycheckCycles"
+import {
+  projectPaycheckCycles,
+  alreadyDueSinceLastPaycheck,
+  type CycleIncome,
+  type CycleBill,
+  type CycleDebt,
+  type CycleGoal,
+} from "./paycheckCycles"
 
 // A deliberately modest floor, not a claim about what anyone SHOULD keep on
 // hand -- it just keeps a payoff recommendation from being calculated down
@@ -36,11 +43,13 @@ export type DebtPayoffAffordability = {
   reserve: number
   // Where in the forecast horizon the cushion is thinnest -- the one real
   // cycle a payoff actually has to respect, named so the number isn't a
-  // black box. Null in two cases, both meaning "today's real cash is the
-  // binding constraint, not a future paycheck cycle": there's no
+  // black box. Null in two cases, both meaning "today's real cash (net of
+  // anything already due and unpaid -- see alreadyDueSinceLastPaycheck) is
+  // the binding constraint, not a future paycheck cycle": there's no
   // projectable plan yet (no income/pay date), or every projected cycle
   // ahead is actually healthier than what's on hand right now. Either way
-  // maxSafeToPayoff falls back to today's real cash minus the reserve.
+  // maxSafeToPayoff falls back to that today-net-of-already-due figure
+  // minus the reserve.
   tightestDate: string | null
   tightestRunningBalance: number
 }
@@ -68,6 +77,27 @@ export function computeDebtPayoffAffordability(input: {
 }): DebtPayoffAffordability {
   const reserve = input.reserve ?? DEFAULT_PAYOFF_RESERVE
 
+  // CRITICAL FIX (Sep 9 2026, Vince, reviewing a live screenshot): "Extra
+  // Debt Payment... appears to equal current balance minus $150 [the
+  // reserve]... if the past-due bills are still unpaid, allowing a payment
+  // that big would be dangerous because those bills still need to be
+  // paid." Previously the flat `reserve` was the ONLY thing ever subtracted
+  // from today's real cash on the "today is the binding constraint" path
+  // below -- a bill or debt already due but not yet paid (no paid_through
+  // recorded) just sat there uncounted, since it isn't visible to this
+  // function unless a future cycle happens to be tighter than today.
+  // alreadyDueSinceLastPaycheck is the exact same reservation
+  // computeSafeToSpend now applies, so today's real "free to send to debt"
+  // starting point (todayCheckpoint) already has it removed, and this can
+  // never disagree with what Safe to Spend shows for the same reason.
+  const alreadyDue = alreadyDueSinceLastPaycheck({
+    income: input.income,
+    bills: input.bills,
+    debts: input.debts,
+    today: input.today,
+  })
+  const todayCheckpoint = input.startingCash - alreadyDue
+
   const cycles = projectPaycheckCycles({
     income: input.income,
     bills: input.bills,
@@ -79,10 +109,10 @@ export function computeDebtPayoffAffordability(input: {
 
   if (cycles.length === 0) {
     return {
-      maxSafeToPayoff: input.startingCash - reserve,
+      maxSafeToPayoff: todayCheckpoint - reserve,
       reserve,
       tightestDate: null,
-      tightestRunningBalance: input.startingCash,
+      tightestRunningBalance: todayCheckpoint,
     }
   }
 
@@ -100,18 +130,19 @@ export function computeDebtPayoffAffordability(input: {
   // relief ever arrives. Confirmed live: Vince's real Sep 2026 numbers
   // (startingCash $3,678.30) produced a $5,159.67 "safe to pay off"
   // recommendation under the old code -- more than a thousand dollars he
-  // doesn't have yet. Today's actual cash on hand is now itself a
-  // checkpoint in the comparison, same as any future cycle.
+  // doesn't have yet. Today's actual cash on hand -- now todayCheckpoint,
+  // itself already net of any already-due unpaid bill -- is a checkpoint in
+  // the comparison, same as any future cycle.
   const tightestCycle = cycles.reduce((worst, c) => (c.runningBalance < worst.runningBalance ? c : worst), cycles[0])
-  if (input.startingCash <= tightestCycle.runningBalance) {
+  if (todayCheckpoint <= tightestCycle.runningBalance) {
     // Nothing projected ahead is actually tighter than what's on hand right
-    // now -- today's real balance is the binding constraint, not a future
-    // paycheck cycle.
+    // now (net of anything already due and unpaid) -- today's real balance
+    // is the binding constraint, not a future paycheck cycle.
     return {
-      maxSafeToPayoff: input.startingCash - reserve,
+      maxSafeToPayoff: todayCheckpoint - reserve,
       reserve,
       tightestDate: null,
-      tightestRunningBalance: input.startingCash,
+      tightestRunningBalance: todayCheckpoint,
     }
   }
   return {

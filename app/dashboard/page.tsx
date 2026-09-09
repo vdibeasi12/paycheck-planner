@@ -203,11 +203,12 @@ export default async function DashboardPage() {
   let classifiedDebts: ReturnType<typeof classifyItemsAroundCycle<typeof debts[number]>> = []
   if (safeToSpendResult.nextPaycheckDate) {
     const todayISO = toISODate(new Date())
-    classifiedBills = classifyItemsAroundCycle(bills, todayISO, safeToSpendResult.nextPaycheckDate)
+    classifiedBills = classifyItemsAroundCycle(bills, todayISO, safeToSpendResult.nextPaycheckDate, safeToSpendResult.lastPaycheckDate)
     classifiedDebts = classifyItemsAroundCycle(
       spendableDebts.map((d) => ({ ...d, amount: d.minimum_payment })),
       todayISO,
-      safeToSpendResult.nextPaycheckDate
+      safeToSpendResult.nextPaycheckDate,
+      safeToSpendResult.lastPaycheckDate
     )
   }
 

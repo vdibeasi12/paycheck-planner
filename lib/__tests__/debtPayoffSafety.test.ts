@@ -17,6 +17,7 @@
 
 import { type CycleBill, type CycleDebt, type CycleIncome, type CycleGoal } from "../paycheckCycles"
 import { computeDebtPayoffAffordability, DEFAULT_PAYOFF_RESERVE } from "../debtPayoffSafety"
+import { computeSafeToSpend, type STSBill } from "../safeToSpend"
 
 let passed = 0
 let failed = 0
@@ -93,12 +94,21 @@ console.log("  same total worked out by hand in chat")
 
 console.log("\nTest 2 -- with nothing paid off yet, and Vince's plan genuinely healthy enough")
 console.log("  that every projected cycle comes back stronger than today's actual cash,")
-console.log("  TODAY's balance is the binding constraint, not a future cycle")
+console.log("  TODAY's balance (net of Meijer Mastercard's $50, due the 4th -- today -- and")
+console.log("  still unpaid) is the binding constraint, not a future cycle")
 {
+  // CRITICAL FIX (Sep 9 2026, Vince, reviewing a live screenshot): Meijer
+  // Mastercard's $50 minimum payment is due the 4th -- "today" in this
+  // fixture -- and has no paid_through recorded, so it's still genuinely
+  // unpaid. Previously this $50 sat uncounted whenever today turned out to
+  // be the binding constraint (as it is here): only the flat $150 reserve
+  // ever came out of startingCash. tightestRunningBalance is now
+  // startingCash minus that $50 (alreadyDueSinceLastPaycheck), not raw
+  // startingCash.
   const result = computeDebtPayoffAffordability({ startingCash, income, bills, debts: allDebts, goals, today })
   assertEqual(result.reserve, DEFAULT_PAYOFF_RESERVE, "default reserve is $150")
   assertEqual(result.maxSafeToPayoff, result.tightestRunningBalance - result.reserve, "maxSafeToPayoff is tightestRunningBalance minus reserve")
-  assertEqual(result.tightestRunningBalance, startingCash, "today's real balance -- not a future cycle -- is the tightest point")
+  assertEqual(result.tightestRunningBalance, startingCash - 50, "3,678.30 - 50 (Meijer, due today, unpaid) = 3,628.30 is the tightest point, not raw today's balance")
   assertTrue(result.tightestDate === null, "null correctly means 'today,' not a black box -- no future cycle is actually tighter")
   console.log(`  (tightest point: ${result.tightestRunningBalance} on ${result.tightestDate}, maxSafeToPayoff ${result.maxSafeToPayoff})`)
 }
@@ -114,12 +124,16 @@ console.log("  what's actually in the bank today, no matter how healthy future c
   // absorbs it). The old code compared only cycles[].runningBalance and
   // recommended $5,159.67 -- more than a thousand dollars Vince doesn't
   // have yet. The fix floors the recommendation at today's real cash.
+  //
+  // Sep 9 2026 update: "today's real cash" is now net of Meijer
+  // Mastercard's still-unpaid $50 due today too (see Test 2) -- so the
+  // floor is 3,478.30, not 3,528.30.
   const result = computeDebtPayoffAffordability({ startingCash, income, bills, debts: allDebts, goals, today })
   assertTrue(
     result.maxSafeToPayoff <= startingCash,
     `maxSafeToPayoff (${result.maxSafeToPayoff}) must never exceed today's real starting cash (${startingCash})`
   )
-  assertEqual(result.maxSafeToPayoff, startingCash - DEFAULT_PAYOFF_RESERVE, "3,678.30 - 150 = 3,528.30, not the old buggy 5,159.67")
+  assertEqual(result.maxSafeToPayoff, startingCash - 50 - DEFAULT_PAYOFF_RESERVE, "3,678.30 - 50 (already-due, unpaid) - 150 (reserve) = 3,478.30, not the old buggy 5,159.67 (or the still-too-high 3,528.30)")
 }
 
 console.log("\nTest 3 -- paying off the real credit-card selection ($1,129.85) is actually safe:")
@@ -233,6 +247,55 @@ console.log("  regardless of horizon (see Test 2), which would hide this exact b
     shortHorizonWithoutDebt.maxSafeToPayoff,
     shortHorizon.maxSafeToPayoff,
     "at a 3-cycle horizon (the old, too-short default), removing the debt changes NOTHING -- it already wasn't being seen, which is exactly the bug the 4-cycle default fixes"
+  )
+}
+
+console.log("\nTest 8 (regression, Sep 9 2026) -- Safe to Spend and Extra Debt Payment can never")
+console.log("  contradict each other about a past-due unpaid bill again: reproduces Vince's live")
+console.log("  screenshot shape -- a headline Safe to Spend number that hadn't reserved a")
+console.log("  past-due bill, sitting right next to an Extra Debt Payment that also hadn't")
+{
+  // Synthetic version of the exact live bug: a bill due after the last
+  // paycheck landed but before today (genuinely unpaid, no paid_through),
+  // with a healthy-enough plan that "today" is Extra Debt Payment's binding
+  // constraint (same shape as Test 2). Before the fix: Safe to Spend showed
+  // startingCash - upcomingBills (not reserving the past-due bill at all,
+  // just warning about it) while Extra Debt Payment showed
+  // startingCash - reserve (also not reserving it) -- two different numbers,
+  // both wrong in the same direction, that looked independently plausible
+  // right next to each other on the same page.
+  const pastDueUnpaid: STSBill = { amount: 97.98, due_date: 3 } // due the 3rd, after the Sep 2 last paycheck, before today (Sep 4)
+  const upcomingBill: STSBill = { amount: 20, due_date: 14 }
+
+  const sts = computeSafeToSpend({
+    income,
+    bills: [pastDueUnpaid, upcomingBill],
+    debts: [],
+    goals: [],
+    today,
+  })
+  const affordability = computeDebtPayoffAffordability({
+    startingCash,
+    income,
+    bills: [pastDueUnpaid, upcomingBill],
+    debts: [],
+    goals: [],
+    today,
+  })
+
+  assertEqual(sts.billsDue, 117.98, "Safe to Spend reserves the past-due unpaid bill AND the upcoming one (97.98 + 20)")
+  assertEqual(
+    startingCash - affordability.maxSafeToPayoff - DEFAULT_PAYOFF_RESERVE,
+    97.98,
+    "Extra Debt Payment's todayCheckpoint is also down by exactly the past-due unpaid bill (97.98), not zero"
+  )
+  // The actual "no contradiction" guarantee Vince asked for: whatever Safe
+  // to Spend decides is already-committed-but-unpaid, Extra Debt Payment
+  // must agree is unavailable too -- same helper function underneath both.
+  assertEqual(
+    startingCash - (affordability.maxSafeToPayoff + DEFAULT_PAYOFF_RESERVE),
+    pastDueUnpaid.amount,
+    "the two engines agree on exactly how much is already committed-but-unpaid -- they can't disagree by construction"
   )
 }
 

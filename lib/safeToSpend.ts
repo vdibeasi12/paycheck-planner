@@ -148,7 +148,19 @@ export function computeSafeToSpend(input: {
 
   const nextPaycheckDate = future[0].date
 
-  const billsDue = sumDueInWindow(input.bills, todayStr, nextPaycheckDate)
+  // CRITICAL FIX (Sep 9 2026, Vince, reviewing a live screenshot): this
+  // window used to start at `todayStr`, so a bill/debt already due earlier
+  // in the current cycle -- before today, after the last paycheck landed --
+  // fell outside it and was never reserved, only flagged with a warning
+  // ("$97.98 isn't reserved above... your real Safe to Spend is $97.98
+  // lower"). That's a self-contradiction: paid_through is this app's actual
+  // source of truth for "was this paid," and anything reaching this point
+  // hasn't been marked paid, so the money hasn't left yet and Safe to Spend
+  // was overstating what's actually free to spend. Starting the window at
+  // `lastPaycheckDate` instead -- same anchor projectPaycheckCycles already
+  // used for Paycheck Shield/Extra Debt Payment -- reserves it directly
+  // instead of just warning about it, and keeps this in sync with those.
+  const billsDue = sumDueInWindow(input.bills, lastPaycheckDate, nextPaycheckDate)
   const debtsDue = sumDueInWindow(
     excludeTransferCoveredDebts(input.debts, input.income).map((d) => ({
       amount: d.minimum_payment,
@@ -156,7 +168,7 @@ export function computeSafeToSpend(input: {
       grace_period_days: d.grace_period_days,
       paid_through: d.paid_through,
     })),
-    todayStr,
+    lastPaycheckDate,
     nextPaycheckDate
   )
   const goalContribution = goalContributionRate(input.goals, input.income, todayStr)

@@ -41,8 +41,8 @@ export default function ExtraDebtPaymentCard({ affordability }: { affordability:
       </p>
       <p className="mt-1 text-sm text-muted">
         {affordability.tightestDate
-          ? `Keeps you covered through ${formatDate(affordability.tightestDate)}, your tightest upcoming cycle`
-          : "Today's balance is the binding constraint, not a future paycheck"}
+          ? `Keeps you covered through ${formatDate(affordability.tightestDate)}, your tightest upcoming cycle, after a ${formatMoney(affordability.reserve)} safety cushion`
+          : `Today's balance is the binding constraint, not a future paycheck, after a ${formatMoney(affordability.reserve)} safety cushion`}
       </p>
 
       {!positive && (
