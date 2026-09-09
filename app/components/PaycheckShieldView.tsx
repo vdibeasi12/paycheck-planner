@@ -16,7 +16,7 @@ import StrengthenPaycheckPanel from "./StrengthenPaycheckPanel"
 const CAPACITY_BADGE: Record<CapacityLevel, { dot: string; text: string; label: string }> = {
   very_tight: { dot: "bg-red-400", text: "text-red-400", label: "Very Tight" },
   moderate: { dot: "bg-amber-400", text: "text-amber-400", label: "Moderate" },
-  healthy: { dot: "bg-emerald-400", text: "text-emerald-400", label: "Healthy" },
+  healthy: { dot: "bg-brand", text: "text-brand", label: "Healthy" },
 }
 
 type BillRow = { id: string; name: string; amount: number; due_date: number | null }
@@ -41,7 +41,7 @@ function formatDate(iso: string): string {
 }
 
 function strengthLabel(score: number): { label: string; className: string } {
-  if (score >= 80) return { label: "STRONG", className: "text-emerald-400" }
+  if (score >= 80) return { label: "STRONG", className: "text-brand" }
   if (score >= 50) return { label: "OK", className: "text-amber-400" }
   return { label: "VULNERABLE", className: "text-red-400" }
 }
@@ -59,8 +59,8 @@ export default function PaycheckShieldView({ result, bills, debts, income }: Pro
     return (
       <div className="max-w-3xl mx-auto px-6 py-10">
         <div className="flex items-center gap-3">
-          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/15 border border-emerald-500/30">
-            <Shield size={22} className="text-emerald-400" />
+          <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-light border border-brand-light">
+            <Shield size={22} className="text-brand" />
           </span>
           <div>
             <h1 className="text-2xl font-bold text-primary">Paycheck Shield</h1>
@@ -80,8 +80,8 @@ export default function PaycheckShieldView({ result, bills, debts, income }: Pro
   return (
     <div className="max-w-3xl mx-auto px-6 py-10 space-y-8">
       <div className="flex items-center gap-3">
-        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-emerald-500/15 border border-emerald-500/30">
-          <Shield size={22} className="text-emerald-400" />
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-brand-light border border-brand-light">
+          <Shield size={22} className="text-brand" />
         </span>
         <div>
           <h1 className="text-2xl font-bold text-primary">Paycheck Shield</h1>
@@ -91,9 +91,9 @@ export default function PaycheckShieldView({ result, bills, debts, income }: Pro
 
       <div className="rounded-2xl border border-default bg-gradient-to-br from-surface to-surface-alt p-6 shadow-lg">
         <div className="flex items-end gap-3">
-          <span className="text-5xl font-bold text-primary">{result.strengthScore}</span>
+          <span className="text-5xl font-[700] text-primary">{result.strengthScore}</span>
           <span className="pb-1 text-muted">/ 100</span>
-          <span className={`pb-1.5 ml-1 text-sm font-bold tracking-wide ${strength.className}`}>{strength.label}</span>
+          <span className={`pb-1.5 ml-1 text-sm font-[600] tracking-wide ${strength.className}`}>{strength.label}</span>
         </div>
         <p className="mt-2 text-sm text-muted">
           Based on how {result.scenarioResults.length} common real-life scenarios play out against your next{" "}
@@ -103,10 +103,10 @@ export default function PaycheckShieldView({ result, bills, debts, income }: Pro
       </div>
 
       {result.weakestCycle && (
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/10 p-6">
-          <div className="flex items-center gap-2 text-amber-300">
+        <div className="rounded-2xl border border-warning-border bg-warning p-6">
+          <div className="flex items-center gap-2 text-warning-heading">
             <TrendingDown size={18} />
-            <h2 className="text-sm font-semibold uppercase tracking-wide">Your weak point</h2>
+            <h2 className="text-sm font-[600] uppercase tracking-wide">Your weak point</h2>
           </div>
           <p className="mt-2 text-primary">
             Your {formatDate(result.weakestCycle.date)} paycheck has the least room -- expected{" "}
@@ -114,7 +114,7 @@ export default function PaycheckShieldView({ result, bills, debts, income }: Pro
               result.weakestCycle.billsDue + result.weakestCycle.debtsDue + result.weakestCycle.goalContribution
             )}{" "}
             already committed, leaving{" "}
-            <span className={result.weakestCycle.runningBalance >= 0 ? "text-emerald-300" : "text-red-300"}>
+            <span className={result.weakestCycle.runningBalance >= 0 ? "text-brand" : "text-red-300"}>
               {formatMoney(result.weakestCycle.runningBalance)}
             </span>{" "}
             in your account by then -- this paycheck's own math plus whatever's really left over from before it.
@@ -123,7 +123,7 @@ export default function PaycheckShieldView({ result, bills, debts, income }: Pro
       )}
 
       <div className="rounded-2xl border border-default bg-surface p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted mb-3">Upcoming paychecks</h2>
+        <h2 className="text-sm font-[600] uppercase tracking-wide text-muted mb-3">Upcoming paychecks</h2>
         <div className="space-y-1.5">
           {upcomingCycles.map((c) => {
             const isWeakest = result.weakestCycle && c.date === result.weakestCycle.date
@@ -137,15 +137,15 @@ export default function PaycheckShieldView({ result, bills, debts, income }: Pro
                   isWeakest ? "bg-amber-500/10 border border-amber-500/20" : ""
                 }`}
               >
-                <span className="text-secondary w-20">{formatDate(c.date)}</span>
+                <span className="text-emphasis font-medium w-20">{formatDate(c.date)}</span>
                 <span className="flex items-center gap-1.5 w-28">
                   <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} />
-                  <span className={`text-xs font-semibold ${badge.text}`}>
+                  <span className={`text-xs font-[600] ${badge.text}`}>
                     {badge.label} &middot; {capacity.capacityPct}%
                   </span>
                 </span>
-                <span className="text-muted flex-1 text-right pr-4">-{formatMoney(committed)} committed</span>
-                <span className={`font-semibold w-24 text-right ${c.cushion >= 0 ? "text-emerald-400" : "text-red-400"}`}>
+                <span className="text-secondary flex-1 text-right pr-4">-{formatMoney(committed)} committed</span>
+                <span className={`w-24 text-right ${c.cushion >= 0 ? "text-brand font-[600]" : "text-red-400 font-semibold"}`}>
                   {formatMoney(c.cushion)}
                 </span>
               </div>

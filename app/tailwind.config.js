@@ -26,6 +26,18 @@ module.exports = {
         primary: "var(--color-text-primary)",
         secondary: "var(--color-text-secondary)",
         muted: "var(--color-text-muted)",
+        emphasis: "var(--color-text-emphasis)",
+        // Kept in sync with the root tailwind.config.js -- see that file.
+        brand: {
+          DEFAULT: "var(--color-brand)",
+          light: "var(--color-brand-light)",
+          dark: "var(--color-brand-dark)",
+        },
+        warning: {
+          DEFAULT: "var(--color-warning-bg)",
+          border: "var(--color-warning-border)",
+          heading: "var(--color-warning-heading)",
+        },
       },
       borderColor: {
         default: "var(--color-border)",

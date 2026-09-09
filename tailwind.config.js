@@ -63,6 +63,22 @@ module.exports = {
         primary: "var(--color-text-primary)",
         secondary: "var(--color-text-secondary)",
         muted: "var(--color-text-muted)",
+        emphasis: "var(--color-text-emphasis)",
+        // Brand green accent (Sep 9 2026, Vince: pin the "positive/active"
+        // color everywhere instead of raw emerald-400/green-500 sprinkled
+        // per-component) and the weak-point warning card's colors -- both
+        // theme-aware via the CSS custom properties above, dark theme's
+        // values equal to what those spots already rendered before this.
+        brand: {
+          DEFAULT: "var(--color-brand)",
+          light: "var(--color-brand-light)",
+          dark: "var(--color-brand-dark)",
+        },
+        warning: {
+          DEFAULT: "var(--color-warning-bg)",
+          border: "var(--color-warning-border)",
+          heading: "var(--color-warning-heading)",
+        },
       },
       borderColor: {
         default: "var(--color-border)",

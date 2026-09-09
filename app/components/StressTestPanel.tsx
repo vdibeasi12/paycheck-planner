@@ -6,7 +6,7 @@ type Props = {
 }
 
 const VERDICT_META: Record<ScenarioVerdict, { label: string; className: string; Icon: typeof CheckCircle2 }> = {
-  survives: { label: "Survives", className: "text-emerald-400", Icon: CheckCircle2 },
+  survives: { label: "Survives", className: "text-brand", Icon: CheckCircle2 },
   tight: { label: "Tight", className: "text-amber-400", Icon: AlertTriangle },
   breaks: { label: "Plan breaks", className: "text-red-400", Icon: XCircle },
 }
@@ -21,7 +21,7 @@ const VERDICT_META: Record<ScenarioVerdict, { label: string; className: string; 
 export default function StressTestPanel({ scenarioResults }: Props) {
   return (
     <div className="rounded-2xl border border-default bg-surface p-6">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted mb-1">Stress test</h2>
+      <h2 className="text-sm font-[600] uppercase tracking-wide text-muted mb-1">Stress test</h2>
       <p className="text-sm text-muted mb-4">How your plan holds up against common surprises.</p>
       <div className="space-y-1.5">
         {scenarioResults.map((r) => {

@@ -1,5 +1,5 @@
 import "./globals.css"
-import { Plus_Jakarta_Sans } from "next/font/google"
+import { Inter } from "next/font/google"
 import Link from "next/link"
 import Logo from "./components/Logo"
 import Footer from "./components/Footer"
@@ -22,12 +22,16 @@ import type { LocaleCode, CurrencyCode } from "@/lib/i18n/config"
 import type { Metadata, Viewport } from "next"
 import { Analytics } from "@vercel/analytics/next"
 
-// Vince's pick for a "premium fintech" feel (Aug 23 2026 homepage redesign) --
-// a touch more personality than Inter, still reads as professional. Loaded
-// once here and applied via CSS variable so every page picks it up automatically;
-// falls back to the system stack (see globals.css) if the Google Fonts
-// request is ever blocked (e.g. a restrictive corporate network).
-const plusJakarta = Plus_Jakarta_Sans({
+// REVISED Sep 9 2026, Vince: "use Inter throughout the application" (part of
+// the light-mode contrast/typography pass) -- swapped from Plus Jakarta Sans
+// (the Aug 23 2026 homepage-redesign pick). Same loading mechanism: loaded
+// once here and applied via CSS variable so every page picks it up
+// automatically; falls back to the system stack (see globals.css) if the
+// Google Fonts request is ever blocked (e.g. a restrictive corporate
+// network). Weight 450 isn't a real variable-font stop Google serves for
+// static Inter, so body text uses 400 with the font's own slightly heavier
+// default metrics rather than a synthetic in-between weight.
+const inter = Inter({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700", "800"],
   variable: "--font-sans",
@@ -169,7 +173,7 @@ export default async function RootLayout({
             THEME_STORAGE_KEY constants -- see that file. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className={`${plusJakarta.variable} bg-canvas text-primary`} suppressHydrationWarning>
+      <body className={`${inter.variable} bg-canvas text-primary`} suppressHydrationWarning>
         <ThemeProvider>
         <LocaleProvider initialLocale={locale} initialCurrency={currency}>
           <NativeInit />

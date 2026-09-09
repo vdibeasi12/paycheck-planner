@@ -26,6 +26,23 @@
    yet gets light automatically (prefers-color-scheme media query below);
    an explicit [data-theme] attribute (set by ThemeProvider, from a saved
    choice) always wins over both. */
+/* REVISED Sep 9 2026 (same day, Vince): light theme's first real pass read
+   as "washed out and too white" once he actually looked at it (Paycheck
+   Shield screenshots) -- too little separation between canvas/card/border,
+   text a shade too pale. Vince supplied an exact replacement palette
+   (slate/navy text + a slightly darker #f1f5f9 canvas + stronger #cbd5e1
+   borders + a pinned #16a34a green), so light theme's values below are his
+   numbers verbatim, not a redesign. Dark theme (untouched, still the
+   original values) is left alone -- this was a light-mode-only complaint.
+   Also added here: --color-brand(-light/-dark) and --color-warning-* --
+   previously the "positive/active" accent was raw emerald-400/green-500
+   sprinkled per-component and the weak-point warning card was hardcoded
+   amber-500 opacity tints. Both are now theme-aware tokens so Vince's exact
+   #16A34A green (and a proper light-mode warning card, #FFF7E6/#F5C76A/
+   #B7791F) apply everywhere they're used without becoming a fourth
+   one-off color. Dark theme's brand/warning values are set to what those
+   spots already rendered before this change -- dark mode's look doesn't
+   move. */
 :root {
   --color-canvas: #020617;
   --color-surface: #0f172a;
@@ -35,28 +52,55 @@
   --color-text-primary: #ffffff;
   --color-text-secondary: #d1d5db;
   --color-text-muted: #9ca3af;
+  --color-brand: #34d399;
+  --color-brand-light: rgba(16, 185, 129, 0.15);
+  --color-brand-dark: #10b981;
+  --color-warning-bg: rgba(245, 158, 11, 0.1);
+  --color-warning-border: rgba(245, 158, 11, 0.3);
+  --color-warning-heading: #fcd34d;
+  /* Sits between primary and secondary -- for text that needs more weight
+     than the general secondary tier (nav labels, the date column in
+     Paycheck Shield's Upcoming Paychecks list) without going all the way to
+     primary. Dark value equals the existing secondary dark value, so dark
+     theme's rendering doesn't move; only light theme gets the darker,
+     spec'd #334155. */
+  --color-text-emphasis: #d1d5db;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
-    --color-canvas: #f8fafc;
+    --color-canvas: #f1f5f9;
     --color-surface: #ffffff;
-    --color-surface-alt: #f1f5f9;
-    --color-border: #e2e8f0;
-    --color-border-subtle: #f1f5f9;
-    --color-text-primary: #0f172a;
-    --color-text-secondary: #334155;
+    --color-surface-alt: #f8fafc;
+    --color-border: #cbd5e1;
+    --color-border-subtle: #e2e8f0;
+    --color-text-primary: #172033;
+    --color-text-secondary: #475569;
     --color-text-muted: #64748b;
+    --color-text-emphasis: #334155;
+    --color-brand: #16a34a;
+    --color-brand-light: #dcfce7;
+    --color-brand-dark: #15803d;
+    --color-warning-bg: #fff7e6;
+    --color-warning-border: #f5c76a;
+    --color-warning-heading: #b7791f;
   }
 }
 [data-theme="light"] {
-  --color-canvas: #f8fafc;
+  --color-canvas: #f1f5f9;
   --color-surface: #ffffff;
-  --color-surface-alt: #f1f5f9;
-  --color-border: #e2e8f0;
-  --color-border-subtle: #f1f5f9;
-  --color-text-primary: #0f172a;
-  --color-text-secondary: #334155;
+  --color-surface-alt: #f8fafc;
+  --color-border: #cbd5e1;
+  --color-border-subtle: #e2e8f0;
+  --color-text-primary: #172033;
+  --color-text-secondary: #475569;
   --color-text-muted: #64748b;
+  --color-text-emphasis: #334155;
+  --color-brand: #16a34a;
+  --color-brand-light: #dcfce7;
+  --color-brand-dark: #15803d;
+  --color-warning-bg: #fff7e6;
+  --color-warning-border: #f5c76a;
+  --color-warning-heading: #b7791f;
 }
 [data-theme="dark"] {
   --color-canvas: #020617;
@@ -67,6 +111,13 @@
   --color-text-primary: #ffffff;
   --color-text-secondary: #d1d5db;
   --color-text-muted: #9ca3af;
+  --color-text-emphasis: #d1d5db;
+  --color-brand: #34d399;
+  --color-brand-light: rgba(16, 185, 129, 0.15);
+  --color-brand-dark: #10b981;
+  --color-warning-bg: rgba(245, 158, 11, 0.1);
+  --color-warning-border: rgba(245, 158, 11, 0.3);
+  --color-warning-heading: #fcd34d;
 }
 /* Smooth the color swap on toggle instead of an abrupt flip -- only these
    token-backed properties, so it doesn't add transition lag to unrelated
@@ -75,9 +126,10 @@ body, [class*="bg-canvas"], [class*="bg-surface"], [class*="border-default"] {
   transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
 }
 
-/* Plus Jakarta Sans, loaded in app/layout.tsx via next/font/google and
-   exposed as --font-sans. Falls back to the previous system stack so
-   nothing breaks if the font request is ever blocked. */
+/* Inter (Sep 9 2026, Vince: "use Inter throughout the application"),
+   loaded in app/layout.tsx via next/font/google and exposed as --font-sans.
+   Falls back to the previous system stack so nothing breaks if the font
+   request is ever blocked. */
 body {
   font-family: var(--font-sans), -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
 }

@@ -199,7 +199,7 @@ export default function Sidebar() {
           setGsOpen(true)
         }}
         data-tour="nav-getting-started"
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-secondary transition hover:bg-white/5 hover:text-primary"
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-emphasis transition hover:bg-white/5 hover:text-primary"
       >
         <Sparkles size={20} className="text-muted" />
         {t("nav.gettingStarted")}
@@ -219,13 +219,13 @@ export default function Sidebar() {
               onClick={onNavigate}
               data-tour={"nav-" + href.replace(/\//g, "")}
               aria-current={active ? "page" : undefined}
-              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition ${
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] transition ${
                 active
-                  ? "bg-green-500/15 text-green-400"
-                  : "text-secondary hover:bg-white/5 hover:text-primary"
+                  ? "bg-brand-light text-brand font-[600]"
+                  : "font-medium text-emphasis hover:bg-white/5 hover:text-primary"
               }`}
             >
-              <Icon size={20} className={active ? "text-green-400" : "text-muted"} />
+              <Icon size={20} className={active ? "text-brand" : "text-muted"} />
               {t(labelKey)}
             </Link>
           </Fragment>
@@ -237,15 +237,15 @@ export default function Sidebar() {
           href="/admin"
           onClick={onNavigate}
           aria-current={isActive("/admin") ? "page" : undefined}
-          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition ${
+          className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] transition ${
             isActive("/admin")
-              ? "bg-green-500/15 text-green-400"
-              : "text-secondary hover:bg-white/5 hover:text-primary"
+              ? "bg-brand-light text-brand font-[600]"
+              : "font-medium text-emphasis hover:bg-white/5 hover:text-primary"
           }`}
         >
           <ShieldCheck
             size={20}
-            className={isActive("/admin") ? "text-green-400" : "text-muted"}
+            className={isActive("/admin") ? "text-brand" : "text-muted"}
           />
           {t("nav.admin")}
         </Link>
@@ -260,7 +260,7 @@ export default function Sidebar() {
       <button
         onClick={() => openFeedback(onNavigate)}
         data-tour="nav-feedback"
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-secondary transition hover:bg-white/5 hover:text-primary"
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-emphasis transition hover:bg-white/5 hover:text-primary"
       >
         <MessageSquarePlus size={20} className="text-muted" />
         {t("nav.feedback")}
@@ -288,7 +288,7 @@ export default function Sidebar() {
             title={t("nav.account")}
             aria-current={isActive("/account") ? "page" : undefined}
             className={`rounded-lg p-2 transition ${
-              isActive("/account") ? "text-green-400" : "text-secondary hover:text-primary"
+              isActive("/account") ? "text-brand" : "text-secondary hover:text-primary"
             }`}
           >
             <Settings size={22} />
@@ -331,7 +331,7 @@ export default function Sidebar() {
           title={t("nav.account")}
           aria-current={isActive("/account") ? "page" : undefined}
           className={`flex items-center justify-center rounded-lg border border-default bg-surface/95 p-2.5 shadow-lg backdrop-blur transition hover:bg-white/5 ${
-            isActive("/account") ? "text-green-400" : "text-secondary hover:text-primary"
+            isActive("/account") ? "text-brand" : "text-secondary hover:text-primary"
           }`}
         >
           <Settings size={18} />
@@ -405,7 +405,7 @@ export default function Sidebar() {
               <Link
                 href="/mfa/setup"
                 onClick={dismissMfaReminder}
-                className="mt-2 inline-block text-xs font-semibold text-emerald-400 hover:underline"
+                className="mt-2 inline-block text-xs font-[600] text-brand hover:underline"
               >
                 Set up now →
               </Link>

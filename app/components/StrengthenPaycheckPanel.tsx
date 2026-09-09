@@ -55,8 +55,8 @@ export default function StrengthenPaycheckPanel({ cycle, bills, debts, income }:
   return (
     <div className="rounded-2xl border border-default bg-surface p-6">
       <div className="flex items-center gap-2 mb-1">
-        <Wrench size={16} className="text-emerald-400" />
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Strengthen this paycheck</h2>
+        <Wrench size={16} className="text-brand" />
+        <h2 className="text-sm font-[600] uppercase tracking-wide text-muted">Strengthen this paycheck</h2>
       </div>
       <p className="text-sm text-muted mb-4">Previews only -- nothing changes until you edit it yourself.</p>
 
@@ -76,10 +76,10 @@ export default function StrengthenPaycheckPanel({ cycle, bills, debts, income }:
               </p>
               <p className="text-xs text-muted mt-0.5">
                 Cushion would become{" "}
-                <span className="text-emerald-400">{formatMoney(cycle.cushion + b.amount)}</span>
+                <span className="text-brand">{formatMoney(cycle.cushion + b.amount)}</span>
               </p>
             </div>
-            <Link href="/bills-debts" className="text-xs font-semibold text-emerald-400 hover:underline shrink-0 ml-3">
+            <Link href="/bills-debts" className="text-xs font-[600] text-brand hover:underline shrink-0 ml-3">
               Edit bill &rarr;
             </Link>
           </div>
@@ -93,11 +93,11 @@ export default function StrengthenPaycheckPanel({ cycle, bills, debts, income }:
               </p>
               <p className="text-xs text-muted mt-0.5">
                 Cushion would become{" "}
-                <span className="text-emerald-400">{formatMoney(cycle.cushion + cycle.goalContribution)}</span> --
+                <span className="text-brand">{formatMoney(cycle.cushion + cycle.goalContribution)}</span> --
                 pushes that goal&apos;s completion out slightly
               </p>
             </div>
-            <Link href="/goals" className="text-xs font-semibold text-emerald-400 hover:underline shrink-0 ml-3">
+            <Link href="/goals" className="text-xs font-[600] text-brand hover:underline shrink-0 ml-3">
               Edit goals &rarr;
             </Link>
           </div>
@@ -108,7 +108,7 @@ export default function StrengthenPaycheckPanel({ cycle, bills, debts, income }:
         <p className="mt-4 text-xs text-muted">
           {formatMoney(cycle.debtsDue)} of this paycheck's commitments is debt minimum payments. Adjusting those
           means revisiting your payoff plan --{" "}
-          <Link href="/bills-debts" className="text-emerald-400 hover:underline">
+          <Link href="/bills-debts" className="text-brand hover:underline">
             see your debts
           </Link>
           .
