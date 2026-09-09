@@ -63,11 +63,11 @@ export default function PaycheckShieldView({ result, bills, debts, income }: Pro
             <Shield size={22} className="text-emerald-400" />
           </span>
           <div>
-            <h1 className="text-2xl font-bold text-white">Paycheck Shield</h1>
-            <p className="text-sm text-gray-400">Stress-test your paycheck plan against real life.</p>
+            <h1 className="text-2xl font-bold text-primary">Paycheck Shield</h1>
+            <p className="text-sm text-muted">Stress-test your paycheck plan against real life.</p>
           </div>
         </div>
-        <p className="mt-8 text-gray-400">
+        <p className="mt-8 text-muted">
           Add your income with a pay date, plus your bills and debts, to see how your plan holds up.
         </p>
       </div>
@@ -84,18 +84,18 @@ export default function PaycheckShieldView({ result, bills, debts, income }: Pro
           <Shield size={22} className="text-emerald-400" />
         </span>
         <div>
-          <h1 className="text-2xl font-bold text-white">Paycheck Shield</h1>
-          <p className="text-sm text-gray-400">How strong is your current paycheck plan?</p>
+          <h1 className="text-2xl font-bold text-primary">Paycheck Shield</h1>
+          <p className="text-sm text-muted">How strong is your current paycheck plan?</p>
         </div>
       </div>
 
-      <div className="rounded-2xl border border-gray-700 bg-gradient-to-br from-[#0f172a] to-[#0b1220] p-6 shadow-lg">
+      <div className="rounded-2xl border border-default bg-gradient-to-br from-surface to-surface-alt p-6 shadow-lg">
         <div className="flex items-end gap-3">
-          <span className="text-5xl font-bold text-white">{result.strengthScore}</span>
-          <span className="pb-1 text-gray-500">/ 100</span>
+          <span className="text-5xl font-bold text-primary">{result.strengthScore}</span>
+          <span className="pb-1 text-muted">/ 100</span>
           <span className={`pb-1.5 ml-1 text-sm font-bold tracking-wide ${strength.className}`}>{strength.label}</span>
         </div>
-        <p className="mt-2 text-sm text-gray-400">
+        <p className="mt-2 text-sm text-muted">
           Based on how {result.scenarioResults.length} common real-life scenarios play out against your next{" "}
           {upcomingCycles.length} paychecks. Not an industry benchmark -- just a way to see where your plan has slack
           and where it doesn't.
@@ -108,7 +108,7 @@ export default function PaycheckShieldView({ result, bills, debts, income }: Pro
             <TrendingDown size={18} />
             <h2 className="text-sm font-semibold uppercase tracking-wide">Your weak point</h2>
           </div>
-          <p className="mt-2 text-white">
+          <p className="mt-2 text-primary">
             Your {formatDate(result.weakestCycle.date)} paycheck has the least room -- expected{" "}
             {formatMoney(result.weakestCycle.amount)}, with {formatMoney(
               result.weakestCycle.billsDue + result.weakestCycle.debtsDue + result.weakestCycle.goalContribution
@@ -122,8 +122,8 @@ export default function PaycheckShieldView({ result, bills, debts, income }: Pro
         </div>
       )}
 
-      <div className="rounded-2xl border border-gray-700 bg-[#0b1220] p-6">
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-3">Upcoming paychecks</h2>
+      <div className="rounded-2xl border border-default bg-surface p-6">
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted mb-3">Upcoming paychecks</h2>
         <div className="space-y-1.5">
           {upcomingCycles.map((c) => {
             const isWeakest = result.weakestCycle && c.date === result.weakestCycle.date
@@ -137,14 +137,14 @@ export default function PaycheckShieldView({ result, bills, debts, income }: Pro
                   isWeakest ? "bg-amber-500/10 border border-amber-500/20" : ""
                 }`}
               >
-                <span className="text-gray-300 w-20">{formatDate(c.date)}</span>
+                <span className="text-secondary w-20">{formatDate(c.date)}</span>
                 <span className="flex items-center gap-1.5 w-28">
                   <span className={`h-1.5 w-1.5 rounded-full ${badge.dot}`} />
                   <span className={`text-xs font-semibold ${badge.text}`}>
                     {badge.label} &middot; {capacity.capacityPct}%
                   </span>
                 </span>
-                <span className="text-gray-500 flex-1 text-right pr-4">-{formatMoney(committed)} committed</span>
+                <span className="text-muted flex-1 text-right pr-4">-{formatMoney(committed)} committed</span>
                 <span className={`font-semibold w-24 text-right ${c.cushion >= 0 ? "text-emerald-400" : "text-red-400"}`}>
                   {formatMoney(c.cushion)}
                 </span>

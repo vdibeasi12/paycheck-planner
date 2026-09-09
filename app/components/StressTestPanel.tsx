@@ -20,9 +20,9 @@ const VERDICT_META: Record<ScenarioVerdict, { label: string; className: string; 
  */
 export default function StressTestPanel({ scenarioResults }: Props) {
   return (
-    <div className="rounded-2xl border border-gray-700 bg-[#0b1220] p-6">
-      <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400 mb-1">Stress test</h2>
-      <p className="text-sm text-gray-500 mb-4">How your plan holds up against common surprises.</p>
+    <div className="rounded-2xl border border-default bg-surface p-6">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-muted mb-1">Stress test</h2>
+      <p className="text-sm text-muted mb-4">How your plan holds up against common surprises.</p>
       <div className="space-y-1.5">
         {scenarioResults.map((r) => {
           const meta = VERDICT_META[r.worstVerdict]
@@ -30,9 +30,9 @@ export default function StressTestPanel({ scenarioResults }: Props) {
           return (
             <div
               key={r.scenario.label}
-              className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm bg-white/[0.02]"
+              className="flex items-center justify-between rounded-lg px-3 py-2.5 text-sm bg-surface-alt"
             >
-              <span className="text-gray-300">{r.scenario.label}</span>
+              <span className="text-secondary">{r.scenario.label}</span>
               <span className={`flex items-center gap-1.5 font-medium ${meta.className}`}>
                 <Icon size={15} />
                 {meta.label}

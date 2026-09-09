@@ -53,15 +53,15 @@ export default function StrengthenPaycheckPanel({ cycle, bills, debts, income }:
   const hasSuggestions = billsInWindow.length > 0 || hasGoalContribution
 
   return (
-    <div className="rounded-2xl border border-gray-700 bg-[#0b1220] p-6">
+    <div className="rounded-2xl border border-default bg-surface p-6">
       <div className="flex items-center gap-2 mb-1">
         <Wrench size={16} className="text-emerald-400" />
-        <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-400">Strengthen this paycheck</h2>
+        <h2 className="text-sm font-semibold uppercase tracking-wide text-muted">Strengthen this paycheck</h2>
       </div>
-      <p className="text-sm text-gray-500 mb-4">Previews only -- nothing changes until you edit it yourself.</p>
+      <p className="text-sm text-muted mb-4">Previews only -- nothing changes until you edit it yourself.</p>
 
       {!hasSuggestions && (
-        <p className="text-sm text-gray-400">
+        <p className="text-sm text-muted">
           Nothing obvious to shift here -- the shortfall is coming from a debt payment or income itself rather than a
           movable bill or goal contribution.
         </p>
@@ -69,12 +69,12 @@ export default function StrengthenPaycheckPanel({ cycle, bills, debts, income }:
 
       <div className="space-y-2">
         {billsInWindow.map((b) => (
-          <div key={b.id} className="flex items-center justify-between rounded-lg bg-white/[0.03] px-4 py-3">
+          <div key={b.id} className="flex items-center justify-between rounded-lg bg-surface-alt px-4 py-3">
             <div>
-              <p className="text-sm text-white">
+              <p className="text-sm text-primary">
                 Move <span className="font-medium">{b.name}</span> ({formatMoney(b.amount)}) to the next paycheck
               </p>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-muted mt-0.5">
                 Cushion would become{" "}
                 <span className="text-emerald-400">{formatMoney(cycle.cushion + b.amount)}</span>
               </p>
@@ -86,12 +86,12 @@ export default function StrengthenPaycheckPanel({ cycle, bills, debts, income }:
         ))}
 
         {hasGoalContribution && (
-          <div className="flex items-center justify-between rounded-lg bg-white/[0.03] px-4 py-3">
+          <div className="flex items-center justify-between rounded-lg bg-surface-alt px-4 py-3">
             <div>
-              <p className="text-sm text-white">
+              <p className="text-sm text-primary">
                 Pause this cycle&apos;s goal contribution ({formatMoney(cycle.goalContribution)})
               </p>
-              <p className="text-xs text-gray-500 mt-0.5">
+              <p className="text-xs text-muted mt-0.5">
                 Cushion would become{" "}
                 <span className="text-emerald-400">{formatMoney(cycle.cushion + cycle.goalContribution)}</span> --
                 pushes that goal&apos;s completion out slightly
@@ -105,7 +105,7 @@ export default function StrengthenPaycheckPanel({ cycle, bills, debts, income }:
       </div>
 
       {debtsInWindow.length > 0 && (
-        <p className="mt-4 text-xs text-gray-500">
+        <p className="mt-4 text-xs text-muted">
           {formatMoney(cycle.debtsDue)} of this paycheck's commitments is debt minimum payments. Adjusting those
           means revisiting your payoff plan --{" "}
           <Link href="/bills-debts" className="text-emerald-400 hover:underline">

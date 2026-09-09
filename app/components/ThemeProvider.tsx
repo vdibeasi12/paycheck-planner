@@ -5,8 +5,17 @@
 // their background." This is the app-wide switch -- it doesn't itself
 // restyle any page (that's the semantic tokens in app/globals.css /
 // tailwind.config.js, applied page-by-page over the following rounds); it
-// owns the single "light | dark | system" choice, persists it, and sets the
-// data-theme attribute every token in globals.css reads.
+// owns the light/dark choice, persists it, and sets the data-theme
+// attribute every token in globals.css reads.
+//
+// REVISED same day (Vince): shipped as a three-way Light/Dark/System toggle
+// first, but Vince pointed out a straight two-way toggle is all this needs --
+// "system" was never a third look, just an auto-picker between the other
+// two. Simplified: no separate "system" choice to track or keep in sync with
+// the OS live. A first-time visitor with nothing saved yet still gets a
+// sensible initial pick from prefers-color-scheme (same as before), it just
+// isn't a distinct mode anymore -- the moment they toggle, it's an explicit,
+// persisted light/dark choice like everyone else's.
 //
 // THEME_STORAGE_KEY and resolveInitialTheme are exported so
 // app/layout.tsx's no-flash inline script (which has to run before React
@@ -15,9 +24,9 @@
 // otherwise the very first client render could flip the theme right after
 // paint.
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
+import { createContext, useCallback, useContext, useMemo, useState } from "react"
 
-export type ThemeChoice = "light" | "dark" | "system"
+export type ThemeChoice = "light" | "dark"
 export type ResolvedTheme = "light" | "dark"
 
 export const THEME_STORAGE_KEY = "pp-theme"
@@ -25,28 +34,28 @@ export const THEME_STORAGE_KEY = "pp-theme"
 // Kept as a plain string (not a template built from other constants) so it
 // can be dropped verbatim into a <script dangerouslySetInnerHTML> in
 // app/layout.tsx -- see the comment there. Mirrors resolveInitialTheme
-// below exactly: read the saved choice, fall back to 'system', resolve
-// 'system' via prefers-color-scheme, defaulting to 'dark' when that can't
-// be read at all (matches this app's dark-only history -- see
-// app/globals.css's :root block for the same reasoning).
+// below exactly: read the saved choice; if nothing's saved yet, pick once
+// from prefers-color-scheme, defaulting to 'dark' when that can't be read at
+// all (matches this app's dark-only history -- see app/globals.css's :root
+// block for the same reasoning). Unchanged by the system-toggle removal --
+// this already only ever wrote "light" or "dark" to the attribute.
 export const THEME_INIT_SCRIPT = `(function(){try{var k="${THEME_STORAGE_KEY}";var saved=localStorage.getItem(k);var resolved;if(saved==="light"||saved==="dark"){resolved=saved;}else{resolved=(window.matchMedia&&window.matchMedia("(prefers-color-scheme: light)").matches)?"light":"dark";}document.documentElement.setAttribute("data-theme",resolved);}catch(e){document.documentElement.setAttribute("data-theme","dark");}})();`
 
 function systemPrefersLight(): boolean {
   return typeof window !== "undefined" && !!window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches
 }
 
-function resolveInitialTheme(): { choice: ThemeChoice; resolved: ResolvedTheme } {
-  if (typeof window === "undefined") return { choice: "system", resolved: "dark" }
+function resolveInitialTheme(): ResolvedTheme {
+  if (typeof window === "undefined") return "dark"
   let saved: string | null = null
   try {
     saved = window.localStorage.getItem(THEME_STORAGE_KEY)
   } catch {
-    // Private-browsing/storage-blocked -- fall through to system default.
+    // Private-browsing/storage-blocked -- fall through to the one-time
+    // system-preference default below.
   }
-  if (saved === "light" || saved === "dark") {
-    return { choice: saved, resolved: saved }
-  }
-  return { choice: "system", resolved: systemPrefersLight() ? "light" : "dark" }
+  if (saved === "light" || saved === "dark") return saved
+  return systemPrefersLight() ? "light" : "dark"
 }
 
 type ThemeContextValue = {
@@ -62,48 +71,23 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   // app/layout.tsx has already set the real attribute on <html> before this
   // ever mounts, so there's nothing for the initial render here to get
   // wrong; this just needs to agree with it for subsequent React renders
-  // (the toggle UI, etc) and for keeping the attribute in sync afterward.
-  const [state, setState] = useState<{ choice: ThemeChoice; resolved: ResolvedTheme }>(() => resolveInitialTheme())
+  // (the toggle UI, etc).
+  const [theme, setThemeState] = useState<ResolvedTheme>(() => resolveInitialTheme())
 
-  const applyResolved = useCallback((resolved: ResolvedTheme) => {
-    document.documentElement.setAttribute("data-theme", resolved)
+  const setTheme = useCallback((choice: ThemeChoice) => {
+    setThemeState(choice)
+    document.documentElement.setAttribute("data-theme", choice)
+    try {
+      window.localStorage.setItem(THEME_STORAGE_KEY, choice)
+    } catch {
+      // Best-effort persistence only -- worst case the choice doesn't
+      // survive a reload, it still applies for the rest of this session.
+    }
   }, [])
 
-  // Keep following the OS setting live while choice === "system".
-  useEffect(() => {
-    if (state.choice !== "system") return
-    const mq = window.matchMedia("(prefers-color-scheme: light)")
-    const onChange = () => {
-      const resolved: ResolvedTheme = mq.matches ? "light" : "dark"
-      setState((s) => ({ ...s, resolved }))
-      applyResolved(resolved)
-    }
-    mq.addEventListener("change", onChange)
-    return () => mq.removeEventListener("change", onChange)
-  }, [state.choice, applyResolved])
-
-  const setTheme = useCallback(
-    (choice: ThemeChoice) => {
-      const resolved: ResolvedTheme = choice === "system" ? (systemPrefersLight() ? "light" : "dark") : choice
-      setState({ choice, resolved })
-      applyResolved(resolved)
-      try {
-        if (choice === "system") {
-          window.localStorage.removeItem(THEME_STORAGE_KEY)
-        } else {
-          window.localStorage.setItem(THEME_STORAGE_KEY, choice)
-        }
-      } catch {
-        // Best-effort persistence only -- worst case the choice doesn't
-        // survive a reload, it still applies for the rest of this session.
-      }
-    },
-    [applyResolved]
-  )
-
   const value = useMemo<ThemeContextValue>(
-    () => ({ theme: state.choice, resolvedTheme: state.resolved, setTheme }),
-    [state, setTheme]
+    () => ({ theme, resolvedTheme: theme, setTheme }),
+    [theme, setTheme]
   )
 
   return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>

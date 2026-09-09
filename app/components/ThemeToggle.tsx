@@ -1,19 +1,22 @@
 "use client"
 
 // app/components/ThemeToggle.tsx
-// Three-way Light/Dark/System control, styled to match the existing
+// Two-way Light/Dark control, styled to match the existing
 // LocaleCurrencySelector widget (same border/bg/text scale, same `inline`
 // prop convention) since it sits right next to it in both the desktop
 // top-right widget and the mobile sticky header (Sidebar.tsx) and the
 // logged-out marketing header (AppNav.tsx via app/layout.tsx).
+//
+// REVISED Sep 9 2026 (Vince): dropped the third "System" option -- it was
+// never a distinct look, just an auto-picker between the other two, and
+// having three buttons for two actual outcomes was more than this needed.
 
-import { Sun, Moon, Monitor } from "lucide-react"
+import { Sun, Moon } from "lucide-react"
 import { useTheme, type ThemeChoice } from "./ThemeProvider"
 
 const OPTIONS: { value: ThemeChoice; label: string; Icon: typeof Sun }[] = [
   { value: "light", label: "Light", Icon: Sun },
   { value: "dark", label: "Dark", Icon: Moon },
-  { value: "system", label: "System", Icon: Monitor },
 ]
 
 export default function ThemeToggle({ inline = false }: { inline?: boolean }) {
