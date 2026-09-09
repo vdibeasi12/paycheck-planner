@@ -101,15 +101,16 @@ export default async function SafeToSpendPage() {
     )
   }
 
-  // 2. This month -- new rollup, grounded in the exact same startingCash.
+  // 2. This month -- income-based rollup (Sep 9 2026, Vince: compared this
+  // against Voya's public budget calculator and asked for the arithmetic to
+  // match it -- monthlyIncome minus committed money, not currentBalance,
+  // so the number stays steady no matter what day of the month it's checked;
+  // see lib/monthlySafeToSpend.ts for the full writeup).
   const monthlyResult = computeMonthlySafeToSpend({
     income,
     bills,
     debts,
     goals,
-    currentBalance: startingCash.amount,
-    currentBalanceSource: startingCash.source,
-    currentBalanceAsOf: startingCash.asOf,
   })
 
   // 3. Extra debt payment -- same call convention as the existing "Can I pay

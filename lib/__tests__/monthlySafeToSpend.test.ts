@@ -5,7 +5,13 @@
 // Money" view Vince asked for on the new consolidated /safe-to-spend page
 // (Sep 9 2026), built on the same shared engine as lib/safeToSpend.ts and
 // lib/debtPayoffSafety.ts so it can't quietly disagree with them the way the
-// old app/insights/page.tsx tile (lib/financialOverview.ts) did. Run with:
+// old app/insights/page.tsx tile (lib/financialOverview.ts) did.
+//
+// REVISED same day: Vince compared this against Voya's public budget
+// calculator and asked for the arithmetic to match -- Financially Free Money
+// is now `monthlyIncome - committedMoney`, not `currentBalance -
+// committedMoney`. currentBalance is no longer an input to this function at
+// all. Run with:
 //
 //   npx tsx lib/__tests__/monthlySafeToSpend.test.ts
 //
@@ -45,22 +51,13 @@ console.log("Test 1 -- plain monthly rollup, no transfers/goals")
   const debts: (MSTSDebt & { id: string; name: string })[] = [
     { id: "d1", name: "Card", minimum_payment: 200, due_date: 5, covered_by_transfer: false },
   ]
-  const r = computeMonthlySafeToSpend({
-    income,
-    bills,
-    debts,
-    goals: [],
-    currentBalance: 3000,
-    currentBalanceSource: "checking",
-    currentBalanceAsOf: "2026-01-10",
-    today,
-  })
+  const r = computeMonthlySafeToSpend({ income, bills, debts, goals: [], today })
   assertEqual(r.monthlyIncome, 2000, "monthlyIncome")
   assertEqual(r.monthlyBills, 1000, "monthlyBills")
   assertEqual(r.monthlyDebtPayments, 200, "monthlyDebtPayments")
   assertEqual(r.monthlyGoalContributions, 0, "monthlyGoalContributions")
   assertEqual(r.committedMoney, 1200, "committedMoney")
-  assertEqual(r.financiallyFreeMoney, 1800, "financiallyFreeMoney (3000 - 1200)")
+  assertEqual(r.financiallyFreeMoney, 800, "financiallyFreeMoney (2000 - 1200)")
   assertTrue(r.transferCoveredDebtNames.length === 0, "no transfer-covered debts")
 }
 
@@ -70,16 +67,7 @@ console.log("Test 2 -- transfer income excluded from monthlyIncome")
     { amount: 2000, frequency: "monthly", next_pay_date: "2026-01-15", income_type: null },
     { amount: 500, frequency: "monthly", next_pay_date: "2026-01-15", income_type: "transfer" },
   ]
-  const r = computeMonthlySafeToSpend({
-    income,
-    bills: [],
-    debts: [],
-    goals: [],
-    currentBalance: 1000,
-    currentBalanceSource: "lastPaycheck",
-    currentBalanceAsOf: null,
-    today,
-  })
+  const r = computeMonthlySafeToSpend({ income, bills: [], debts: [], goals: [], today })
   assertEqual(r.monthlyIncome, 2000, "transfer row excluded")
 }
 
@@ -92,16 +80,7 @@ console.log("Test 3 -- transfer-covered debt WITH evidence is excluded from comm
   const debts: (MSTSDebt & { id: string; name: string })[] = [
     { id: "auto", name: "Capital One Auto", minimum_payment: 596.5, due_date: 12, covered_by_transfer: true },
   ]
-  const r = computeMonthlySafeToSpend({
-    income,
-    bills: [],
-    debts,
-    goals: [],
-    currentBalance: 1000,
-    currentBalanceSource: "checking",
-    currentBalanceAsOf: "2026-01-10",
-    today,
-  })
+  const r = computeMonthlySafeToSpend({ income, bills: [], debts, goals: [], today })
   assertEqual(r.monthlyDebtPayments, 0, "covered debt excluded from monthlyDebtPayments")
   assertTrue(r.transferCoveredDebtNames.includes("Capital One Auto"), "covered debt named for transparency")
 }
@@ -115,16 +94,7 @@ console.log("Test 4 -- transfer-covered debt WITHOUT evidence is still reserved 
   const debts: (MSTSDebt & { id: string; name: string })[] = [
     { id: "auto", name: "Capital One Auto", minimum_payment: 596.5, due_date: 12, covered_by_transfer: true },
   ]
-  const r = computeMonthlySafeToSpend({
-    income,
-    bills: [],
-    debts,
-    goals: [],
-    currentBalance: 1000,
-    currentBalanceSource: "checking",
-    currentBalanceAsOf: "2026-01-10",
-    today,
-  })
+  const r = computeMonthlySafeToSpend({ income, bills: [], debts, goals: [], today })
   assertEqual(r.monthlyDebtPayments, 596.5, "no evidence on file -- debt still reserved")
   assertTrue(r.transferCoveredDebtNames.length === 0, "not listed as covered without evidence")
 }
@@ -137,9 +107,6 @@ console.log("Test 5 -- goal due later this same month reserves its full remainin
     bills: [],
     debts: [],
     goals,
-    currentBalance: 1000,
-    currentBalanceSource: "checking",
-    currentBalanceAsOf: "2026-01-10",
     today,
   })
   assertEqual(r.monthlyGoalContributions, 600, "full remaining (1000-400) due this month")
@@ -153,9 +120,6 @@ console.log("Test 6 -- goal 3 months out spreads remaining evenly")
     bills: [],
     debts: [],
     goals,
-    currentBalance: 1000,
-    currentBalanceSource: "checking",
-    currentBalanceAsOf: "2026-01-10",
     today,
   })
   // Jan -> Apr is 3 calendar months out.
@@ -174,28 +138,22 @@ console.log("Test 7 -- overdue goal deadline counts in full; inactive/funded goa
     bills: [],
     debts: [],
     goals,
-    currentBalance: 1000,
-    currentBalanceSource: "checking",
-    currentBalanceAsOf: "2026-01-10",
     today,
   })
   assertEqual(r.monthlyGoalContributions, 400, "only the overdue goal's remaining 400 counts")
 }
 
-console.log("Test 8 -- Financially Free Money goes negative when committed exceeds current balance")
+console.log("Test 8 -- Financially Free Money goes negative when committed exceeds monthly income")
 {
   const r = computeMonthlySafeToSpend({
     income: [{ amount: 2000, frequency: "monthly", next_pay_date: "2026-01-15", income_type: null }],
     bills: [{ amount: 1500, due_date: 1, frequency: "monthly" }],
     debts: [{ id: "d1", name: "Card", minimum_payment: 200, due_date: 5, covered_by_transfer: false }],
     goals: [],
-    currentBalance: 900,
-    currentBalanceSource: "lastPaycheck",
-    currentBalanceAsOf: null,
     today,
   })
   assertEqual(r.committedMoney, 1700, "committedMoney")
-  assertEqual(r.financiallyFreeMoney, -800, "900 - 1700, allowed to go negative")
+  assertEqual(r.financiallyFreeMoney, 300, "2000 - 1700")
 }
 
 console.log("Test 9 -- biweekly bill converts to its monthly equivalent")
@@ -205,12 +163,31 @@ console.log("Test 9 -- biweekly bill converts to its monthly equivalent")
     bills: [{ amount: 100, due_date: 1, frequency: "biweekly" }],
     debts: [],
     goals: [],
-    currentBalance: 1000,
-    currentBalanceSource: "checking",
-    currentBalanceAsOf: "2026-01-10",
     today,
   })
   assertEqual(r.monthlyBills, 100 * (26 / 12), "biweekly -> monthly factor")
+}
+
+console.log("Test 10 -- biweekly income normalizes the same way Voya's calculator does")
+{
+  // Cross-check against voya.com/individuals/learn/budget-calculator's own
+  // arithmetic: $2,700 every-other-week income, income - allocated =
+  // remaining. Same 26/12 monthly factor as lib/monthlyFactor.ts.
+  const income: MSTSIncome[] = [{ amount: 2700, frequency: "biweekly", next_pay_date: "2026-01-15", income_type: null }]
+  const bills: MSTSBill[] = [
+    { amount: 2200, due_date: 1, frequency: "monthly" }, // housing
+    { amount: 300, due_date: 1, frequency: "monthly" }, // utilities
+    { amount: 300, due_date: 1, frequency: "monthly" }, // groceries
+    { amount: 100, due_date: 1, frequency: "monthly" }, // transportation
+  ]
+  const debts: (MSTSDebt & { id: string; name: string })[] = [
+    { id: "d1", name: "Other debt", minimum_payment: 75, due_date: 1, covered_by_transfer: false },
+  ]
+  const goals: MSTSGoal[] = [{ target_amount: 1000, current_amount: 0, deadline: "2026-01-31", status: "active" }]
+  const r = computeMonthlySafeToSpend({ income, bills, debts, goals, today })
+  assertEqual(r.monthlyIncome, 5850, "2700 * 26/12")
+  assertEqual(r.committedMoney, 3975, "2975 bills+debt + 1000 goal")
+  assertEqual(r.financiallyFreeMoney, 1875, "matches Voya's Remaining for the same inputs")
 }
 
 console.log(`\n${passed} passed, ${failed} failed`)

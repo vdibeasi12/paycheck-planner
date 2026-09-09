@@ -37,7 +37,7 @@ export default function MonthlySafeToSpendCard({ result }: { result: MonthlySafe
         <h2 className="text-sm font-medium uppercase tracking-wide text-muted">This month</h2>
         <InfoHint
           label="About Financially Free Money"
-          text="Your current balance minus everything already committed this month -- bills, debt minimums, and goal contributions -- using the same shared numbers as Safe to Spend and Can I Pay This Off. Not the same question as 'this paycheck cycle' above: this one looks at the whole calendar month at once."
+          text="Your monthly income minus everything already committed this month -- bills, debt minimums, and goal contributions. Not the same question as 'this paycheck cycle' above: this one looks at the whole calendar month at once, using what you earn rather than your balance right now, so it stays steady no matter what day of the month you check it."
         />
       </div>
 
@@ -48,11 +48,9 @@ export default function MonthlySafeToSpendCard({ result }: { result: MonthlySafe
 
       <div className="mt-5 grid grid-cols-2 gap-3">
         <div className="rounded-lg border border-subtle bg-surface-alt p-3">
-          <p className="text-xs uppercase tracking-wide text-muted">Current balance</p>
-          <p className="mt-1 text-lg font-bold text-primary">{formatMoney(result.currentBalance)}</p>
-          {result.currentBalanceSource === "lastPaycheck" && (
-            <p className="mt-1 text-[11px] text-muted">Projected from your last paycheck</p>
-          )}
+          <p className="text-xs uppercase tracking-wide text-muted">Monthly income</p>
+          <p className="mt-1 text-lg font-bold text-primary">{formatMoney(result.monthlyIncome)}</p>
+          <p className="mt-1 text-[11px] text-muted">All recurring income, normalized to a month</p>
         </div>
         <div className="rounded-lg border border-subtle bg-surface-alt p-3">
           <p className="text-xs uppercase tracking-wide text-muted">Committed money</p>
@@ -86,7 +84,7 @@ export default function MonthlySafeToSpendCard({ result }: { result: MonthlySafe
 
       {!positive && (
         <p className="mt-3 text-sm text-red-300">
-          What's committed this month is more than your current balance covers. This can happen even when the
+          What's committed this month is more than you'll earn this month. This can happen even when the
           paycheck-cycle number above looks fine -- that one only looks as far as your next paycheck, not the
           whole month.
         </p>

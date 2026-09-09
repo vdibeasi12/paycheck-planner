@@ -6,8 +6,8 @@
 // paycheck." Sep 5/6 2026, Vince separately compared a $4,248.51/month
 // combined bills+debts total against a single paycheck and proposed a
 // three-number replacement -- Current Balance / Committed Money /
-// Financially Free Money. This is that, built the way he asked (Sep 9 2026):
-// on the real shared engine, not a second hand-rolled formula.
+// Financially Free Money. Built that way first (Sep 9 2026), on the real
+// shared engine, not a second hand-rolled formula.
 //
 // Root cause this replaces: app/insights/page.tsx's FinancialOverviewSection
 // already showed a "Safe to spend" stat tile computed by
@@ -26,13 +26,20 @@
 // and the PDF narrative) -- only its "safeToSpend" field is superseded by
 // this, on the new consolidated /safe-to-spend page.
 //
-// "Current Balance" is deliberately the exact same figure Safe to Spend and
-// "Can I pay this off?" already use (lib/cashBalance.ts's
-// resolveStartingCash) -- not a new concept. This module doesn't resolve it
-// itself; the caller (app/safe-to-spend/page.tsx) fetches cash_accounts and
-// calls resolveStartingCash the same way app/dashboard/page.tsx does, then
-// passes the result in here, same pattern as lib/safeToSpend.ts's
-// withStartingCash().
+// REVISED Sep 9 2026 (same day, Vince): compared this against Voya's public
+// budget calculator (voya.com/individuals/learn/budget-calculator) and asked
+// for the arithmetic to match it -- that tool computes
+// `Remaining = Monthly Income - everything you've allocated` (needs + wants +
+// savings, all self-declared), anchored to a stable monthly income figure.
+// Financially Free Money was `currentBalance - committedMoney` -- a REAL
+// balance, which moves around all month for reasons that have nothing to do
+// with the budget (checked the day before payday vs. the day after gives two
+// different answers even though nothing about committed money changed), so
+// it never "added up" against a plain income-minus-expenses check the way
+// Vince expected. Switched the formula to `monthlyIncome - committedMoney`
+// to match. currentBalance is no longer an input here -- it's still exactly
+// what lib/safeToSpend.ts (this cycle) and lib/debtPayoffSafety.ts (extra
+// debt payment) are grounded in, just not this card anymore.
 
 import {
   excludeTransferCoveredDebts,
@@ -54,13 +61,6 @@ export type MSTSGoal = CycleGoal
 
 export type MonthlySafeToSpendResult = {
   hasIncome: boolean
-  // What you actually have right now (lib/cashBalance.ts's
-  // resolveStartingCash) -- same figure Safe to Spend and "Can I pay this
-  // off?" ground themselves in. Not a live bank balance (no Plaid Auth) --
-  // see currentBalanceSource/currentBalanceAsOf to show that honestly.
-  currentBalance: number
-  currentBalanceSource: "lastPaycheck" | "checking"
-  currentBalanceAsOf: string | null
   monthlyIncome: number
   monthlyBills: number
   monthlyDebtPayments: number
@@ -68,8 +68,8 @@ export type MonthlySafeToSpendResult = {
   // monthlyBills + monthlyDebtPayments + monthlyGoalContributions -- what's
   // already spoken for every month before anything discretionary happens.
   committedMoney: number
-  // currentBalance - committedMoney. Can be negative -- that means what's
-  // already committed this month is more than what's on hand right now, a
+  // monthlyIncome - committedMoney. Can be negative -- that means what's
+  // already committed this month is more than you'll earn this month, a
   // real signal worth surfacing plainly rather than clamping to zero.
   financiallyFreeMoney: number
   // Debts excluded from committedMoney because a real, on-file transfer
@@ -83,9 +83,6 @@ export function computeMonthlySafeToSpend(input: {
   bills: MSTSBill[]
   debts: (MSTSDebt & { id?: string; name?: string })[]
   goals: MSTSGoal[]
-  currentBalance: number
-  currentBalanceSource: "lastPaycheck" | "checking"
-  currentBalanceAsOf: string | null
   today?: Date
 }): MonthlySafeToSpendResult {
   const today = input.today ?? new Date()
@@ -116,13 +113,10 @@ export function computeMonthlySafeToSpend(input: {
   const monthlyGoalContributions = goalContributionMonthlyRate(input.goals, todayISO)
 
   const committedMoney = monthlyBills + monthlyDebtPayments + monthlyGoalContributions
-  const financiallyFreeMoney = input.currentBalance - committedMoney
+  const financiallyFreeMoney = monthlyIncome - committedMoney
 
   return {
     hasIncome,
-    currentBalance: input.currentBalance,
-    currentBalanceSource: input.currentBalanceSource,
-    currentBalanceAsOf: input.currentBalanceAsOf,
     monthlyIncome,
     monthlyBills,
     monthlyDebtPayments,
