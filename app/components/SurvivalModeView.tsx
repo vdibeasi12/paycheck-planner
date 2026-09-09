@@ -100,12 +100,29 @@ function AccountSafeToSpendBlock({
   const pastDueTotal = [...classifiedBills, ...classifiedDebts]
     .filter((i) => i.itemStatus === "alreadyDue")
     .reduce((sum, i) => sum + i.amount, 0)
-  const allCommittedItems = [...classifiedBills, ...classifiedDebts].map((i) => ({
-    name: i.name,
-    amount: i.amount,
-    date: i.occurrenceDate,
-    pastDue: i.itemStatus === "alreadyDue",
-  }))
+
+  // CRITICAL FIX (Sep 9 2026, Vince, "option 1" -- "reduce Safe to Spend
+  // itself" so 53rd earmarks the personal loan/mortgage): see
+  // PaycheckCountdown.tsx's matching comment -- when
+  // lib/safeToSpend.ts's floorSafeToSpend has pulled safeToSpend down to
+  // protect a later cycle, both "Still due before payday" and this list
+  // need the same extra line, or the Stat and Safe to Spend stop
+  // reconciling with each other.
+  const multiCycleReserve = result.reservedThroughDate
+    ? Math.max(0, result.startingCash - (result.billsDue + result.debtsDue + result.goalContribution) - result.safeToSpend)
+    : 0
+  const stillDueTotal = result.billsDue + result.debtsDue + result.goalContribution + multiCycleReserve
+  const allCommittedItems = [
+    ...[...classifiedBills, ...classifiedDebts].map((i) => ({
+      name: i.name,
+      amount: i.amount,
+      date: i.occurrenceDate,
+      pastDue: i.itemStatus === "alreadyDue",
+    })),
+    ...(multiCycleReserve > 0 && result.reservedThroughDate
+      ? [{ name: "Reserved for an upcoming paycheck cycle", amount: multiCycleReserve, date: result.reservedThroughDate, pastDue: false }]
+      : []),
+  ]
 
   return (
     <div className="space-y-4">
@@ -124,7 +141,7 @@ function AccountSafeToSpendBlock({
           label="Days until payday"
           value={result.daysUntilNextPaycheck === 0 ? "Today" : String(result.daysUntilNextPaycheck)}
         />
-        <Stat label="Still due before payday" value={formatMoney(result.billsDue + result.debtsDue + result.goalContribution)} />
+        <Stat label="Still due before payday" value={formatMoney(stillDueTotal)} />
         <Stat
           label="Safe to spend"
           value={formatMoney(result.safeToSpend)}

@@ -83,13 +83,31 @@ export default function PaycheckCountdown({
   const pastDueTotal = [...classifiedBills, ...classifiedDebts]
     .filter((i) => i.itemStatus === "alreadyDue")
     .reduce((sum, i) => sum + i.amount, 0)
-  const allCommittedItems = [...classifiedBills, ...classifiedDebts].map((i) => ({
-    name: i.name,
-    amount: i.amount,
-    date: i.occurrenceDate,
-    pastDue: i.itemStatus === "alreadyDue",
-  }))
-  const totalCommitted = result.billsDue + result.debtsDue + result.goalContribution
+  // CRITICAL FIX (Sep 9 2026, Vince, "option 1" -- "reduce Safe to Spend
+  // itself" so 53rd earmarks the personal loan/mortgage): when
+  // lib/safeToSpend.ts's floorSafeToSpend has pulled safeToSpend down to
+  // protect a LATER paycheck cycle (result.reservedThroughDate), that gap
+  // needs its own visible line here too -- otherwise this list's own total
+  // would quietly stop matching the headline number above it, the exact
+  // "$868.04 vs $926.03" black-box problem Vince already caught once. Not
+  // yet attributed to the specific debt causing it (that would need the
+  // classified items for a future cycle, not just this one) -- named
+  // generically until that's wired up.
+  const multiCycleReserve = result.reservedThroughDate
+    ? Math.max(0, result.startingCash - (result.billsDue + result.debtsDue + result.goalContribution) - result.safeToSpend)
+    : 0
+  const allCommittedItems = [
+    ...[...classifiedBills, ...classifiedDebts].map((i) => ({
+      name: i.name,
+      amount: i.amount,
+      date: i.occurrenceDate,
+      pastDue: i.itemStatus === "alreadyDue",
+    })),
+    ...(multiCycleReserve > 0 && result.reservedThroughDate
+      ? [{ name: "Reserved for an upcoming paycheck cycle", amount: multiCycleReserve, date: result.reservedThroughDate, pastDue: false }]
+      : []),
+  ]
+  const totalCommitted = result.billsDue + result.debtsDue + result.goalContribution + multiCycleReserve
 
   if (!result.hasIncome) {
     return (
@@ -196,7 +214,13 @@ export default function PaycheckCountdown({
             <span className="text-secondary">-{formatMoney(result.goalContribution)}</span>
           </div>
         )}
-        {(upcomingBillsAmount > 0 || upcomingDebtsAmount > 0 || pastDueTotal > 0 || result.goalContribution > 0) && (
+        {multiCycleReserve > 0 && result.reservedThroughDate && (
+          <div className="flex justify-between">
+            <span>Reserved for {formatDate(result.reservedThroughDate)}</span>
+            <span className="text-secondary">-{formatMoney(multiCycleReserve)}</span>
+          </div>
+        )}
+        {(upcomingBillsAmount > 0 || upcomingDebtsAmount > 0 || pastDueTotal > 0 || result.goalContribution > 0 || multiCycleReserve > 0) && (
           <div className="flex justify-between border-t border-default pt-1.5 font-[600] text-primary">
             <span>Total committed</span>
             <span>-{formatMoney(totalCommitted)}</span>

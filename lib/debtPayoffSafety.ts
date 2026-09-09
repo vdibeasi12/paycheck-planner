@@ -54,6 +54,96 @@ export type DebtPayoffAffordability = {
   tightestRunningBalance: number
 }
 
+export type MultiCycleCheckpoint = {
+  // Real cash on hand at this point in the projection -- see
+  // findTightestCheckpoint below for exactly which point.
+  balance: number
+  // null means "today, net of anything already due and unpaid" -- same
+  // convention DebtPayoffAffordability.tightestDate already uses.
+  date: string | null
+}
+
+// CRITICAL FIX (Sep 9 2026, Vince, live screenshot of 53rd Checking): "53rd
+// is not counting the personal loan and it needs to earmark the up coming
+// mortgage payment." Chasing that down surfaced a real, separate gap: this
+// function used to compare only two kinds of checkpoint -- todayCheckpoint
+// (today's cash, net of anything ALREADY due and unpaid) and each projected
+// cycle's runningBalance (the balance right AFTER that cycle's own paycheck
+// lands and pays that cycle's own bills). It never checked the point right
+// BEFORE a cycle's paycheck lands but AFTER that cycle's bills/debts have
+// come due -- for the very first cycle, that's mathematically identical to
+// Safe to Spend's own headline number (lib/safeToSpend.ts's safeToSpend),
+// which meant Extra Debt Payment could recommend sending away more than
+// Safe to Spend itself says is free, whenever something (like Capital One
+// Auto, due the 15th) falls between today and the next paycheck (the
+// 16th). Confirmed on Vince's real 53rd numbers: the old code recommended
+// $3,153.13 (today's $3,303.13 minus the $150 reserve, since nothing was
+// due YET as of today) -- but $596.50 of that is owed to Capital One Auto
+// six days before the next paycheck, so sending $3,153.13 away today would
+// leave only $150, not enough to cover it. The true tightest point is
+// $2,706.63 (today's cash minus Capital One Auto), the same number Safe to
+// Spend already shows -- the two engines can no longer disagree about it.
+//
+// runningBalance_i = runningBalance_(i-1) + amount_i - billsDue_i -
+// debtsDue_i - goalContribution_i (see projectPaycheckCycles), so the
+// balance right before cycle i's own paycheck lands is simply
+// runningBalance_i - amount_i.
+function findTightestCheckpoint(input: {
+  startingCash: number
+  income: CycleIncome[]
+  bills: CycleBill[]
+  debts: CycleDebt[]
+  goals: CycleGoal[]
+  today?: Date
+  cyclesToConsider?: number
+}): MultiCycleCheckpoint {
+  const alreadyDue = alreadyDueSinceLastPaycheck({
+    income: input.income,
+    bills: input.bills,
+    debts: input.debts,
+    today: input.today,
+  })
+  const todayCheckpoint = input.startingCash - alreadyDue
+
+  const cycles = projectPaycheckCycles({
+    income: input.income,
+    bills: input.bills,
+    debts: input.debts,
+    goals: input.goals,
+    today: input.today,
+    startingCash: input.startingCash,
+  }).slice(0, input.cyclesToConsider ?? 4)
+
+  let tightest: MultiCycleCheckpoint = { balance: todayCheckpoint, date: null }
+  for (const c of cycles) {
+    const preCheckpoint = c.runningBalance - c.amount
+    if (preCheckpoint < tightest.balance) {
+      tightest = { balance: preCheckpoint, date: c.date }
+    }
+    if (c.runningBalance < tightest.balance) {
+      tightest = { balance: c.runningBalance, date: c.date }
+    }
+  }
+  return tightest
+}
+
+// Same projection, reserve already applied -- used to floor Safe to Spend
+// itself (lib/accountSafeToSpend.ts) at whatever this multi-cycle search
+// finds, on top of Extra Debt Payment above. Reserve defaults to 0 here
+// (unlike computeDebtPayoffAffordability) because Safe to Spend has never
+// carried a built-in cushion of its own -- see lib/safeToSpend.ts.
+export function computeMultiCycleFloor(input: {
+  startingCash: number
+  income: CycleIncome[]
+  bills: CycleBill[]
+  debts: CycleDebt[]
+  goals: CycleGoal[]
+  today?: Date
+  cyclesToConsider?: number
+}): MultiCycleCheckpoint {
+  return findTightestCheckpoint(input)
+}
+
 export function computeDebtPayoffAffordability(input: {
   // Real pooled Checking balance projected to today (lib/cashBalance.ts's
   // resolveStartingCash) -- same starting point Safe to Spend uses.
@@ -77,78 +167,18 @@ export function computeDebtPayoffAffordability(input: {
 }): DebtPayoffAffordability {
   const reserve = input.reserve ?? DEFAULT_PAYOFF_RESERVE
 
-  // CRITICAL FIX (Sep 9 2026, Vince, reviewing a live screenshot): "Extra
-  // Debt Payment... appears to equal current balance minus $150 [the
-  // reserve]... if the past-due bills are still unpaid, allowing a payment
-  // that big would be dangerous because those bills still need to be
-  // paid." Previously the flat `reserve` was the ONLY thing ever subtracted
-  // from today's real cash on the "today is the binding constraint" path
-  // below -- a bill or debt already due but not yet paid (no paid_through
-  // recorded) just sat there uncounted, since it isn't visible to this
-  // function unless a future cycle happens to be tighter than today.
-  // alreadyDueSinceLastPaycheck is the exact same reservation
-  // computeSafeToSpend now applies, so today's real "free to send to debt"
-  // starting point (todayCheckpoint) already has it removed, and this can
-  // never disagree with what Safe to Spend shows for the same reason.
-  const alreadyDue = alreadyDueSinceLastPaycheck({
-    income: input.income,
-    bills: input.bills,
-    debts: input.debts,
-    today: input.today,
-  })
-  const todayCheckpoint = input.startingCash - alreadyDue
-
-  const cycles = projectPaycheckCycles({
-    income: input.income,
-    bills: input.bills,
-    debts: input.debts,
-    goals: input.goals,
-    today: input.today,
-    startingCash: input.startingCash,
-  }).slice(0, input.cyclesToConsider ?? 4)
-
-  if (cycles.length === 0) {
-    return {
-      maxSafeToPayoff: todayCheckpoint - reserve,
-      reserve,
-      tightestDate: null,
-      tightestRunningBalance: todayCheckpoint,
-    }
-  }
-
-  // CRITICAL FIX (Sep 5 2026, Vince): a projected cycle's runningBalance is
-  // only ever checked AFTER that cycle's own paycheck has already landed
-  // and paid that cycle's own bills -- so if the very next paycheck
-  // comfortably covers thin near-term bills, every projected runningBalance
-  // can come back HIGHER than today's actual startingCash, even while some
-  // LATER cycle's own paycheck doesn't cover that cycle's own bills (the
-  // shortfall gets absorbed by cash carried forward, not by borrowing
-  // against the future). Comparing only cycles[].runningBalance -- as this
-  // used to -- means "tightest" could be a number bigger than what's
-  // actually in the bank right now, and maxSafeToPayoff would recommend
-  // withdrawing more than the user currently has, days before any of that
-  // relief ever arrives. Confirmed live: Vince's real Sep 2026 numbers
-  // (startingCash $3,678.30) produced a $5,159.67 "safe to pay off"
-  // recommendation under the old code -- more than a thousand dollars he
-  // doesn't have yet. Today's actual cash on hand -- now todayCheckpoint,
-  // itself already net of any already-due unpaid bill -- is a checkpoint in
-  // the comparison, same as any future cycle.
-  const tightestCycle = cycles.reduce((worst, c) => (c.runningBalance < worst.runningBalance ? c : worst), cycles[0])
-  if (todayCheckpoint <= tightestCycle.runningBalance) {
-    // Nothing projected ahead is actually tighter than what's on hand right
-    // now (net of anything already due and unpaid) -- today's real balance
-    // is the binding constraint, not a future paycheck cycle.
-    return {
-      maxSafeToPayoff: todayCheckpoint - reserve,
-      reserve,
-      tightestDate: null,
-      tightestRunningBalance: todayCheckpoint,
-    }
-  }
+  // alreadyDueSinceLastPaycheck (via findTightestCheckpoint's todayCheckpoint)
+  // is the exact same reservation computeSafeToSpend applies, and the
+  // pre-paycheck checkpoint for each projected cycle (see
+  // findTightestCheckpoint above) is the exact same number Safe to Spend's
+  // own safeToSpend would show for that cycle -- so this can never
+  // recommend sending away more than Safe to Spend itself says is free,
+  // for today's window or any cycle further out.
+  const tightest = findTightestCheckpoint(input)
   return {
-    maxSafeToPayoff: tightestCycle.runningBalance - reserve,
+    maxSafeToPayoff: tightest.balance - reserve,
     reserve,
-    tightestDate: tightestCycle.date,
-    tightestRunningBalance: tightestCycle.runningBalance,
+    tightestDate: tightest.date,
+    tightestRunningBalance: tightest.balance,
   }
 }

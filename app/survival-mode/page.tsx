@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { computeSafeToSpend, withStartingCash } from "@/lib/safeToSpend"
+import { computeSafeToSpend, withStartingCash, floorSafeToSpend } from "@/lib/safeToSpend"
+import { computeMultiCycleFloor } from "@/lib/debtPayoffSafety"
 import {
   classifyItemsAroundCycle,
   excludeTransferCoveredDebts,
@@ -84,6 +85,26 @@ export default async function SurvivalModePage() {
     paid_through?: string | null
   }
   const spendableDebts = excludeTransferCoveredDebts(debts, income)
+
+  // CRITICAL FIX (Sep 9 2026, Vince, "option 1" -- "reduce Safe to Spend
+  // itself"): same multi-cycle search Extra Debt Payment
+  // (lib/debtPayoffSafety.ts) already runs, applied to this page's own
+  // headline number too -- see lib/safeToSpend.ts's floorSafeToSpend and
+  // app/safe-to-spend/page.tsx's identical call.
+  const multiCycleFloor = computeMultiCycleFloor({
+    startingCash: startingCash.amount,
+    income,
+    bills,
+    debts: spendableDebts.map((d) => ({
+      minimum_payment: d.minimum_payment,
+      due_date: d.due_date,
+      grace_period_days: d.grace_period_days,
+      paid_through: d.paid_through,
+    })),
+    goals: [],
+  })
+  result = floorSafeToSpend(result, multiCycleFloor)
+
   // Only show a debt as "covered by transfer" here if it's ACTUALLY excluded
   // above -- covered_by_transfer alone is no longer trusted without a real
   // transfer on record (see excludeTransferCoveredDebts), so this list must

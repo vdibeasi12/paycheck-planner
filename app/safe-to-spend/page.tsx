@@ -5,9 +5,9 @@ import { PiggyBank } from "lucide-react"
 import PaycheckCountdown from "@/app/components/PaycheckCountdown"
 import MonthlySafeToSpendCard from "@/app/components/MonthlySafeToSpendCard"
 import ExtraDebtPaymentCard from "@/app/components/ExtraDebtPaymentCard"
-import { computeSafeToSpend, withStartingCash } from "@/lib/safeToSpend"
+import { computeSafeToSpend, withStartingCash, floorSafeToSpend } from "@/lib/safeToSpend"
 import { computeMonthlySafeToSpend } from "@/lib/monthlySafeToSpend"
-import { computeDebtPayoffAffordability } from "@/lib/debtPayoffSafety"
+import { computeDebtPayoffAffordability, computeMultiCycleFloor } from "@/lib/debtPayoffSafety"
 import {
   classifyItemsAroundCycle,
   excludeTransferCoveredDebts,
@@ -134,6 +134,20 @@ export default async function SafeToSpendPage() {
     debts: payoffCandidates,
     goals: [],
   })
+
+  // CRITICAL FIX (Sep 9 2026, Vince, "option 1" -- "reduce Safe to Spend
+  // itself"): same multi-cycle search Extra Debt Payment above already
+  // runs, applied to the headline number too, so it can't recommend more
+  // than is actually safe once a later cycle (not just the immediate
+  // window) is considered. See lib/safeToSpend.ts's floorSafeToSpend.
+  const multiCycleFloor = computeMultiCycleFloor({
+    startingCash: startingCash.amount,
+    income,
+    bills,
+    debts: payoffCandidates,
+    goals: [],
+  })
+  safeToSpendResult = floorSafeToSpend(safeToSpendResult, multiCycleFloor)
 
   // Per-account split (Sep 9 2026, Vince): "53rd only gets $1660 per
   // paycheck to save and pay [mortgage/car/personal loan]... Chime gets the

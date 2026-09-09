@@ -57,13 +57,18 @@
 import {
   computeSafeToSpend,
   withStartingCash,
+  floorSafeToSpend,
   type SafeToSpendResult,
   type STSIncome,
   type STSBill,
   type STSDebt,
 } from "./safeToSpend"
 import { computeMonthlySafeToSpend, type MonthlySafeToSpendResult } from "./monthlySafeToSpend"
-import { computeDebtPayoffAffordability, type DebtPayoffAffordability } from "./debtPayoffSafety"
+import {
+  computeDebtPayoffAffordability,
+  computeMultiCycleFloor,
+  type DebtPayoffAffordability,
+} from "./debtPayoffSafety"
 import {
   excludeTransferCoveredDebts,
   classifyItemsAroundCycle,
@@ -224,6 +229,26 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
       goals: [],
       today,
     })
+
+    // "53rd is not counting the personal loan and it needs to earmark the
+    // up coming mortgage payment... reduce Safe to Spend itself" (Sep 9
+    // 2026, Vince, "option 1"). Runs the same multi-cycle search Extra Debt
+    // Payment above already runs and pulls THIS account's own Safe to Spend
+    // down to match whenever a later cycle -- Avant, the mortgage, whatever
+    // else is linked to this account -- turns out tighter than the
+    // immediate window. A no-op whenever, like 53rd's real numbers, this
+    // account's own paycheck refill rate already outpaces what's coming due
+    // later (see lib/safeToSpend.ts's floorSafeToSpend for why that's not a
+    // bug -- it means the immediate number was already the true floor).
+    const floor = computeMultiCycleFloor({
+      startingCash: projectedBalance,
+      income: scheduleIncome,
+      bills: ownBills,
+      debts: payoffCandidates,
+      goals: [],
+      today,
+    })
+    cycle = floorSafeToSpend(cycle, floor)
 
     let classifiedBills: ClassifiedItem<TBill>[] = []
     let classifiedDebts: ClassifiedItem<TDebt & { amount: number }>[] = []

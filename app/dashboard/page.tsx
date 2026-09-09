@@ -11,7 +11,8 @@ import InfoHint from "@/app/components/InfoHint"
 import PaycheckCountdown from "@/app/components/PaycheckCountdown"
 import WhatIfSpend from "@/app/components/WhatIfSpend"
 import PaycheckSurplusPrompt from "@/app/components/PaycheckSurplusPrompt"
-import { computeSafeToSpend, withStartingCash } from "@/lib/safeToSpend"
+import { computeSafeToSpend, withStartingCash, floorSafeToSpend } from "@/lib/safeToSpend"
+import { computeMultiCycleFloor } from "@/lib/debtPayoffSafety"
 import { detectClosedCycleSurplus } from "@/lib/paycheckSurplus"
 import { detectStartingCycleSnapshot } from "@/lib/planDrift"
 import {
@@ -200,6 +201,27 @@ export default async function DashboardPage() {
   const coveredDebts = debts
     .filter((d) => d.covered_by_transfer && !spendableDebtIds.has(d.id))
     .map((d) => ({ name: d.name, amount: Number(d.minimum_payment) || 0 }))
+
+  // CRITICAL FIX (Sep 9 2026, Vince, "option 1" -- "reduce Safe to Spend
+  // itself"): same multi-cycle search Extra Debt Payment
+  // (lib/debtPayoffSafety.ts) already runs, applied to this headline number
+  // too -- see lib/safeToSpend.ts's floorSafeToSpend and
+  // app/safe-to-spend/page.tsx's identical call. Must run before this card
+  // is a candidate for display just below.
+  const multiCycleFloor = computeMultiCycleFloor({
+    startingCash: startingCash.amount,
+    income,
+    bills,
+    debts: spendableDebts.map((d) => ({
+      minimum_payment: d.minimum_payment,
+      due_date: d.due_date,
+      grace_period_days: d.grace_period_days,
+      paid_through: d.paid_through,
+    })),
+    goals: [],
+  })
+  safeToSpendResult = floorSafeToSpend(safeToSpendResult, multiCycleFloor)
+
   let classifiedBills: ReturnType<typeof classifyItemsAroundCycle<typeof bills[number]>> = []
   let classifiedDebts: ReturnType<typeof classifyItemsAroundCycle<typeof debts[number]>> = []
   if (safeToSpendResult.nextPaycheckDate) {

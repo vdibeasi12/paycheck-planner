@@ -17,7 +17,7 @@
 
 import { type CycleBill, type CycleDebt, type CycleIncome, type CycleGoal } from "../paycheckCycles"
 import { computeDebtPayoffAffordability, DEFAULT_PAYOFF_RESERVE } from "../debtPayoffSafety"
-import { computeSafeToSpend, type STSBill } from "../safeToSpend"
+import { computeSafeToSpend, withStartingCash, type STSBill } from "../safeToSpend"
 
 let passed = 0
 let failed = 0
@@ -92,48 +92,71 @@ console.log("  same total worked out by hand in chat")
   assertEqual(cost, 1129.85, "5 credit cards + the $0 one + the -$9.33 credit nets to 1,129.85")
 }
 
-console.log("\nTest 2 -- with nothing paid off yet, and Vince's plan genuinely healthy enough")
-console.log("  that every projected cycle comes back stronger than today's actual cash,")
-console.log("  TODAY's balance (net of Meijer Mastercard's $50, due the 4th -- today -- and")
-console.log("  still unpaid) is the binding constraint, not a future cycle")
+console.log("\nTest 2 -- with nothing paid off yet, the tightest point in Vince's plan is")
+console.log("  actually the moment right before the Sep 16 paycheck lands -- not today, and")
+console.log("  not a later cycle either")
 {
-  // CRITICAL FIX (Sep 9 2026, Vince, reviewing a live screenshot): Meijer
-  // Mastercard's $50 minimum payment is due the 4th -- "today" in this
-  // fixture -- and has no paid_through recorded, so it's still genuinely
-  // unpaid. Previously this $50 sat uncounted whenever today turned out to
-  // be the binding constraint (as it is here): only the flat $150 reserve
-  // ever came out of startingCash. tightestRunningBalance is now
-  // startingCash minus that $50 (alreadyDueSinceLastPaycheck), not raw
-  // startingCash.
+  // CRITICAL FIX (Sep 9 2026, Vince, live screenshot of 53rd Checking):
+  // "53rd is not counting the personal loan and it needs to earmark the up
+  // coming mortgage payment" led to finding a second, independent gap here:
+  // this function used to check today's cash (net of anything ALREADY due)
+  // and each cycle's POST-paycheck runningBalance, but never the point
+  // right BEFORE a cycle's own paycheck lands, after that cycle's own
+  // bills/debts have come due. For cycle 0 that "pre-paycheck" point is
+  // mathematically identical to Safe to Spend's own headline number
+  // (lib/safeToSpend.ts) -- so before this fix, Extra Debt Payment could
+  // recommend sending away MORE than Safe to Spend itself said was free,
+  // whenever something (Signature Visa the 14th, Capital One Auto the
+  // 15th) falls between today and the 16th. tightestRunningBalance is now
+  // 2,731.27 (startingCash minus everything due through the 16th: Meijer
+  // $50 + Signature Visa $50 + Capital One Auto $596.50 + $250.53 of
+  // bills), not 3,628.30 (which only netted out what was ALREADY due as of
+  // today).
   const result = computeDebtPayoffAffordability({ startingCash, income, bills, debts: allDebts, goals, today })
   assertEqual(result.reserve, DEFAULT_PAYOFF_RESERVE, "default reserve is $150")
   assertEqual(result.maxSafeToPayoff, result.tightestRunningBalance - result.reserve, "maxSafeToPayoff is tightestRunningBalance minus reserve")
-  assertEqual(result.tightestRunningBalance, startingCash - 50, "3,678.30 - 50 (Meijer, due today, unpaid) = 3,628.30 is the tightest point, not raw today's balance")
-  assertTrue(result.tightestDate === null, "null correctly means 'today,' not a black box -- no future cycle is actually tighter")
+  assertEqual(result.tightestRunningBalance, 2731.27, "the point right before the Sep 16 paycheck lands, after Meijer/Signature Visa/Capital One Auto/bills are paid, is the true tightest point")
+  assertEqual(result.tightestRunningBalance, startingCash - 50 - 50 - 596.5 - 250.53, "3,678.30 minus everything due through the next paycheck (947.03), not just what's already due as of today")
+  assertTrue(result.tightestDate === "2026-09-16", `the next paycheck's own cycle is now correctly named as the binding constraint (got ${result.tightestDate})`)
   console.log(`  (tightest point: ${result.tightestRunningBalance} on ${result.tightestDate}, maxSafeToPayoff ${result.maxSafeToPayoff})`)
 }
 
-console.log("\nTest 2b (regression) -- the Sep 5 2026 bug: maxSafeToPayoff must never exceed")
-console.log("  what's actually in the bank today, no matter how healthy future cycles look")
+console.log("\nTest 2b (regression) -- maxSafeToPayoff must never exceed what's actually in")
+console.log("  the bank today, no matter how healthy future cycles look")
 {
-  // This is the exact live shape of the bug: Vince's Sep 16 paycheck easily
-  // covers its own thin bills, so cycles[0].runningBalance (5,309.67) comes
-  // back HIGHER than his real startingCash (3,678.30) -- even though the
-  // Oct 28 cycle's OWN paycheck doesn't cover that cycle's OWN bills
-  // (cushion -1,159.59; only the cash carried forward from earlier cycles
-  // absorbs it). The old code compared only cycles[].runningBalance and
-  // recommended $5,159.67 -- more than a thousand dollars Vince doesn't
-  // have yet. The fix floors the recommendation at today's real cash.
-  //
-  // Sep 9 2026 update: "today's real cash" is now net of Meijer
-  // Mastercard's still-unpaid $50 due today too (see Test 2) -- so the
-  // floor is 3,478.30, not 3,528.30.
+  // This is the exact live shape of the original Sep 5 2026 bug: Vince's
+  // Sep 16 paycheck easily covers its own thin bills, so
+  // cycles[0].runningBalance (5,309.67) comes back HIGHER than his real
+  // startingCash (3,678.30) -- even though the Oct 28 cycle's OWN paycheck
+  // doesn't cover that cycle's OWN bills (cushion -1,159.59; only the cash
+  // carried forward from earlier cycles absorbs it). The Sep 5 fix floored
+  // the recommendation at today's real cash; the Sep 9 fix (Test 2 above)
+  // tightened it further to the point right before the very next paycheck
+  // lands, which turns out to be tighter still.
   const result = computeDebtPayoffAffordability({ startingCash, income, bills, debts: allDebts, goals, today })
   assertTrue(
     result.maxSafeToPayoff <= startingCash,
     `maxSafeToPayoff (${result.maxSafeToPayoff}) must never exceed today's real starting cash (${startingCash})`
   )
-  assertEqual(result.maxSafeToPayoff, startingCash - 50 - DEFAULT_PAYOFF_RESERVE, "3,678.30 - 50 (already-due, unpaid) - 150 (reserve) = 3,478.30, not the old buggy 5,159.67 (or the still-too-high 3,528.30)")
+  assertEqual(result.maxSafeToPayoff, 2731.27 - DEFAULT_PAYOFF_RESERVE, "2,731.27 (tightest point, Test 2) - 150 (reserve) = 2,581.27, not the old buggy 5,159.67 or the still-too-high 3,478.30")
+}
+
+console.log("\nTest 2c (regression, Sep 9 2026) -- Extra Debt Payment can never recommend")
+console.log("  more than Safe to Spend's own headline number says is free for the exact")
+console.log("  same account/window, whatever the two engines are asked about separately")
+{
+  // The concrete guarantee behind Vince's "option 1": once fixed, these two
+  // numbers -- computed by genuinely different code paths -- can't disagree
+  // about the one thing they're both actually asking, "what's free between
+  // now and the next paycheck." Checked with a real starting-cash grounding
+  // (withStartingCash), same as every page that shows both side by side.
+  const affordability = computeDebtPayoffAffordability({ startingCash, income, bills, debts: allDebts, goals, today })
+  let sts = computeSafeToSpend({ income, bills, debts: allDebts, goals, today })
+  sts = withStartingCash(sts, { amount: startingCash, source: "checking", asOf: "2026-09-01" })
+  assertTrue(
+    affordability.maxSafeToPayoff + affordability.reserve <= sts.safeToSpend + 0.005,
+    `Extra Debt Payment's own headroom (${affordability.maxSafeToPayoff} + ${affordability.reserve} reserve) must never exceed Safe to Spend's own number (${sts.safeToSpend})`
+  )
 }
 
 console.log("\nTest 3 -- paying off the real credit-card selection ($1,129.85) is actually safe:")
@@ -284,18 +307,17 @@ console.log("  past-due bill, sitting right next to an Extra Debt Payment that a
   })
 
   assertEqual(sts.billsDue, 117.98, "Safe to Spend reserves the past-due unpaid bill AND the upcoming one (97.98 + 20)")
-  assertEqual(
-    startingCash - affordability.maxSafeToPayoff - DEFAULT_PAYOFF_RESERVE,
-    97.98,
-    "Extra Debt Payment's todayCheckpoint is also down by exactly the past-due unpaid bill (97.98), not zero"
-  )
   // The actual "no contradiction" guarantee Vince asked for: whatever Safe
-  // to Spend decides is already-committed-but-unpaid, Extra Debt Payment
-  // must agree is unavailable too -- same helper function underneath both.
+  // to Spend decides is committed-but-unpaid through the NEXT paycheck --
+  // not just what's already due as of today -- Extra Debt Payment must
+  // agree is unavailable too, same helper function underneath both now
+  // (Sep 9 2026 update: this used to only check as far as the past-due
+  // sliver (97.98); the pre-paycheck-checkpoint fix from Test 2 makes it
+  // agree with Safe to Spend's FULL window, both bills included, 117.98).
   assertEqual(
     startingCash - (affordability.maxSafeToPayoff + DEFAULT_PAYOFF_RESERVE),
-    pastDueUnpaid.amount,
-    "the two engines agree on exactly how much is already committed-but-unpaid -- they can't disagree by construction"
+    117.98,
+    "the two engines agree on exactly how much is committed-but-unpaid through the next paycheck (past-due 97.98 + upcoming 20) -- they can't disagree by construction"
   )
 }
 
