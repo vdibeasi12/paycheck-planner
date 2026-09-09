@@ -34,7 +34,7 @@ export default function AppNav({ loggedIn }: { loggedIn: boolean }) {
       <div className="flex gap-6 items-center">
         <Link
           href="/pricing"
-          className="text-gray-100 hover:text-white transition text-sm font-medium"
+          className="text-secondary hover:text-primary transition text-sm font-medium"
         >
           Pricing
         </Link>
@@ -57,7 +57,7 @@ export default function AppNav({ loggedIn }: { loggedIn: boolean }) {
             key={l.href}
             href={l.href}
             className={`text-base font-semibold transition ${
-              isActive(l.href) ? "text-green-400" : "text-gray-100 hover:text-white"
+              isActive(l.href) ? "text-green-400" : "text-secondary hover:text-primary"
             }`}
           >
             {l.label}
@@ -66,14 +66,14 @@ export default function AppNav({ loggedIn }: { loggedIn: boolean }) {
         <Link
           href="/account"
           className={`text-base font-semibold transition ${
-            isActive("/account") ? "text-green-400" : "text-gray-100 hover:text-white"
+            isActive("/account") ? "text-green-400" : "text-secondary hover:text-primary"
           }`}
         >
           Account
         </Link>
         <button
           onClick={signOut}
-          className="text-base font-semibold text-gray-200 hover:text-white transition"
+          className="text-base font-semibold text-secondary hover:text-primary transition"
         >
           Sign out
         </button>
@@ -82,7 +82,7 @@ export default function AppNav({ loggedIn }: { loggedIn: boolean }) {
       {/* Mobile hamburger button */}
       <button
         onClick={() => setOpen((v) => !v)}
-        className="md:hidden text-gray-200 p-2 -mr-2"
+        className="md:hidden text-secondary p-2 -mr-2"
         aria-label="Menu"
       >
         {open ? <X size={24} /> : <Menu size={24} />}
@@ -90,15 +90,15 @@ export default function AppNav({ loggedIn }: { loggedIn: boolean }) {
 
       {/* Mobile dropdown panel (anchored under the sticky header) */}
       {open && (
-        <div className="md:hidden absolute left-0 right-0 top-full bg-[#0b1220] border-b border-gray-800 shadow-lg">
+        <div className="md:hidden absolute left-0 right-0 top-full bg-surface border-b border-default shadow-lg">
           <div className="flex flex-col px-6 py-2">
             {LINKS.map((l) => (
               <Link
                 key={l.href}
                 href={l.href}
                 onClick={() => setOpen(false)}
-                className={`py-3 text-base font-medium border-b border-gray-800/60 ${
-                  isActive(l.href) ? "text-green-400" : "text-gray-200"
+                className={`py-3 text-base font-medium border-b border-subtle/60 ${
+                  isActive(l.href) ? "text-green-400" : "text-secondary"
                 }`}
               >
                 {l.label}
@@ -107,8 +107,8 @@ export default function AppNav({ loggedIn }: { loggedIn: boolean }) {
             <Link
               href="/account"
               onClick={() => setOpen(false)}
-              className={`py-3 text-base font-medium border-b border-gray-800/60 ${
-                isActive("/account") ? "text-green-400" : "text-gray-200"
+              className={`py-3 text-base font-medium border-b border-subtle/60 ${
+                isActive("/account") ? "text-green-400" : "text-secondary"
               }`}
             >
               Account
@@ -118,7 +118,7 @@ export default function AppNav({ loggedIn }: { loggedIn: boolean }) {
                 setOpen(false)
                 signOut()
               }}
-              className="py-3 text-left text-base font-medium text-gray-400"
+              className="py-3 text-left text-base font-medium text-muted"
             >
               Sign out
             </button>

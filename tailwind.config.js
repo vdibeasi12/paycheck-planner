@@ -44,6 +44,29 @@ module.exports = {
           400: "#e5e7eb",
           500: "#d1d5db",
         },
+        // Semantic theme tokens (Sep 9 2026, light/dark mode) -- backed by
+        // CSS custom properties in app/globals.css, which flip value under
+        // [data-theme="dark"]/[data-theme="light"] (set by ThemeProvider) or
+        // the prefers-color-scheme media query when no explicit choice is
+        // saved yet. Use these for new/migrated surfaces (bg-canvas,
+        // bg-surface, text-primary, etc) instead of raw gray-900/slate-900/
+        // arbitrary hex, so the same class works in both themes automatically.
+        // Named "primary/secondary/muted" (not "text-primary" etc) so the
+        // generated utility reads as text-primary/text-secondary/text-muted
+        // instead of the doubled-up text-text-primary. Intended for the
+        // `text-` utility family only -- bg-primary/border-primary are
+        // generated too (Tailwind always generates every utility family for
+        // every color in the palette) but aren't meaningful here; don't use them.
+        canvas: "var(--color-canvas)",
+        surface: "var(--color-surface)",
+        "surface-alt": "var(--color-surface-alt)",
+        primary: "var(--color-text-primary)",
+        secondary: "var(--color-text-secondary)",
+        muted: "var(--color-text-muted)",
+      },
+      borderColor: {
+        default: "var(--color-border)",
+        subtle: "var(--color-border-subtle)",
       },
     },
   },

@@ -1,4 +1,6 @@
 import { redirect } from "next/navigation"
+import Link from "next/link"
+import { ArrowRight } from "lucide-react"
 import { createClient } from "@/lib/supabase/server"
 
 import SummaryCards from "@/app/components/SummaryCards"
@@ -335,6 +337,18 @@ export default async function DashboardPage() {
         risk={nearTermRisk}
         lookahead={lookahead}
       />
+      {/* Sep 9 2026, Vince: "create a new section for safe to spend so it's
+          not buried in several different places" -- this card stays exactly
+          as it was (it's the frozen paycheck-cycle number), but now points
+          at the one consolidated page that also has the monthly view and
+          Extra Debt Payment, instead of those living only on their own
+          separate pages. */}
+      <Link
+        href="/safe-to-spend"
+        className="-mt-2 flex items-center gap-1.5 text-sm font-semibold text-emerald-400 hover:underline"
+      >
+        See this month's full breakdown too <ArrowRight size={14} />
+      </Link>
       <WhatIfSpend result={safeToSpendResult} />
       {paycheckTalk && <PaycheckTalkCard narrative={paycheckTalk} />}
       <SummaryCards netWorth={-totalDebt} totalDebt={totalDebt} monthlyPayments={monthlyPayments} percentPaid={percentPaid} />

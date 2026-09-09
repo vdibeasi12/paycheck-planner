@@ -14,6 +14,8 @@ import Sidebar from "./components/Sidebar"
 import FloatingChat from "./components/FloatingChat"
 import FeedbackWidget from "./components/FeedbackWidget"
 import LocaleCurrencySelector from "./components/LocaleCurrencySelector"
+import ThemeToggle from "./components/ThemeToggle"
+import { ThemeProvider, THEME_INIT_SCRIPT } from "./components/ThemeProvider"
 import StructuredData from "./components/StructuredData"
 import { LocaleProvider } from "@/lib/i18n/LocaleProvider"
 import type { LocaleCode, CurrencyCode } from "@/lib/i18n/config"
@@ -147,15 +149,28 @@ export default async function RootLayout({
   }
 
   return (
-    <html lang="en">
+    // suppressHydrationWarning: the no-flash script below sets data-theme on
+    // this element synchronously, before React hydrates, based on
+    // localStorage/prefers-color-scheme -- something the server can't know
+    // when it renders this same tag. That's an intentional, expected
+    // mismatch (the alternative is a flash of the wrong theme on every
+    // load), not a real hydration bug -- see app/components/ThemeProvider.tsx.
+    <html lang="en" suppressHydrationWarning>
       <head>
         <meta charSet="utf-8" />
         <link rel="icon" href="/favicon.ico" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         <meta name="theme-color" content="#020617" />
         <StructuredData />
+        {/* Must run before first paint, as a plain script (not a React
+            effect, which only runs after hydration and would flash the
+            wrong theme first). Kept in lock-step with ThemeProvider's own
+            initial-resolve logic via the shared THEME_INIT_SCRIPT/
+            THEME_STORAGE_KEY constants -- see that file. */}
+        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className={`${plusJakarta.variable} bg-[#020617] text-white`}>
+      <body className={`${plusJakarta.variable} bg-canvas text-primary`} suppressHydrationWarning>
+        <ThemeProvider>
         <LocaleProvider initialLocale={locale} initialCurrency={currency}>
           <NativeInit />
           {showAppChrome && <BiometricLock />}
@@ -175,13 +190,14 @@ export default async function RootLayout({
             {/* Logged-out visitors (and users mid-MFA-challenge, who shouldn't
                 see either the app chrome or the marketing bar) skip this. */}
             {!user && (
-              <header className="border-b border-gray-800 bg-[#020617]/95 backdrop-blur sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
+              <header className="border-b border-default bg-canvas/95 backdrop-blur sticky top-0 z-50 pt-[env(safe-area-inset-top)]">
                 <div className="w-full px-6 py-4 flex flex-wrap gap-y-3 justify-between items-center">
                   <Link href="/" className="flex items-center hover:opacity-80 transition">
                     <Logo size="md" />
                   </Link>
 
                   <div className="flex items-center gap-4">
+                    <ThemeToggle inline />
                     <LocaleCurrencySelector inline />
                     <AppNav loggedIn={false} />
                   </div>
@@ -204,6 +220,7 @@ export default async function RootLayout({
           {showAppChrome && <FloatingChat />}
           {showAppChrome && <FeedbackWidget />}
         </LocaleProvider>
+        </ThemeProvider>
         <Analytics />
       </body>
     </html>

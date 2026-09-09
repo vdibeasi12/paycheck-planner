@@ -30,12 +30,12 @@ export default async function InsightsPage() {
   const debts = Array.isArray(debtsData) ? debtsData : []
 
   return (
-    <div className="min-h-screen bg-[#020617] p-6 md:p-10">
+    <div className="min-h-screen bg-canvas p-6 md:p-10">
       <div className="mx-auto max-w-4xl">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-bold text-white">Insights</h1>
-            <p className="mt-1 text-sm text-gray-400">A clear breakdown of your money.</p>
+            <h1 className="text-2xl font-bold text-primary">Insights</h1>
+            <p className="mt-1 text-sm text-muted">A clear breakdown of your money.</p>
           </div>
           <DownloadSummaryButton />
         </div>

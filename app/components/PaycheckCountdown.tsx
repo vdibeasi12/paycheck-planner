@@ -75,24 +75,24 @@ export default function PaycheckCountdown({
 
   if (!result.hasIncome) {
     return (
-      <div className="rounded-2xl border border-gray-700 bg-gradient-to-br from-[#0f172a] to-[#0b1220] p-6 shadow-lg">
+      <div className="rounded-2xl border border-default bg-gradient-to-br from-surface to-surface-alt p-6 shadow-lg">
         <div className="flex items-center gap-2">
           <Wallet size={18} className="text-emerald-400" />
-          <h2 className="text-sm font-medium uppercase tracking-wide text-gray-400">Safe to spend</h2>
+          <h2 className="text-sm font-medium uppercase tracking-wide text-muted">Safe to spend</h2>
         </div>
-        <p className="mt-2 text-gray-400">Add your income to see how much is safe to spend until your next paycheck.</p>
+        <p className="mt-2 text-muted">Add your income to see how much is safe to spend until your next paycheck.</p>
       </div>
     )
   }
 
   if (result.missingPayDate || !result.nextPaycheckDate) {
     return (
-      <div className="rounded-2xl border border-gray-700 bg-gradient-to-br from-[#0f172a] to-[#0b1220] p-6 shadow-lg">
+      <div className="rounded-2xl border border-default bg-gradient-to-br from-surface to-surface-alt p-6 shadow-lg">
         <div className="flex items-center gap-2">
           <Wallet size={18} className="text-emerald-400" />
-          <h2 className="text-sm font-medium uppercase tracking-wide text-gray-400">Safe to spend</h2>
+          <h2 className="text-sm font-medium uppercase tracking-wide text-muted">Safe to spend</h2>
         </div>
-        <p className="mt-2 text-gray-400">
+        <p className="mt-2 text-muted">
           Add a pay date to your income to see how much is safe to spend until your next paycheck.
         </p>
       </div>
@@ -104,10 +104,10 @@ export default function PaycheckCountdown({
   return (
     <div className="space-y-3">
       {risk && <PlanRiskBanner risk={risk} />}
-      <div className="rounded-2xl border border-gray-700 bg-gradient-to-br from-[#0f172a] to-[#0b1220] p-6 shadow-lg">
+      <div className="rounded-2xl border border-default bg-gradient-to-br from-surface to-surface-alt p-6 shadow-lg">
       <div className="flex items-center gap-2">
         <Wallet size={18} className="text-emerald-400" />
-        <h2 className="text-sm font-medium uppercase tracking-wide text-gray-400">Safe to spend</h2>
+        <h2 className="text-sm font-medium uppercase tracking-wide text-muted">Safe to spend</h2>
         <InfoHint
           label="About Safe to Spend"
           text="Based on your starting cash, minus what's still due (bills, debt payments, goal contributions) before your next paycheck. Not a live bank balance unless you've linked or entered one yourself on Survival Mode."
@@ -117,11 +117,11 @@ export default function PaycheckCountdown({
       <p className={`mt-2 text-4xl font-bold ${positive ? "text-emerald-400" : "text-red-400"}`}>
         {formatMoney(result.safeToSpend)}
       </p>
-      <p className="mt-1 flex items-center gap-1.5 text-sm text-gray-400">
+      <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
         <CalendarClock size={14} />
         Until {formatDate(result.nextPaycheckDate)}
         {result.daysUntilNextPaycheck != null && (
-          <span className="text-gray-500">
+          <span className="text-muted">
             &nbsp;&middot; {result.daysUntilNextPaycheck === 0 ? "today" : `${result.daysUntilNextPaycheck} day${result.daysUntilNextPaycheck === 1 ? "" : "s"}`}
           </span>
         )}
@@ -135,22 +135,22 @@ export default function PaycheckCountdown({
         </p>
       )}
 
-      <div className="mt-4 space-y-1.5 text-sm text-gray-400">
+      <div className="mt-4 space-y-1.5 text-sm text-muted">
         {startingCash && startingCash.source === "checking" ? (
           <div className="flex justify-between">
             <span>Starting from {sourceLabel(startingCash)}</span>
-            <span className="text-gray-200">{formatMoney(result.startingCash)}</span>
+            <span className="text-secondary">{formatMoney(result.startingCash)}</span>
           </div>
         ) : (
           <>
             <div className="flex justify-between">
               <span>Your last paycheck</span>
-              <span className="text-gray-200">{formatMoney(result.lastPaycheckAmount)}</span>
+              <span className="text-secondary">{formatMoney(result.lastPaycheckAmount)}</span>
             </div>
             {result.transfersOut > 0 && (
               <div className="flex justify-between">
                 <span>Automatic transfer out</span>
-                <span className="text-gray-200">-{formatMoney(result.transfersOut)}</span>
+                <span className="text-secondary">-{formatMoney(result.transfersOut)}</span>
               </div>
             )}
           </>
@@ -158,25 +158,25 @@ export default function PaycheckCountdown({
         {result.billsDue > 0 && (
           <div className="flex justify-between">
             <span>Upcoming bills</span>
-            <span className="text-gray-200">-{formatMoney(result.billsDue)}</span>
+            <span className="text-secondary">-{formatMoney(result.billsDue)}</span>
           </div>
         )}
         {result.debtsDue > 0 && (
           <div className="flex justify-between">
             <span>Debt payments</span>
-            <span className="text-gray-200">-{formatMoney(result.debtsDue)}</span>
+            <span className="text-secondary">-{formatMoney(result.debtsDue)}</span>
           </div>
         )}
         {result.goalContribution > 0 && (
           <div className="flex justify-between">
             <span>Goal contributions</span>
-            <span className="text-gray-200">-{formatMoney(result.goalContribution)}</span>
+            <span className="text-secondary">-{formatMoney(result.goalContribution)}</span>
           </div>
         )}
       </div>
 
       {(!startingCash || startingCash.source === "lastPaycheck") && (
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="mt-2 text-xs text-muted">
           This is a projection, not your real balance.{" "}
           <Link href="/survival-mode" className="text-emerald-400 hover:underline">
             Add your real balance
@@ -186,7 +186,7 @@ export default function PaycheckCountdown({
       )}
 
       {startingCash?.source === "checking" && (
-        <p className="mt-2 text-xs text-gray-500">
+        <p className="mt-2 text-xs text-muted">
           Not linked to your bank -- calculated from the balance you entered on{" "}
           {startingCash.asOf ? new Date(startingCash.asOf + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" }) : "file"}
           , projected forward with your income/bills/debts.
@@ -195,7 +195,7 @@ export default function PaycheckCountdown({
 
       {result.dailyLimit != null && result.daysUntilNextPaycheck != null && result.daysUntilNextPaycheck > 0 && (
         <div className="mt-4 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-          <span className="text-sm text-gray-300">Daily spending limit</span>
+          <span className="text-sm text-secondary">Daily spending limit</span>
           <span className={`text-lg font-bold ${positive ? "text-emerald-400" : "text-red-400"}`}>
             {formatMoney(result.dailyLimit)}/day
           </span>

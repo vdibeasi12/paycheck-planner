@@ -1,0 +1,134 @@
+// lib/monthlySafeToSpend.ts
+// "Committed Money" / "Financially Free Money" -- the calendar-month view of
+// Safe to Spend Vince asked for on top of the existing paycheck-cycle one
+// (lib/safeToSpend.ts): "It should calculate your monthly finances, from
+// paycheck, bills, etc so you know what you have to spend, not paycheck to
+// paycheck." Sep 5/6 2026, Vince separately compared a $4,248.51/month
+// combined bills+debts total against a single paycheck and proposed a
+// three-number replacement -- Current Balance / Committed Money /
+// Financially Free Money. This is that, built the way he asked (Sep 9 2026):
+// on the real shared engine, not a second hand-rolled formula.
+//
+// Root cause this replaces: app/insights/page.tsx's FinancialOverviewSection
+// already showed a "Safe to spend" stat tile computed by
+// lib/financialOverview.ts's computeFinancialOverview() -- a simpler
+// `monthlyIncome - monthlyBills - monthlySubscriptions - monthlyDebtPayments`
+// that (a) never applied excludeTransferCoveredDebts, so a debt actually paid
+// by an automatic transfer was double-reserved, and (b) never accounted for
+// goal contributions at all. That was a second, quietly-different
+// "Safe to Spend" number living in production next to the frozen
+// paycheck-cycle one -- exactly the "two competing calculation systems"
+// Vince has said he doesn't want. This file is the real replacement: same
+// transfer-exclusion and goal-contribution logic as lib/safeToSpend.ts and
+// lib/debtPayoffSafety.ts, just rolled up to a month instead of a cycle.
+// computeFinancialOverview's own monthlyIncome/monthlyBills/monthlyDebtPayments
+// figures are left alone for now (still used in its plain-language summary
+// and the PDF narrative) -- only its "safeToSpend" field is superseded by
+// this, on the new consolidated /safe-to-spend page.
+//
+// "Current Balance" is deliberately the exact same figure Safe to Spend and
+// "Can I pay this off?" already use (lib/cashBalance.ts's
+// resolveStartingCash) -- not a new concept. This module doesn't resolve it
+// itself; the caller (app/safe-to-spend/page.tsx) fetches cash_accounts and
+// calls resolveStartingCash the same way app/dashboard/page.tsx does, then
+// passes the result in here, same pattern as lib/safeToSpend.ts's
+// withStartingCash().
+
+import {
+  excludeTransferCoveredDebts,
+  goalContributionMonthlyRate,
+  toISODate,
+  type CycleIncome,
+  type CycleBill,
+  type CycleDebt,
+  type CycleGoal,
+} from "./paycheckCycles"
+import { monthlyFactor } from "./monthlyFactor"
+
+const TRANSFER_TYPE = "transfer"
+
+export type MSTSIncome = CycleIncome
+export type MSTSBill = CycleBill
+export type MSTSDebt = CycleDebt
+export type MSTSGoal = CycleGoal
+
+export type MonthlySafeToSpendResult = {
+  hasIncome: boolean
+  // What you actually have right now (lib/cashBalance.ts's
+  // resolveStartingCash) -- same figure Safe to Spend and "Can I pay this
+  // off?" ground themselves in. Not a live bank balance (no Plaid Auth) --
+  // see currentBalanceSource/currentBalanceAsOf to show that honestly.
+  currentBalance: number
+  currentBalanceSource: "lastPaycheck" | "checking"
+  currentBalanceAsOf: string | null
+  monthlyIncome: number
+  monthlyBills: number
+  monthlyDebtPayments: number
+  monthlyGoalContributions: number
+  // monthlyBills + monthlyDebtPayments + monthlyGoalContributions -- what's
+  // already spoken for every month before anything discretionary happens.
+  committedMoney: number
+  // currentBalance - committedMoney. Can be negative -- that means what's
+  // already committed this month is more than what's on hand right now, a
+  // real signal worth surfacing plainly rather than clamping to zero.
+  financiallyFreeMoney: number
+  // Debts excluded from committedMoney because a real, on-file transfer
+  // already covers them (same evidence-gated rule as Safe to Spend) --
+  // shown on the page so "why is my payment missing" is never a mystery.
+  transferCoveredDebtNames: string[]
+}
+
+export function computeMonthlySafeToSpend(input: {
+  income: MSTSIncome[]
+  bills: MSTSBill[]
+  debts: (MSTSDebt & { id?: string; name?: string })[]
+  goals: MSTSGoal[]
+  currentBalance: number
+  currentBalanceSource: "lastPaycheck" | "checking"
+  currentBalanceAsOf: string | null
+  today?: Date
+}): MonthlySafeToSpendResult {
+  const today = input.today ?? new Date()
+  const todayISO = toISODate(today)
+  const hasIncome = input.income.length > 0
+
+  const monthlyIncome = input.income
+    .filter((i) => i.income_type !== TRANSFER_TYPE)
+    .reduce((sum, i) => sum + (Number(i.amount) || 0) * monthlyFactor(i.frequency), 0)
+
+  const monthlyBills = input.bills.reduce(
+    (sum, b) => sum + (Number(b.amount) || 0) * monthlyFactor(b.frequency),
+    0
+  )
+
+  const spendableDebts = excludeTransferCoveredDebts(input.debts, input.income)
+  const spendableIds = new Set(spendableDebts.map((d) => d.id))
+  const transferCoveredDebtNames = input.debts
+    .filter((d) => d.covered_by_transfer && !spendableIds.has(d.id))
+    .map((d) => d.name || "")
+    .filter(Boolean)
+
+  const monthlyDebtPayments = spendableDebts.reduce(
+    (sum, d) => sum + (Number(d.minimum_payment) || 0),
+    0
+  )
+
+  const monthlyGoalContributions = goalContributionMonthlyRate(input.goals, todayISO)
+
+  const committedMoney = monthlyBills + monthlyDebtPayments + monthlyGoalContributions
+  const financiallyFreeMoney = input.currentBalance - committedMoney
+
+  return {
+    hasIncome,
+    currentBalance: input.currentBalance,
+    currentBalanceSource: input.currentBalanceSource,
+    currentBalanceAsOf: input.currentBalanceAsOf,
+    monthlyIncome,
+    monthlyBills,
+    monthlyDebtPayments,
+    monthlyGoalContributions,
+    committedMoney,
+    financiallyFreeMoney,
+    transferCoveredDebtNames,
+  }
+}

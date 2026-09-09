@@ -48,25 +48,25 @@ export default function PaycheckItemBreakdown({
         onClick={() => setOpen((v) => !v)}
         className="flex w-full items-center justify-between px-4 py-2.5 text-left"
       >
-        <span className="text-sm font-semibold text-gray-200">
-          {title} <span className="font-normal text-gray-500">({items.length})</span>
+        <span className="text-sm font-semibold text-secondary">
+          {title} <span className="font-normal text-muted">({items.length})</span>
         </span>
         <span className="flex items-center gap-2">
-          <span className="text-sm font-semibold text-gray-300">{formatMoney(total)}</span>
-          <ChevronDown size={14} className={`text-gray-500 transition ${open ? "rotate-180" : ""}`} />
+          <span className="text-sm font-semibold text-secondary">{formatMoney(total)}</span>
+          <ChevronDown size={14} className={`text-muted transition ${open ? "rotate-180" : ""}`} />
         </span>
       </button>
       {open && (
         <div className="border-t border-white/10 px-4 py-3">
-          <p className="mb-2 text-xs text-gray-500">{hint}</p>
+          <p className="mb-2 text-xs text-muted">{hint}</p>
           <div className="space-y-1.5">
             {items.map((i, idx) => (
               <div key={idx} className="flex justify-between text-sm">
-                <span className="text-gray-300">
+                <span className="text-secondary">
                   {i.name}
-                  {i.date && <span className="ml-1.5 text-xs text-gray-500">({formatShortDate(i.date)})</span>}
+                  {i.date && <span className="ml-1.5 text-xs text-muted">({formatShortDate(i.date)})</span>}
                 </span>
-                <span className="text-gray-400">{formatMoney(i.amount)}</span>
+                <span className="text-muted">{formatMoney(i.amount)}</span>
               </div>
             ))}
           </div>

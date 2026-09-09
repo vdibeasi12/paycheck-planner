@@ -4,6 +4,77 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ---- Light/dark theme tokens (Sep 9 2026, Vince: "light mode and dark mode
+   so people can choose their background") ----
+   This app has been dark-only since launch -- every existing component
+   hardcodes its own gray/slate values or arbitrary hex (bg-[#0f172a], etc).
+   Retrofitting all of that at once isn't realistic in one pass, so this
+   introduces a semantic token layer instead: a small set of CSS custom
+   properties (surface/text/border, NOT the accent colors like emerald/rose/
+   amber, which read fine against either background at their current shades
+   and are left alone for now) that tailwind.config.js exposes as normal
+   utility classes (bg-canvas, text-primary, border-default, etc). New code
+   (starting with app/safe-to-spend/page.tsx and the app shell -- Sidebar,
+   AppNav, this file's <body> rule) uses these tokens; the remaining
+   hardcoded-dark components get migrated onto them incrementally, one round
+   at a time, without anything needing to be rewritten twice.
+
+   Default (bare :root, no data-theme attribute) is DARK, matching this
+   app's history, so anything not yet migrated -- or any edge case where the
+   no-flash script below couldn't run -- still renders the same as it always
+   has. A visitor whose OS prefers light and who hasn't picked a theme here
+   yet gets light automatically (prefers-color-scheme media query below);
+   an explicit [data-theme] attribute (set by ThemeProvider, from a saved
+   choice) always wins over both. */
+:root {
+  --color-canvas: #020617;
+  --color-surface: #0f172a;
+  --color-surface-alt: #0b1220;
+  --color-border: #1f2937;
+  --color-border-subtle: #1e293b;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #d1d5db;
+  --color-text-muted: #9ca3af;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --color-canvas: #f8fafc;
+    --color-surface: #ffffff;
+    --color-surface-alt: #f1f5f9;
+    --color-border: #e2e8f0;
+    --color-border-subtle: #f1f5f9;
+    --color-text-primary: #0f172a;
+    --color-text-secondary: #334155;
+    --color-text-muted: #64748b;
+  }
+}
+[data-theme="light"] {
+  --color-canvas: #f8fafc;
+  --color-surface: #ffffff;
+  --color-surface-alt: #f1f5f9;
+  --color-border: #e2e8f0;
+  --color-border-subtle: #f1f5f9;
+  --color-text-primary: #0f172a;
+  --color-text-secondary: #334155;
+  --color-text-muted: #64748b;
+}
+[data-theme="dark"] {
+  --color-canvas: #020617;
+  --color-surface: #0f172a;
+  --color-surface-alt: #0b1220;
+  --color-border: #1f2937;
+  --color-border-subtle: #1e293b;
+  --color-text-primary: #ffffff;
+  --color-text-secondary: #d1d5db;
+  --color-text-muted: #9ca3af;
+}
+/* Smooth the color swap on toggle instead of an abrupt flip -- only these
+   token-backed properties, so it doesn't add transition lag to unrelated
+   hover/focus states elsewhere in the app. */
+body, [class*="bg-canvas"], [class*="bg-surface"], [class*="border-default"] {
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease;
+}
+
 /* Plus Jakarta Sans, loaded in app/layout.tsx via next/font/google and
    exposed as --font-sans. Falls back to the previous system stack so
    nothing breaks if the font request is ever blocked. */

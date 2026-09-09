@@ -60,7 +60,7 @@ export default function InfoHint({
         type="button"
         aria-label={label}
         aria-describedby={open ? id : undefined}
-        className="inline-flex items-center justify-center rounded-full text-slate-500 transition hover:text-slate-200 focus:text-slate-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
+        className="inline-flex items-center justify-center rounded-full text-muted transition hover:text-secondary focus:text-secondary focus:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400/60"
         onMouseEnter={show}
         onMouseLeave={hide}
         onFocus={show}
@@ -86,7 +86,7 @@ export default function InfoHint({
                 left: coords.left,
                 transform: coords.above ? "translateY(-100%)" : "none",
               }}
-              className="pointer-events-none z-[1000] w-56 rounded-lg border border-slate-700 bg-slate-950 px-3 py-2 text-xs leading-relaxed text-slate-200 shadow-xl"
+              className="pointer-events-none z-[1000] w-56 rounded-lg border border-default bg-surface px-3 py-2 text-xs leading-relaxed text-secondary shadow-xl"
             >
               {text}
             </span>,

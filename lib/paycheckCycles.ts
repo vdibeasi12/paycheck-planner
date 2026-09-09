@@ -520,6 +520,41 @@ export function goalContributionRate(goals: CycleGoal[], income: CycleIncome[], 
   return total
 }
 
+// Monthly sibling of goalContributionRate, for the calendar-month "Committed
+// Money" rollup (lib/monthlySafeToSpend.ts) instead of a per-paycheck one.
+// Same rules (skip inactive/no-deadline/already-funded goals, an overdue
+// deadline counts its full remaining amount), just denominated in months
+// remaining instead of paycheck occurrences remaining -- deliberately NOT
+// derived from goalContributionRate by multiplying by paychecks-per-month,
+// since a user can have more than one income row at different frequencies
+// and there'd be no single "paychecks per month" to multiply by. A goal due
+// later this same calendar month (monthsOut === 0) reserves its full
+// remaining amount this month, same as goalContributionRate reserving the
+// full amount once uniqueDates collapses to just one remaining occurrence.
+export function goalContributionMonthlyRate(goals: CycleGoal[], asOfISO: string): number {
+  const asOf = new Date(asOfISO + "T00:00:00")
+  const asOfYear = asOf.getFullYear()
+  const asOfMonth = asOf.getMonth()
+  let total = 0
+  for (const g of goals) {
+    if (g.status && g.status !== "active") continue
+    if (!g.deadline) continue
+    const remaining = Number(g.target_amount || 0) - Number(g.current_amount ?? 0)
+    if (remaining <= 0) continue
+    if (g.deadline <= asOfISO) {
+      total += remaining
+      continue
+    }
+    const deadlineDate = new Date(g.deadline + "T00:00:00")
+    const deadlineIdx = deadlineDate.getFullYear() * 12 + deadlineDate.getMonth()
+    const monthsOut = deadlineIdx - (asOfYear * 12 + asOfMonth)
+    if (monthsOut > GOAL_SCAN_MONTHS_FORWARD) continue
+    const monthsRemaining = Math.max(1, monthsOut)
+    total += remaining / monthsRemaining
+  }
+  return total
+}
+
 // Per-goal contributions across a whole set of projected cycle dates (used
 // by projectPaycheckCycles below). NOT the same as calling
 // goalContributionRate() once per date: that function's rate is meant to be

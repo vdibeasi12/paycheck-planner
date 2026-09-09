@@ -7,6 +7,7 @@ import {
   Menu,
   X,
   LayoutDashboard,
+  PiggyBank,
   CalendarClock,
   Calendar,
   Receipt,
@@ -34,6 +35,7 @@ import Logo from "./Logo"
 import GettingStartedModal from "./GettingStartedModal"
 import ProductTour from "./ProductTour"
 import LocaleCurrencySelector from "./LocaleCurrencySelector"
+import ThemeToggle from "./ThemeToggle"
 import { useLocale } from "@/lib/i18n/LocaleProvider"
 import { supabase } from "@/lib/supabase/client"
 import { hardSignOut } from "@/lib/signOut"
@@ -47,6 +49,12 @@ import { hardSignOut } from "@/lib/signOut"
 // print a small section header there.
 const LINKS = [
   { href: "/dashboard", labelKey: "nav.dashboard", Icon: LayoutDashboard, group: "money" },
+  // Sep 9 2026, Vince: "create a new section for safe to spend so it's not
+  // buried in several different places" -- the one canonical home for both
+  // the paycheck-cycle number (Dashboard/Survival Mode) and the new monthly
+  // Committed Money / Financially Free Money view. Placed right under
+  // Dashboard since it's the flagship number people check most often.
+  { href: "/safe-to-spend", labelKey: "nav.safeToSpend", Icon: PiggyBank },
   { href: "/survival-mode", labelKey: "nav.survivalMode", Icon: LifeBuoy },
   { href: "/bills-debts", labelKey: "nav.billsDebts", Icon: Receipt },
   { href: "/calendar", labelKey: "nav.calendar", Icon: Calendar },
@@ -191,9 +199,9 @@ export default function Sidebar() {
           setGsOpen(true)
         }}
         data-tour="nav-getting-started"
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-gray-300 transition hover:bg-white/5 hover:text-white"
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-secondary transition hover:bg-white/5 hover:text-primary"
       >
-        <Sparkles size={20} className="text-gray-400" />
+        <Sparkles size={20} className="text-muted" />
         {t("nav.gettingStarted")}
       </button>
 
@@ -202,7 +210,7 @@ export default function Sidebar() {
         return (
           <Fragment key={href}>
             {group && (
-              <div className="mt-3 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-gray-500 first:mt-0">
+              <div className="mt-3 mb-1 px-3 text-[11px] font-semibold uppercase tracking-wide text-muted first:mt-0">
                 {t(GROUP_LABEL_KEYS[group])}
               </div>
             )}
@@ -214,10 +222,10 @@ export default function Sidebar() {
               className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition ${
                 active
                   ? "bg-green-500/15 text-green-400"
-                  : "text-gray-300 hover:bg-white/5 hover:text-white"
+                  : "text-secondary hover:bg-white/5 hover:text-primary"
               }`}
             >
-              <Icon size={20} className={active ? "text-green-400" : "text-gray-400"} />
+              <Icon size={20} className={active ? "text-green-400" : "text-muted"} />
               {t(labelKey)}
             </Link>
           </Fragment>
@@ -232,18 +240,18 @@ export default function Sidebar() {
           className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-[15px] font-medium transition ${
             isActive("/admin")
               ? "bg-green-500/15 text-green-400"
-              : "text-gray-300 hover:bg-white/5 hover:text-white"
+              : "text-secondary hover:bg-white/5 hover:text-primary"
           }`}
         >
           <ShieldCheck
             size={20}
-            className={isActive("/admin") ? "text-green-400" : "text-gray-400"}
+            className={isActive("/admin") ? "text-green-400" : "text-muted"}
           />
           {t("nav.admin")}
         </Link>
       )}
 
-      <div className="my-1 border-t border-gray-800" />
+      <div className="my-1 border-t border-default" />
 
       {/* "Upcoming (30 days)" used to be a separate drawer trigger here --
           it now lives as an always-visible side panel on the Calendar page
@@ -252,9 +260,9 @@ export default function Sidebar() {
       <button
         onClick={() => openFeedback(onNavigate)}
         data-tour="nav-feedback"
-        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-gray-300 transition hover:bg-white/5 hover:text-white"
+        className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-[15px] font-medium text-secondary transition hover:bg-white/5 hover:text-primary"
       >
-        <MessageSquarePlus size={20} className="text-gray-400" />
+        <MessageSquarePlus size={20} className="text-muted" />
         {t("nav.feedback")}
       </button>
     </nav>
@@ -263,11 +271,12 @@ export default function Sidebar() {
   return (
     <>
       {/* Mobile top bar (only when the desktop sidebar is hidden) */}
-      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-gray-800 bg-[#020617]/95 px-4 py-3 backdrop-blur pt-[calc(env(safe-area-inset-top)+0.75rem)] md:hidden">
+      <header className="sticky top-0 z-40 flex items-center justify-between border-b border-default bg-canvas/95 px-4 py-3 backdrop-blur pt-[calc(env(safe-area-inset-top)+0.75rem)] md:hidden">
         <Link href="/dashboard" className="flex items-center" aria-label="Paycheck Planner home">
           <Logo size="md" />
         </Link>
         <div className="flex items-center gap-1.5">
+          <ThemeToggle inline />
           <LocaleCurrencySelector inline />
           {/* Account + Sign out live right next to the language/currency
               selector (Vince, Aug 27 2026) -- always visible up top instead
@@ -279,7 +288,7 @@ export default function Sidebar() {
             title={t("nav.account")}
             aria-current={isActive("/account") ? "page" : undefined}
             className={`rounded-lg p-2 transition ${
-              isActive("/account") ? "text-green-400" : "text-gray-200 hover:text-white"
+              isActive("/account") ? "text-green-400" : "text-secondary hover:text-primary"
             }`}
           >
             <Settings size={22} />
@@ -289,13 +298,13 @@ export default function Sidebar() {
             data-tour="nav-sign-out"
             aria-label={t("nav.signOut")}
             title={t("nav.signOut")}
-            className="rounded-lg p-2 text-gray-200 transition hover:text-white"
+            className="rounded-lg p-2 text-secondary transition hover:text-primary"
           >
             <LogOut size={22} />
           </button>
           <button
             onClick={() => setOpen(true)}
-            className="-mr-2 p-2 text-gray-200"
+            className="-mr-2 p-2 text-secondary"
             aria-label="Open menu"
           >
             <Menu size={26} />
@@ -309,7 +318,10 @@ export default function Sidebar() {
           the top of the screen rather than requiring a scroll down the
           sidebar's nav list. */}
       <div className="fixed top-4 right-4 z-50 hidden items-center gap-2 md:flex">
-        <div className="rounded-lg border border-gray-800 bg-[#0b1220]/95 px-2.5 py-2 shadow-lg backdrop-blur">
+        <div className="rounded-lg border border-default bg-surface/95 px-2.5 py-2 shadow-lg backdrop-blur">
+          <ThemeToggle inline />
+        </div>
+        <div className="rounded-lg border border-default bg-surface/95 px-2.5 py-2 shadow-lg backdrop-blur">
           <LocaleCurrencySelector inline />
         </div>
         <Link
@@ -318,8 +330,8 @@ export default function Sidebar() {
           aria-label={t("nav.account")}
           title={t("nav.account")}
           aria-current={isActive("/account") ? "page" : undefined}
-          className={`flex items-center justify-center rounded-lg border border-gray-800 bg-[#0b1220]/95 p-2.5 shadow-lg backdrop-blur transition hover:bg-white/5 ${
-            isActive("/account") ? "text-green-400" : "text-gray-300 hover:text-white"
+          className={`flex items-center justify-center rounded-lg border border-default bg-surface/95 p-2.5 shadow-lg backdrop-blur transition hover:bg-white/5 ${
+            isActive("/account") ? "text-green-400" : "text-secondary hover:text-primary"
           }`}
         >
           <Settings size={18} />
@@ -329,15 +341,15 @@ export default function Sidebar() {
           data-tour="nav-sign-out"
           aria-label={t("nav.signOut")}
           title={t("nav.signOut")}
-          className="flex items-center justify-center rounded-lg border border-gray-800 bg-[#0b1220]/95 p-2.5 text-gray-300 shadow-lg backdrop-blur transition hover:bg-white/5 hover:text-white"
+          className="flex items-center justify-center rounded-lg border border-default bg-surface/95 p-2.5 text-secondary shadow-lg backdrop-blur transition hover:bg-white/5 hover:text-primary"
         >
           <LogOut size={18} />
         </button>
       </div>
 
       {/* Desktop fixed sidebar */}
-      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-gray-800 bg-[#0b1220] md:flex">
-        <div className="flex items-center border-b border-gray-800 px-6 py-5">
+      <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-default bg-surface md:flex">
+        <div className="flex items-center border-b border-default px-6 py-5">
           <Link
             href="/dashboard"
             className="flex items-center transition hover:opacity-80"
@@ -359,12 +371,12 @@ export default function Sidebar() {
             onClick={() => setOpen(false)}
             aria-hidden="true"
           />
-          <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[80%] flex-col border-r border-gray-800 bg-[#0b1220] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-gray-800 px-5 py-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
+          <aside className="absolute inset-y-0 left-0 flex w-72 max-w-[80%] flex-col border-r border-default bg-surface shadow-2xl">
+            <div className="flex items-center justify-between border-b border-default px-5 py-4 pt-[calc(env(safe-area-inset-top)+1rem)]">
               <Logo size="md" />
               <button
                 onClick={() => setOpen(false)}
-                className="-mr-2 p-2 text-gray-300"
+                className="-mr-2 p-2 text-secondary"
                 aria-label="Close menu"
               >
                 <X size={24} />
@@ -381,12 +393,12 @@ export default function Sidebar() {
           Suppressed while the Getting Started checklist is open since that
           already surfaces the same "Secure your account" step. */}
       {mfaReminder && !gsOpen && (
-        <div className="fixed bottom-4 right-4 z-50 max-w-xs rounded-xl border border-amber-500/30 bg-[#0f172a] p-4 shadow-2xl">
+        <div className="fixed bottom-4 right-4 z-50 max-w-xs rounded-xl border border-amber-500/30 bg-surface p-4 shadow-2xl">
           <div className="flex items-start gap-3">
             <ShieldAlert size={18} className="mt-0.5 shrink-0 text-amber-400" />
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-white">Secure your account</p>
-              <p className="mt-1 text-xs text-gray-400">
+              <p className="text-sm font-semibold text-primary">Secure your account</p>
+              <p className="mt-1 text-xs text-muted">
                 Add two-factor authentication to protect your financial data. Takes about a
                 minute.
               </p>
@@ -401,7 +413,7 @@ export default function Sidebar() {
             <button
               onClick={dismissMfaReminder}
               aria-label="Dismiss"
-              className="shrink-0 rounded p-0.5 text-gray-500 hover:text-gray-300"
+              className="shrink-0 rounded p-0.5 text-muted hover:text-secondary"
             >
               <X size={14} />
             </button>

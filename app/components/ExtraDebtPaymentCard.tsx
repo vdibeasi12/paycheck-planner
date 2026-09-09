@@ -1,0 +1,63 @@
+"use client"
+
+// app/components/ExtraDebtPaymentCard.tsx
+// The "Extra Debt Payment" hero number from Vince's Sep 5/6 critique --
+// previously only reachable via the interactive debt-selection tool on
+// /bills-debts (app/components/DebtPayoffAffordability.tsx). This is the
+// baseline read (no specific debts picked yet) surfaced prominently on the
+// new /safe-to-spend page, per his explicitly-deferred "surface this more
+// prominently" idea from the frozen calc-engine work -- same
+// lib/debtPayoffSafety.ts math, not a new calculation.
+
+import Link from "next/link"
+import { PiggyBank, ArrowRight } from "lucide-react"
+import InfoHint from "./InfoHint"
+import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
+import type { DebtPayoffAffordability } from "@/lib/debtPayoffSafety"
+
+function formatDate(iso: string): string {
+  return new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
+export default function ExtraDebtPaymentCard({ affordability }: { affordability: DebtPayoffAffordability }) {
+  const formatMoney = useFormatCurrency()
+  const positive = affordability.maxSafeToPayoff >= 0
+
+  return (
+    <div className="rounded-2xl border border-default bg-surface p-6 shadow-lg">
+      <div className="flex items-center gap-2">
+        <PiggyBank size={18} className="text-emerald-400" />
+        <h2 className="text-sm font-medium uppercase tracking-wide text-muted">Extra debt payment</h2>
+        <InfoHint
+          label="About Extra Debt Payment"
+          text={`The most you can safely send to debt today without dipping below a ${formatMoney(
+            affordability.reserve
+          )} cushion across your upcoming paychecks. Same math as "Can I pay this off?" on Bills & Debts.`}
+        />
+      </div>
+
+      <p className={`mt-2 text-4xl font-bold ${positive ? "text-emerald-400" : "text-red-400"}`}>
+        {formatMoney(Math.max(0, affordability.maxSafeToPayoff))}
+      </p>
+      <p className="mt-1 text-sm text-muted">
+        {affordability.tightestDate
+          ? `Keeps you covered through ${formatDate(affordability.tightestDate)}, your tightest upcoming cycle`
+          : "Today's balance is the binding constraint, not a future paycheck"}
+      </p>
+
+      {!positive && (
+        <p className="mt-3 text-sm text-red-300">
+          Your plan is already tighter than the {formatMoney(affordability.reserve)} cushion this assumes --
+          sending anything extra to debt right now isn't safe yet.
+        </p>
+      )}
+
+      <Link
+        href="/bills-debts"
+        className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-emerald-400 hover:underline"
+      >
+        Pick specific debts to pay off <ArrowRight size={14} />
+      </Link>
+    </div>
+  )
+}

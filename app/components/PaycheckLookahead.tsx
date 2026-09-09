@@ -40,12 +40,12 @@ export default function PaycheckLookahead({ forecast }: { forecast: UpcomingCycl
 
   return (
     <div className="mt-4 space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-gray-500">Then what</p>
-      <p className="text-xs text-gray-500">Picks up right after the paycheck above -- not a gap, just not repeating it.</p>
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">Then what</p>
+      <p className="text-xs text-muted">Picks up right after the paycheck above -- not a gap, just not repeating it.</p>
       {forecast.map((f, idx) => (
         <div key={f.date} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-semibold text-gray-200">
+            <span className="text-sm font-semibold text-secondary">
               {/* QA fix (Sep 4 2026, Vince): the very first entry picks up
                   right where the Safe to Spend card above left off -- show
                   that start date too (not just the end), so it's visible
@@ -60,18 +60,18 @@ export default function PaycheckLookahead({ forecast }: { forecast: UpcomingCycl
           {f.items.length > 0 && (
             <div className="mt-2 space-y-1">
               {f.items.map((item, idx) => (
-                <div key={idx} className="flex justify-between text-xs text-gray-400">
+                <div key={idx} className="flex justify-between text-xs text-muted">
                   <span>
-                    {item.name} <span className="text-gray-500">({formatShortDate(item.occurrenceDate)})</span>
+                    {item.name} <span className="text-muted">({formatShortDate(item.occurrenceDate)})</span>
                   </span>
                   <span>{formatMoney(item.amount)}</span>
                 </div>
               ))}
             </div>
           )}
-          <div className="mt-2 flex justify-between border-t border-white/10 pt-2 text-xs text-gray-500">
+          <div className="mt-2 flex justify-between border-t border-white/10 pt-2 text-xs text-muted">
             <span>Projected balance after</span>
-            <span className={f.runningBalance >= 0 ? "text-gray-300" : "text-red-400"}>
+            <span className={f.runningBalance >= 0 ? "text-secondary" : "text-red-400"}>
               {formatMoney(f.runningBalance)}
             </span>
           </div>
