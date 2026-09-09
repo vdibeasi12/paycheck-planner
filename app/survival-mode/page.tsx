@@ -115,12 +115,12 @@ export default async function SurvivalModePage() {
     .map((d) => ({ name: d.name, amount: Number(d.minimum_payment) || 0 }))
   let classifiedBills: ReturnType<typeof classifyItemsAroundCycle<typeof bills[number]>> = []
   let classifiedDebts: ReturnType<typeof classifyItemsAroundCycle<DebtWithAmount>> = []
-  if (result.nextPaycheckDate) {
-    classifiedBills = classifyItemsAroundCycle(bills, todayISO, result.nextPaycheckDate, result.lastPaycheckDate)
+  if (result.windowEndDate) {
+    classifiedBills = classifyItemsAroundCycle(bills, todayISO, result.windowEndDate, result.lastPaycheckDate)
     classifiedDebts = classifyItemsAroundCycle(
       spendableDebts.map((d) => ({ ...d, amount: d.minimum_payment })),
       todayISO,
-      result.nextPaycheckDate,
+      result.windowEndDate,
       result.lastPaycheckDate
     )
   }

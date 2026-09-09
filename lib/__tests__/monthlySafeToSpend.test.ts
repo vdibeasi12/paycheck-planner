@@ -19,6 +19,12 @@
 
 import { computeMonthlySafeToSpend, type MSTSBill, type MSTSDebt, type MSTSGoal, type MSTSIncome } from "../monthlySafeToSpend"
 
+// CRITICAL FIX (Sep 9 2026, Vince): "don't calculate savings in safe to
+// spend" -- confirmed this applies to both cards. Tests 5-7 used to prove
+// goal contributions were correctly rolled into committedMoney; they now
+// prove the opposite -- goals never move committedMoney/financiallyFreeMoney
+// at all, no matter how aggressive or overdue.
+
 let passed = 0
 let failed = 0
 
@@ -55,7 +61,6 @@ console.log("Test 1 -- plain monthly rollup, no transfers/goals")
   assertEqual(r.monthlyIncome, 2000, "monthlyIncome")
   assertEqual(r.monthlyBills, 1000, "monthlyBills")
   assertEqual(r.monthlyDebtPayments, 200, "monthlyDebtPayments")
-  assertEqual(r.monthlyGoalContributions, 0, "monthlyGoalContributions")
   assertEqual(r.committedMoney, 1200, "committedMoney")
   assertEqual(r.financiallyFreeMoney, 800, "financiallyFreeMoney (2000 - 1200)")
   assertTrue(r.transferCoveredDebtNames.length === 0, "no transfer-covered debts")
@@ -99,7 +104,7 @@ console.log("Test 4 -- transfer-covered debt WITHOUT evidence is still reserved 
   assertTrue(r.transferCoveredDebtNames.length === 0, "not listed as covered without evidence")
 }
 
-console.log("Test 5 -- goal due later this same month reserves its full remaining amount")
+console.log("Test 5 -- a goal due later this same month no longer reduces committedMoney at all")
 {
   const goals: MSTSGoal[] = [{ target_amount: 1000, current_amount: 400, deadline: "2026-01-25", status: "active" }]
   const r = computeMonthlySafeToSpend({
@@ -109,10 +114,11 @@ console.log("Test 5 -- goal due later this same month reserves its full remainin
     goals,
     today,
   })
-  assertEqual(r.monthlyGoalContributions, 600, "full remaining (1000-400) due this month")
+  assertEqual(r.committedMoney, 0, "no bills/debts, and the goal is ignored -- nothing committed")
+  assertEqual(r.financiallyFreeMoney, 2000, "the full monthly income, goal notwithstanding")
 }
 
-console.log("Test 6 -- goal 3 months out spreads remaining evenly")
+console.log("Test 6 -- a goal 3 months out still has zero effect")
 {
   const goals: MSTSGoal[] = [{ target_amount: 1200, current_amount: 0, deadline: "2026-04-10", status: "active" }]
   const r = computeMonthlySafeToSpend({
@@ -122,11 +128,10 @@ console.log("Test 6 -- goal 3 months out spreads remaining evenly")
     goals,
     today,
   })
-  // Jan -> Apr is 3 calendar months out.
-  assertEqual(r.monthlyGoalContributions, 400, "1200 / 3 months")
+  assertEqual(r.committedMoney, 0, "goal ignored regardless of how far out its deadline is")
 }
 
-console.log("Test 7 -- overdue goal deadline counts in full; inactive/funded goals excluded")
+console.log("Test 7 -- an overdue goal deadline still has zero effect")
 {
   const goals: MSTSGoal[] = [
     { target_amount: 500, current_amount: 100, deadline: "2026-01-01", status: "active" }, // overdue
@@ -140,7 +145,7 @@ console.log("Test 7 -- overdue goal deadline counts in full; inactive/funded goa
     goals,
     today,
   })
-  assertEqual(r.monthlyGoalContributions, 400, "only the overdue goal's remaining 400 counts")
+  assertEqual(r.committedMoney, 0, "goal ignored even when overdue")
 }
 
 console.log("Test 8 -- Financially Free Money goes negative when committed exceeds monthly income")
@@ -168,7 +173,8 @@ console.log("Test 9 -- biweekly bill converts to its monthly equivalent")
   assertEqual(r.monthlyBills, 100 * (26 / 12), "biweekly -> monthly factor")
 }
 
-console.log("Test 10 -- biweekly income normalizes the same way Voya's calculator does")
+console.log("Test 10 -- biweekly income normalizes the same way Voya's calculator does (needs/wants")
+console.log("  only -- Vince's Sep 9 2026 fix means the goal in this scenario no longer counts)")
 {
   // Cross-check against voya.com/individuals/learn/budget-calculator's own
   // arithmetic: $2,700 every-other-week income, income - allocated =
@@ -186,8 +192,8 @@ console.log("Test 10 -- biweekly income normalizes the same way Voya's calculato
   const goals: MSTSGoal[] = [{ target_amount: 1000, current_amount: 0, deadline: "2026-01-31", status: "active" }]
   const r = computeMonthlySafeToSpend({ income, bills, debts, goals, today })
   assertEqual(r.monthlyIncome, 5850, "2700 * 26/12")
-  assertEqual(r.committedMoney, 3975, "2975 bills+debt + 1000 goal")
-  assertEqual(r.financiallyFreeMoney, 1875, "matches Voya's Remaining for the same inputs")
+  assertEqual(r.committedMoney, 2975, "bills + debt only -- the goal no longer adds to committedMoney")
+  assertEqual(r.financiallyFreeMoney, 2875, "5850 - 2975, savings no longer subtracted")
 }
 
 console.log(`\n${passed} passed, ${failed} failed`)

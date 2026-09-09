@@ -22,11 +22,11 @@ import {
   toISODate,
   addDays,
   daysBetween,
+  endOfMonthISO,
   projectIncomeOccurrences,
   sumDueInWindow,
   sumTransfersInWindow,
   excludeTransferCoveredDebts,
-  goalContributionRate,
   type CycleIncome,
   type CycleBill,
   type CycleDebt,
@@ -50,11 +50,27 @@ export type SafeToSpendResult = {
   missingPayDate: boolean
   lastPaycheckDate: string | null
   lastPaycheckAmount: number
+  // Still computed/kept for other pages (Paycheck Surplus's "did a cycle
+  // just close" detection, cross-links) -- no longer what Safe to Spend's
+  // own window is measured against, see windowEndDate below.
   nextPaycheckDate: string | null
   daysUntilNextPaycheck: number | null
+  // CRITICAL FIX (Sep 9 2026, Vince): "If I receive two paychecks a month
+  // you need to subtract all bills for that month which will determine safe
+  // to spend." The window billsDue/debtsDue are summed over now runs from
+  // the last paycheck through the END OF THE CURRENT CALENDAR MONTH (see
+  // lib/paycheckCycles.ts's endOfMonthISO), not just through the next
+  // paycheck -- so a bill or debt landing later in the same month, even
+  // after another paycheck or two, is always reserved from today's real
+  // cash rather than waiting for its own cycle to roll around. null only
+  // when there's no projectable plan at all (same conditions as
+  // nextPaycheckDate being null).
+  windowEndDate: string | null
+  // daysBetween(today, windowEndDate) -- what dailyLimit below actually
+  // divides by now, replacing daysUntilNextPaycheck for that purpose.
+  daysUntilWindowEnd: number | null
   billsDue: number
   debtsDue: number
-  goalContribution: number
   // Money already swept out to another of the user's own accounts on the
   // same day as lastPaycheckDate (an automatic transfer that funds a
   // mortgage/car loan/personal loan elsewhere, say) -- real money that left
@@ -99,6 +115,12 @@ export function computeSafeToSpend(input: {
   income: STSIncome[]
   bills: STSBill[]
   debts: STSDebt[]
+  // CRITICAL FIX (Sep 9 2026, Vince): "don't calculate savings in safe to
+  // spend." Kept in the input shape only so every existing caller (pages,
+  // lib/accountSafeToSpend.ts, tests) can keep passing whatever goals they
+  // already fetch without every call site needing an edit -- it is no
+  // longer read anywhere in this function, and goal/savings contributions no
+  // longer reduce safeToSpend at all.
   goals: STSGoal[]
   today?: Date
 }): SafeToSpendResult {
@@ -114,9 +136,10 @@ export function computeSafeToSpend(input: {
     lastPaycheckAmount: 0,
     nextPaycheckDate: null,
     daysUntilNextPaycheck: null,
+    windowEndDate: null,
+    daysUntilWindowEnd: null,
     billsDue: 0,
     debtsDue: 0,
-    goalContribution: 0,
     transfersOut: 0,
     safeToSpend: 0,
     dailyLimit: null,
@@ -155,19 +178,18 @@ export function computeSafeToSpend(input: {
 
   const nextPaycheckDate = future[0].date
 
-  // CRITICAL FIX (Sep 9 2026, Vince, reviewing a live screenshot): this
-  // window used to start at `todayStr`, so a bill/debt already due earlier
-  // in the current cycle -- before today, after the last paycheck landed --
-  // fell outside it and was never reserved, only flagged with a warning
-  // ("$97.98 isn't reserved above... your real Safe to Spend is $97.98
-  // lower"). That's a self-contradiction: paid_through is this app's actual
-  // source of truth for "was this paid," and anything reaching this point
-  // hasn't been marked paid, so the money hasn't left yet and Safe to Spend
-  // was overstating what's actually free to spend. Starting the window at
-  // `lastPaycheckDate` instead -- same anchor projectPaycheckCycles already
-  // used for Paycheck Shield/Extra Debt Payment -- reserves it directly
-  // instead of just warning about it, and keeps this in sync with those.
-  const billsDue = sumDueInWindow(input.bills, lastPaycheckDate, nextPaycheckDate)
+  // CRITICAL FIX (Sep 9 2026, Vince): "If I receive two paychecks a month
+  // you need to subtract all bills for that month which will determine safe
+  // to spend." The window now runs from the last paycheck through the END
+  // OF THE CURRENT CALENDAR MONTH, not just through the next paycheck -- so
+  // a debt like Avant, due the 22nd, is reserved the moment the month
+  // starts even if a paycheck lands before the 22nd, instead of only
+  // showing up once it happens to fall inside a narrower cycle window.
+  // Still starts at `lastPaycheckDate` rather than `todayStr` (see the prior
+  // Sep 9 fix this replaces) so anything already due and unpaid stays
+  // reserved the same way it always has.
+  const windowEndDate = endOfMonthISO(today)
+  const billsDue = sumDueInWindow(input.bills, lastPaycheckDate, windowEndDate)
   const debtsDue = sumDueInWindow(
     excludeTransferCoveredDebts(input.debts, input.income).map((d) => ({
       amount: d.minimum_payment,
@@ -176,9 +198,8 @@ export function computeSafeToSpend(input: {
       paid_through: d.paid_through,
     })),
     lastPaycheckDate,
-    nextPaycheckDate
+    windowEndDate
   )
-  const goalContribution = goalContributionRate(input.goals, input.income, todayStr)
 
   // The transfer tied to the paycheck that already landed (same day, same
   // schedule as lastPaycheckDate) -- money that's already gone by the time
@@ -190,9 +211,10 @@ export function computeSafeToSpend(input: {
   const transfersOut = sumTransfersInWindow(input.income, dayBeforeLastPaycheck, lastPaycheckDate)
 
   const startingCash = lastPaycheckAmount - transfersOut
-  const safeToSpend = startingCash - billsDue - debtsDue - goalContribution
+  const safeToSpend = startingCash - billsDue - debtsDue
   const daysUntilNextPaycheck = Math.max(0, daysBetween(todayStr, nextPaycheckDate))
-  const dailyLimit = daysUntilNextPaycheck > 0 ? safeToSpend / daysUntilNextPaycheck : safeToSpend
+  const daysUntilWindowEnd = Math.max(0, daysBetween(todayStr, windowEndDate))
+  const dailyLimit = daysUntilWindowEnd > 0 ? safeToSpend / daysUntilWindowEnd : safeToSpend
 
   return {
     hasIncome,
@@ -201,9 +223,10 @@ export function computeSafeToSpend(input: {
     lastPaycheckAmount,
     nextPaycheckDate,
     daysUntilNextPaycheck,
+    windowEndDate,
+    daysUntilWindowEnd,
     billsDue,
     debtsDue,
-    goalContribution,
     transfersOut,
     safeToSpend,
     dailyLimit,
@@ -216,10 +239,9 @@ export function computeSafeToSpend(input: {
 // Re-grounds an already-computed Safe-to-Spend result in a real Checking
 // balance projected forward to today (see lib/cashBalance.ts's
 // resolveStartingCash()) instead of the projection-only lastPaycheckAmount.
-// Same billsDue/debtsDue/goalContribution (still just "what's due before
-// your next paycheck"), just a more accurate number to subtract them from.
-// A no-op when the result couldn't be computed in the first place (no
-// income/pay date).
+// Same billsDue/debtsDue (still just "what's due through windowEndDate"),
+// just a more accurate number to subtract them from. A no-op when the
+// result couldn't be computed in the first place (no income/pay date).
 export function withStartingCash(
   result: SafeToSpendResult,
   cash: { amount: number; source: SafeToSpendResult["startingCashSource"]; asOf: string | null }
@@ -227,10 +249,10 @@ export function withStartingCash(
   if (!result.hasIncome || result.missingPayDate || !result.nextPaycheckDate) {
     return result
   }
-  const safeToSpend = cash.amount - result.billsDue - result.debtsDue - result.goalContribution
+  const safeToSpend = cash.amount - result.billsDue - result.debtsDue
   const dailyLimit =
-    result.daysUntilNextPaycheck != null && result.daysUntilNextPaycheck > 0
-      ? safeToSpend / result.daysUntilNextPaycheck
+    result.daysUntilWindowEnd != null && result.daysUntilWindowEnd > 0
+      ? safeToSpend / result.daysUntilWindowEnd
       : safeToSpend
   return {
     ...result,
@@ -271,8 +293,8 @@ export function floorSafeToSpend(
   }
   const safeToSpend = floor.balance
   const dailyLimit =
-    result.daysUntilNextPaycheck != null && result.daysUntilNextPaycheck > 0
-      ? safeToSpend / result.daysUntilNextPaycheck
+    result.daysUntilWindowEnd != null && result.daysUntilWindowEnd > 0
+      ? safeToSpend / result.daysUntilWindowEnd
       : safeToSpend
   return {
     ...result,
@@ -297,7 +319,7 @@ export function whatIfSpend(result: SafeToSpendResult, amount: number): WhatIfRe
   if (newSafeToSpend < 0) verdict = "not-recommended"
   else if (newSafeToSpend < cushion) verdict = "tight"
 
-  const days = result.daysUntilNextPaycheck
+  const days = result.daysUntilWindowEnd
   const newDailyLimit = days != null && days > 0 ? newSafeToSpend / days : null
 
   return { newSafeToSpend, newDailyLimit, verdict }

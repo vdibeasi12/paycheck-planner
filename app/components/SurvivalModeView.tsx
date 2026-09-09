@@ -109,9 +109,9 @@ function AccountSafeToSpendBlock({
   // need the same extra line, or the Stat and Safe to Spend stop
   // reconciling with each other.
   const multiCycleReserve = result.reservedThroughDate
-    ? Math.max(0, result.startingCash - (result.billsDue + result.debtsDue + result.goalContribution) - result.safeToSpend)
+    ? Math.max(0, result.startingCash - (result.billsDue + result.debtsDue) - result.safeToSpend)
     : 0
-  const stillDueTotal = result.billsDue + result.debtsDue + result.goalContribution + multiCycleReserve
+  const stillDueTotal = result.billsDue + result.debtsDue + multiCycleReserve
   const allCommittedItems = [
     ...[...classifiedBills, ...classifiedDebts].map((i) => ({
       name: i.name,
@@ -138,10 +138,10 @@ function AccountSafeToSpendBlock({
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Stat label="Starting cash" value={formatMoney(result.startingCash)} />
         <Stat
-          label="Days until payday"
-          value={result.daysUntilNextPaycheck === 0 ? "Today" : String(result.daysUntilNextPaycheck)}
+          label="Days left this month"
+          value={result.daysUntilWindowEnd === 0 ? "Today" : String(result.daysUntilWindowEnd)}
         />
-        <Stat label="Still due before payday" value={formatMoney(stillDueTotal)} />
+        <Stat label="Still due this month" value={formatMoney(stillDueTotal)} />
         <Stat
           label="Safe to spend"
           value={formatMoney(result.safeToSpend)}
@@ -149,7 +149,7 @@ function AccountSafeToSpendBlock({
         />
       </div>
 
-      {result.dailyLimit != null && result.daysUntilNextPaycheck != null && result.daysUntilNextPaycheck > 0 && (
+      {result.dailyLimit != null && result.daysUntilWindowEnd != null && result.daysUntilWindowEnd > 0 && (
         <div className="flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-5 py-4">
           <span className="text-sm font-semibold text-emerald-200">Daily limit</span>
           <span className={`text-2xl font-bold ${result.safeToSpend >= 0 ? "text-emerald-400" : "text-red-400"}`}>
@@ -160,14 +160,14 @@ function AccountSafeToSpendBlock({
 
       {pastDueTotal > 0 && (
         <p className="rounded-lg bg-warning px-4 py-3 text-sm text-warning-heading">
-          {formatMoney(pastDueTotal)} of "Still due before payday" above is already past due and unpaid -- it's
+          {formatMoney(pastDueTotal)} of "Still due this month" above is already past due and unpaid -- it's
           included once, not an extra deduction. Marked "Past due" in the list below.
         </p>
       )}
 
       {allCommittedItems.length > 0 && (
         <PaycheckItemBreakdown
-          title="Still due before payday"
+          title="Still due this month"
           hint='All unpaid bills and debt payments are included above once. Items marked "Past due" already passed their due date and still need to be paid -- they are not a second deduction.'
           items={allCommittedItems}
           defaultOpen
@@ -204,7 +204,7 @@ export default function SurvivalModeView({
   accountSections,
 }: Props) {
   const isSplit = !!accountSections && accountSections.length > 0
-  const cantProject = !isSplit && (!result.hasIncome || result.missingPayDate || !result.nextPaycheckDate)
+  const cantProject = !isSplit && (!result.hasIncome || result.missingPayDate || !result.windowEndDate)
 
   return (
     <div className="max-w-6xl mx-auto px-6 py-10">

@@ -76,7 +76,8 @@ export default async function SafeToSpendPage() {
   const cashRows = (cashRowsData ?? []) as CashAccountRow[]
   const checkingRows = cashRows.filter((r) => r.kind === "checking")
 
-  // 1. This paycheck cycle -- frozen engine, untouched.
+  // 1. Safe to Spend -- real balance minus everything due through the end of
+  // this calendar month (see lib/safeToSpend.ts's Sep 9 2026 fix).
   let safeToSpendResult = computeSafeToSpend({ income, bills, debts, goals })
   const startingCash = resolveStartingCash(
     checkingRows,
@@ -93,12 +94,12 @@ export default async function SafeToSpendPage() {
 
   let classifiedBills: ReturnType<typeof classifyItemsAroundCycle<typeof bills[number]>> = []
   let classifiedDebts: ReturnType<typeof classifyItemsAroundCycle<typeof debts[number]>> = []
-  if (safeToSpendResult.nextPaycheckDate) {
-    classifiedBills = classifyItemsAroundCycle(bills, todayISO, safeToSpendResult.nextPaycheckDate, safeToSpendResult.lastPaycheckDate)
+  if (safeToSpendResult.windowEndDate) {
+    classifiedBills = classifyItemsAroundCycle(bills, todayISO, safeToSpendResult.windowEndDate, safeToSpendResult.lastPaycheckDate)
     classifiedDebts = classifyItemsAroundCycle(
       spendableDebts.map((d) => ({ ...d, amount: d.minimum_payment })),
       todayISO,
-      safeToSpendResult.nextPaycheckDate,
+      safeToSpendResult.windowEndDate,
       safeToSpendResult.lastPaycheckDate
     )
   }
@@ -172,9 +173,10 @@ export default async function SafeToSpendPage() {
         <h1 className="text-2xl font-bold text-primary">Safe to Spend</h1>
       </div>
       <p className="mb-6 max-w-2xl text-sm text-muted">
-        Two different, both-correct answers to "how much do I actually have": what's safe until your next
-        paycheck, and what's left this month once everything committed is set aside -- plus how much extra you
-        could safely put toward debt right now.
+        Two different, both-correct answers to "how much do I actually have," both covering the rest of this
+        calendar month: what's safe to spend from your real balance once every bill and debt due this month is
+        set aside, and what's left over based on your average monthly income -- plus how much extra you could
+        safely put toward debt right now.
       </p>
 
       {split.isSplit ? (
@@ -201,14 +203,10 @@ export default async function SafeToSpendPage() {
               </div>
             </div>
           ))}
-          {(split.combinedGoalContribution > 0 || split.unassignedBillsTotal > 0 || split.unassignedDebtsTotal > 0) && (
+          {(split.unassignedBillsTotal > 0 || split.unassignedDebtsTotal > 0) && (
             <p className="max-w-2xl text-xs text-muted">
-              Not tied to a specific account above, so not part of either account's numbers:{" "}
-              {split.combinedGoalContribution > 0 && <>goal contributions this cycle. </>}
-              {(split.unassignedBillsTotal > 0 || split.unassignedDebtsTotal > 0) && (
-                <>Bills/debts without an account assigned in Bills &amp; Debts. </>
-              )}
-              Assign an account to each one to have it counted.
+              Not tied to a specific account above, so not part of either account's numbers: bills/debts without
+              an account assigned in Bills &amp; Debts. Assign an account to each one to have it counted.
             </p>
           )}
         </div>

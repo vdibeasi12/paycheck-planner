@@ -37,7 +37,7 @@ export default function MonthlySafeToSpendCard({ result }: { result: MonthlySafe
         <h2 className="text-sm font-medium uppercase tracking-wide text-muted">This month</h2>
         <InfoHint
           label="About Financially Free Money"
-          text="Your monthly income minus everything already committed this month -- bills, debt minimums, and goal contributions. Not the same question as 'this paycheck cycle' above: this one looks at the whole calendar month at once, using what you earn rather than your balance right now, so it stays steady no matter what day of the month you check it."
+          text="Your monthly income minus everything already committed this month -- bills and debt minimums. Savings/goal contributions are never subtracted. Not the same question as Safe to Spend above: this one uses what you earn on average rather than your real balance right now, so it stays steady no matter what day of the month you check it."
         />
       </div>
 
@@ -68,12 +68,6 @@ export default function MonthlySafeToSpendCard({ result }: { result: MonthlySafe
           <span>Debt payments</span>
           <span className="text-secondary">-{formatMoney(result.monthlyDebtPayments)}</span>
         </div>
-        {result.monthlyGoalContributions > 0 && (
-          <div className="flex justify-between">
-            <span>Goal contributions</span>
-            <span className="text-secondary">-{formatMoney(result.monthlyGoalContributions)}</span>
-          </div>
-        )}
       </div>
 
       {result.transferCoveredDebtNames.length > 0 && (
@@ -84,9 +78,9 @@ export default function MonthlySafeToSpendCard({ result }: { result: MonthlySafe
 
       {!positive && (
         <p className="mt-3 text-sm text-red-300">
-          What's committed this month is more than you'll earn this month. This can happen even when the
-          paycheck-cycle number above looks fine -- that one only looks as far as your next paycheck, not the
-          whole month.
+          What's committed this month is more than you'll earn this month. This can happen even when Safe to
+          Spend above looks fine -- that one is grounded in your real balance right now, not your average
+          monthly income.
         </p>
       )}
     </div>

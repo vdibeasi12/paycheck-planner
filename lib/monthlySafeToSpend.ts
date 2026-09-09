@@ -43,8 +43,6 @@
 
 import {
   excludeTransferCoveredDebts,
-  goalContributionMonthlyRate,
-  toISODate,
   type CycleIncome,
   type CycleBill,
   type CycleDebt,
@@ -64,9 +62,14 @@ export type MonthlySafeToSpendResult = {
   monthlyIncome: number
   monthlyBills: number
   monthlyDebtPayments: number
-  monthlyGoalContributions: number
-  // monthlyBills + monthlyDebtPayments + monthlyGoalContributions -- what's
-  // already spoken for every month before anything discretionary happens.
+  // monthlyBills + monthlyDebtPayments -- what's already spoken for every
+  // month before anything discretionary happens.
+  //
+  // CRITICAL FIX (Sep 9 2026, Vince): "don't calculate savings in safe to
+  // spend" -- confirmed this applies to both cards. Goal/savings
+  // contributions no longer reduce committedMoney or financiallyFreeMoney at
+  // all; `goals` stays in the input type only so existing callers don't need
+  // to change what they pass.
   committedMoney: number
   // monthlyIncome - committedMoney. Can be negative -- that means what's
   // already committed this month is more than you'll earn this month, a
@@ -85,8 +88,6 @@ export function computeMonthlySafeToSpend(input: {
   goals: MSTSGoal[]
   today?: Date
 }): MonthlySafeToSpendResult {
-  const today = input.today ?? new Date()
-  const todayISO = toISODate(today)
   const hasIncome = input.income.length > 0
 
   const monthlyIncome = input.income
@@ -110,9 +111,7 @@ export function computeMonthlySafeToSpend(input: {
     0
   )
 
-  const monthlyGoalContributions = goalContributionMonthlyRate(input.goals, todayISO)
-
-  const committedMoney = monthlyBills + monthlyDebtPayments + monthlyGoalContributions
+  const committedMoney = monthlyBills + monthlyDebtPayments
   const financiallyFreeMoney = monthlyIncome - committedMoney
 
   return {
@@ -120,7 +119,6 @@ export function computeMonthlySafeToSpend(input: {
     monthlyIncome,
     monthlyBills,
     monthlyDebtPayments,
-    monthlyGoalContributions,
     committedMoney,
     financiallyFreeMoney,
     transferCoveredDebtNames,

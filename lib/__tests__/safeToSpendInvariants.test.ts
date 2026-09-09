@@ -15,9 +15,11 @@
 //
 // Reproduces Vince's own live numbers exactly (starting balance $3,649.31,
 // $250.53 upcoming bills, $675.50 debt payments of which $57.99 is past due
-// and unpaid, Safe to Spend $2,723.28, 7 days to the next paycheck,
-// $389.04/day) so the invariants below are checked against the real
-// scenario that surfaced the bug, not just an abstract one.
+// and unpaid, Safe to Spend $2,723.28) so the invariants below are checked
+// against the real scenario that surfaced the bug, not just an abstract
+// one. The daily limit itself is now $129.68/day over the 21 days left in
+// the month (Sep 9 2026 monthly-window fix), not the original $389.04/day
+// over 7 days to the next paycheck -- see Invariant 2 below.
 
 import { computeSafeToSpend, withStartingCash, type STSBill, type STSDebt, type STSIncome } from "../safeToSpend"
 import { classifyItemsAroundCycle, alreadyDueSinceLastPaycheck, excludeTransferCoveredDebts } from "../paycheckCycles"
@@ -74,26 +76,35 @@ console.log("  unpaid debt payment, 7 days to the next paycheck")
   assertEqual(result.billsDue, 250.53, "Upcoming bills matches the live figure")
   assertEqual(result.debtsDue, 675.5, "Debt payments (upcoming + past-due combined) matches the live figure")
 
-  const totalCommitted = result.billsDue + result.debtsDue + result.goalContribution
+  const totalCommitted = result.billsDue + result.debtsDue
 
   // --- Invariant 1: Starting Balance - Total Committed = Safe to Spend ---
   assertEqual(startingCashAmount - totalCommitted, result.safeToSpend, "Starting Balance - Total Committed = Safe to Spend")
-  assertEqual(result.safeToSpend, 2723.28, "Safe to Spend is the exact live figure, $2,723.28")
+  assertEqual(result.safeToSpend, 2723.28, "Safe to Spend is the exact live figure, $2,723.28 -- unaffected by the")
+  // Sep 9 2026 monthly-window fix here, since every bill/debt in this
+  // scenario is already due before Sep 16 either way.
 
-  // --- Invariant 2: Safe to Spend / days = daily limit ---
-  assertEqual(result.safeToSpend / (result.daysUntilNextPaycheck as number), result.dailyLimit as number, "Safe to Spend / days = daily limit")
-  assertEqual(result.dailyLimit as number, 389.04, "daily limit is the exact live figure, $389.04/day")
+  // --- Invariant 2 (REVISED Sep 9 2026, Vince: "subtract all bills for that
+  // month... to determine safe to spend"): the daily limit now spreads Safe
+  // to Spend across the rest of the CALENDAR MONTH (daysUntilWindowEnd),
+  // not just the days until the next paycheck -- so for this same scenario
+  // (today Sep 9, month-end Sep 30) it's $2,723.28 / 21 days, not the old
+  // $2,723.28 / 7 days = $389.04/day. ---
+  assertEqual(result.daysUntilWindowEnd ?? -1, 21, "21 days left in September from Sep 9")
+  assertEqual(result.safeToSpend / (result.daysUntilWindowEnd as number), result.dailyLimit as number, "Safe to Spend / days left this month = daily limit")
+  assertEqual(result.dailyLimit as number, 129.68, "daily limit now spreads the same Safe to Spend across the rest of the month")
 
   // --- What the UI actually displays: classifyItemsAroundCycle, anchored at
-  // lastPaycheckDate exactly like PaycheckCountdown.tsx/SurvivalModeView.tsx
-  // now call it (the Sep 9 2026 fix), same excludeTransferCoveredDebts
-  // pre-filter the page files apply before handing debts to it. ---
+  // lastPaycheckDate/windowEndDate exactly like PaycheckCountdown.tsx/
+  // SurvivalModeView.tsx now call it (the Sep 9 2026 monthly-window fix),
+  // same excludeTransferCoveredDebts pre-filter the page files apply before
+  // handing debts to it. ---
   const spendableDebts = excludeTransferCoveredDebts(debts, income)
-  const classifiedBills = classifyItemsAroundCycle(bills, "2026-09-09", result.nextPaycheckDate as string, result.lastPaycheckDate)
+  const classifiedBills = classifyItemsAroundCycle(bills, "2026-09-09", result.windowEndDate as string, result.lastPaycheckDate)
   const classifiedDebts = classifyItemsAroundCycle(
     spendableDebts.map((d) => ({ ...d, amount: d.minimum_payment })),
     "2026-09-09",
-    result.nextPaycheckDate as string,
+    result.windowEndDate as string,
     result.lastPaycheckDate
   )
   const allCommittedItems = [...classifiedBills, ...classifiedDebts]
@@ -102,14 +113,13 @@ console.log("  unpaid debt payment, 7 days to the next paycheck")
   const pastDueTotal = pastDueItems.reduce((sum, i) => sum + i.amount, 0)
 
   // --- Invariant 3: every bill/debt item appears exactly once, and the sum
-  // of the individual displayed items equals Total Committed (there is no
-  // goal contribution in this scenario, so billsDue+debtsDue IS Total
-  // Committed here -- see the separate goal-contribution test below for the
-  // case where that's not true). ---
+  // of the individual displayed items equals Total Committed -- goals are
+  // never part of that total anymore (see the dedicated goal invariant
+  // below), so billsDue+debtsDue IS Total Committed, full stop. ---
   assertEqual(allCommittedItems.length, 3, "all 3 items (1 bill + 2 debts) appear, none dropped")
   assertEqual(sumOfDisplayedItems, result.billsDue + result.debtsDue, "sum of displayed items = billsDue + debtsDue")
   assertEqual(sumOfDisplayedItems, 926.03, "sum of displayed items is the exact live figure, $926.03")
-  assertEqual(sumOfDisplayedItems, totalCommitted, "sum of displayed items = Total Committed (no goal contribution in this scenario)")
+  assertEqual(sumOfDisplayedItems, totalCommitted, "sum of displayed items = Total Committed")
 
   // --- Invariant 4: the $57.99 past-due item is included exactly once --
   // one item, flagged, counted once toward the total above, not a second
@@ -145,30 +155,33 @@ console.log("  unpaid debt payment, 7 days to the next paycheck")
   )
 }
 
-console.log("\nInvariant test -- an active goal contribution is NOT itemized in")
-console.log("  classifyItemsAroundCycle (it isn't a bill or a debt), so 'sum of displayed")
-console.log("  items' and 'Total Committed' only agree once the Goal contributions row is")
-console.log("  added back in -- documenting that explicitly rather than leaving it assumed")
+console.log("\nInvariant test -- an active goal never affects Total Committed or Safe to")
+console.log("  Spend at all (Sep 9 2026 fix, Vince: \"don't calculate savings in safe to")
+console.log("  spend\") -- the itemized bill list alone always equals Total Committed now,")
+console.log("  goal present or not, aggressive deadline or not")
 {
   const today = new Date("2026-09-09T00:00:00")
   const income: STSIncome[] = [{ amount: 2578.4, frequency: "biweekly", next_pay_date: "2026-09-16", income_type: null }]
   const bill: STSBill = { amount: 100, due_date: 14 }
   const goals = [{ target_amount: 1000, current_amount: 400, deadline: "2026-09-14", status: "active" }]
 
-  let result = computeSafeToSpend({ income, bills: [bill], debts: [], goals, today })
-  result = withStartingCash(result, { amount: 2000, source: "checking", asOf: "2026-09-09" })
-
-  const classifiedBills = classifyItemsAroundCycle([bill], "2026-09-09", result.nextPaycheckDate as string, result.lastPaycheckDate)
-  const sumOfDisplayedItems = classifiedBills.reduce((sum, i) => sum + i.amount, 0)
-  const totalCommitted = result.billsDue + result.debtsDue + result.goalContribution
-
-  assertTrue(result.goalContribution > 0, "sanity: this scenario actually has a nonzero goal contribution")
-  assertTrue(
-    sumOfDisplayedItems < totalCommitted,
-    "the itemized bill/debt list alone (100) is LESS than Total Committed once a goal contribution is present -- confirms the UI's separate 'Goal contributions' row is load-bearing, not decorative"
+  const withGoal = withStartingCash(
+    computeSafeToSpend({ income, bills: [bill], debts: [], goals, today }),
+    { amount: 2000, source: "checking", asOf: "2026-09-09" }
   )
-  assertEqual(sumOfDisplayedItems + result.goalContribution, totalCommitted, "itemized items + the separate Goal contributions row together DO equal Total Committed")
-  assertEqual(2000 - totalCommitted, result.safeToSpend, "Starting Balance - Total Committed = Safe to Spend still holds with a goal contribution present")
+  const withoutGoal = withStartingCash(
+    computeSafeToSpend({ income, bills: [bill], debts: [], goals: [], today }),
+    { amount: 2000, source: "checking", asOf: "2026-09-09" }
+  )
+
+  const classifiedBills = classifyItemsAroundCycle([bill], "2026-09-09", withGoal.windowEndDate as string, withGoal.lastPaycheckDate)
+  const sumOfDisplayedItems = classifiedBills.reduce((sum, i) => sum + i.amount, 0)
+  const totalCommitted = withGoal.billsDue + withGoal.debtsDue
+
+  assertEqual(withGoal.safeToSpend, withoutGoal.safeToSpend, "an active, near-term goal changes Safe to Spend not at all")
+  assertEqual(sumOfDisplayedItems, totalCommitted, "the itemized bill list alone equals Total Committed -- no separate goal deduction exists anymore")
+  assertEqual(sumOfDisplayedItems, 100, "just the one $100 bill")
+  assertEqual(2000 - totalCommitted, withGoal.safeToSpend, "Starting Balance - Total Committed = Safe to Spend still holds, goal in the input or not")
 }
 
 console.log(`\n${passed} passed, ${failed} failed`)

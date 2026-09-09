@@ -38,11 +38,10 @@
 // UNCHANGED, this file just calls each of them once per account instead of
 // once for everyone.
 //
-// Goal contributions are deliberately NOT split per account --
-// financial_goals has no cash_account_id column, so there's no real
-// "which account funds this goal" to divide by. Returned as one combined
-// figure the caller can show as a shared line underneath the per-account
-// cards instead of guessed at.
+// CRITICAL FIX (Sep 9 2026, Vince): "don't calculate savings in safe to
+// spend." Goal/savings contributions no longer factor into Safe to Spend or
+// This Month at all, per-account split included -- `goals` stays in the
+// input type only so existing callers don't need to change what they pass.
 //
 // NOT yet wired into: Paycheck Shield's cycle-by-cycle forecast
 // (lib/planResilience.ts), Paycheck Capacity / "If this paycheck could
@@ -72,8 +71,6 @@ import {
 import {
   excludeTransferCoveredDebts,
   classifyItemsAroundCycle,
-  goalContributionRate,
-  goalContributionMonthlyRate,
   type CycleGoal,
   type ClassifiedItem,
 } from "./paycheckCycles"
@@ -110,9 +107,6 @@ export type AccountSplitResult<TBill extends BillRow = BillRow, TDebt extends De
   // never silently drops money instead of just not being split yet.
   unassignedBillsTotal: number
   unassignedDebtsTotal: number
-  // Not split per account -- see file header. Shown once, combined.
-  combinedGoalContribution: number
-  combinedMonthlyGoalContribution: number
 }
 
 function hasLinkedItems(
@@ -153,11 +147,8 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
   todayISO: string
   today?: Date
 }): AccountSplitResult<TBill, TDebt> {
-  const { checkingAccounts, income, bills, debts, goals, todayISO } = input
+  const { checkingAccounts, income, bills, debts, todayISO } = input
   const today = input.today ?? new Date(todayISO + "T00:00:00")
-
-  const combinedGoalContribution = goalContributionRate(goals, income, todayISO)
-  const combinedMonthlyGoalContribution = goalContributionMonthlyRate(goals, todayISO)
 
   const isSplit = shouldSplitByAccount(checkingAccounts, income, bills, debts)
   if (!isSplit) {
@@ -166,8 +157,6 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
       accounts: [],
       unassignedBillsTotal: 0,
       unassignedDebtsTotal: 0,
-      combinedGoalContribution,
-      combinedMonthlyGoalContribution,
     }
   }
 
@@ -252,12 +241,12 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
 
     let classifiedBills: ClassifiedItem<TBill>[] = []
     let classifiedDebts: ClassifiedItem<TDebt & { amount: number }>[] = []
-    if (cycle.nextPaycheckDate) {
-      classifiedBills = classifyItemsAroundCycle(ownBills, todayISO, cycle.nextPaycheckDate, cycle.lastPaycheckDate)
+    if (cycle.windowEndDate) {
+      classifiedBills = classifyItemsAroundCycle(ownBills, todayISO, cycle.windowEndDate, cycle.lastPaycheckDate)
       classifiedDebts = classifyItemsAroundCycle(
         spendableOwnDebts.map((d) => ({ ...d, amount: d.minimum_payment })),
         todayISO,
-        cycle.nextPaycheckDate,
+        cycle.windowEndDate,
         cycle.lastPaycheckDate
       )
     }
@@ -270,7 +259,5 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
     accounts,
     unassignedBillsTotal,
     unassignedDebtsTotal,
-    combinedGoalContribution,
-    combinedMonthlyGoalContribution,
   }
 }

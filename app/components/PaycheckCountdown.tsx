@@ -94,7 +94,7 @@ export default function PaycheckCountdown({
   // classified items for a future cycle, not just this one) -- named
   // generically until that's wired up.
   const multiCycleReserve = result.reservedThroughDate
-    ? Math.max(0, result.startingCash - (result.billsDue + result.debtsDue + result.goalContribution) - result.safeToSpend)
+    ? Math.max(0, result.startingCash - (result.billsDue + result.debtsDue) - result.safeToSpend)
     : 0
   const allCommittedItems = [
     ...[...classifiedBills, ...classifiedDebts].map((i) => ({
@@ -107,7 +107,7 @@ export default function PaycheckCountdown({
       ? [{ name: "Reserved for an upcoming paycheck cycle", amount: multiCycleReserve, date: result.reservedThroughDate, pastDue: false }]
       : []),
   ]
-  const totalCommitted = result.billsDue + result.debtsDue + result.goalContribution + multiCycleReserve
+  const totalCommitted = result.billsDue + result.debtsDue + multiCycleReserve
 
   if (!result.hasIncome) {
     return (
@@ -116,12 +116,12 @@ export default function PaycheckCountdown({
           <Wallet size={18} className="text-emerald-400" />
           <h2 className="text-sm font-medium uppercase tracking-wide text-muted">Safe to spend</h2>
         </div>
-        <p className="mt-2 text-muted">Add your income to see how much is safe to spend until your next paycheck.</p>
+        <p className="mt-2 text-muted">Add your income to see how much is safe to spend this month.</p>
       </div>
     )
   }
 
-  if (result.missingPayDate || !result.nextPaycheckDate) {
+  if (result.missingPayDate || !result.windowEndDate) {
     return (
       <div className="rounded-2xl border border-default bg-gradient-to-br from-surface to-surface-alt p-6 shadow-lg">
         <div className="flex items-center gap-2">
@@ -129,7 +129,7 @@ export default function PaycheckCountdown({
           <h2 className="text-sm font-medium uppercase tracking-wide text-muted">Safe to spend</h2>
         </div>
         <p className="mt-2 text-muted">
-          Add a pay date to your income to see how much is safe to spend until your next paycheck.
+          Add a pay date to your income to see how much is safe to spend this month.
         </p>
       </div>
     )
@@ -146,7 +146,7 @@ export default function PaycheckCountdown({
         <h2 className="text-sm font-medium uppercase tracking-wide text-muted">Safe to spend</h2>
         <InfoHint
           label="About Safe to Spend"
-          text="Based on your starting cash, minus what's still due (bills, debt payments, goal contributions) before your next paycheck. Not a live bank balance unless you've linked or entered one yourself on Survival Mode."
+          text="Based on your starting cash, minus every bill and debt payment due through the end of this month. Savings/goal contributions are never subtracted. Not a live bank balance unless you've linked or entered one yourself on Survival Mode."
         />
       </div>
 
@@ -155,10 +155,10 @@ export default function PaycheckCountdown({
       </p>
       <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
         <CalendarClock size={14} />
-        Until {formatDate(result.nextPaycheckDate)}
-        {result.daysUntilNextPaycheck != null && (
+        Until {formatDate(result.windowEndDate)}
+        {result.daysUntilWindowEnd != null && (
           <span className="text-muted">
-            &nbsp;&middot; {result.daysUntilNextPaycheck === 0 ? "today" : `${result.daysUntilNextPaycheck} day${result.daysUntilNextPaycheck === 1 ? "" : "s"}`}
+            &nbsp;&middot; {result.daysUntilWindowEnd === 0 ? "today" : `${result.daysUntilWindowEnd} day${result.daysUntilWindowEnd === 1 ? "" : "s"}`}
           </span>
         )}
       </p>
@@ -208,19 +208,13 @@ export default function PaycheckCountdown({
             <span className="text-warning-heading">-{formatMoney(pastDueTotal)}</span>
           </div>
         )}
-        {result.goalContribution > 0 && (
-          <div className="flex justify-between">
-            <span>Goal contributions</span>
-            <span className="text-secondary">-{formatMoney(result.goalContribution)}</span>
-          </div>
-        )}
         {multiCycleReserve > 0 && result.reservedThroughDate && (
           <div className="flex justify-between">
             <span>Reserved for {formatDate(result.reservedThroughDate)}</span>
             <span className="text-secondary">-{formatMoney(multiCycleReserve)}</span>
           </div>
         )}
-        {(upcomingBillsAmount > 0 || upcomingDebtsAmount > 0 || pastDueTotal > 0 || result.goalContribution > 0 || multiCycleReserve > 0) && (
+        {(upcomingBillsAmount > 0 || upcomingDebtsAmount > 0 || pastDueTotal > 0 || multiCycleReserve > 0) && (
           <div className="flex justify-between border-t border-default pt-1.5 font-[600] text-primary">
             <span>Total committed</span>
             <span>-{formatMoney(totalCommitted)}</span>
@@ -246,7 +240,7 @@ export default function PaycheckCountdown({
         </p>
       )}
 
-      {result.dailyLimit != null && result.daysUntilNextPaycheck != null && result.daysUntilNextPaycheck > 0 && (
+      {result.dailyLimit != null && result.daysUntilWindowEnd != null && result.daysUntilWindowEnd > 0 && (
         <div className="mt-4 flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3">
           <span className="text-sm text-secondary">Daily spending limit</span>
           <span className={`text-lg font-bold ${positive ? "text-emerald-400" : "text-red-400"}`}>
@@ -257,7 +251,7 @@ export default function PaycheckCountdown({
 
       {!positive && (
         <p className="mt-3 text-sm text-red-300">
-          What's still due before your next paycheck is more than it covers. Consider trimming bills or revisiting your debt plan.
+          What's still due this month is more than it covers. Consider trimming bills or revisiting your debt plan.
         </p>
       )}
 

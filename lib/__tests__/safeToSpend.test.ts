@@ -97,17 +97,20 @@ console.log("Test 4 -- obligations exceeding available money go negative, never 
   assertEqual(r.safeToSpend, -300, "1000 - 800 - 500 = -300, a real shortfall, not clamped to 0")
 }
 
-console.log("Test 5 -- an obligation outside the planning horizon is not deducted yet")
+console.log("Test 5 (REVISED Sep 9 2026, Vince: \"subtract all bills for that month\") -- an")
+console.log("  obligation due later in the SAME calendar month, even after the next paycheck,")
+console.log("  IS deducted now -- this is the Avant/personal-loan fix itself")
 {
-  // Due the 25th -- after the Jan 17 paycheck, so it's the FOLLOWING cycle's
-  // responsibility, not this one's. It must not silently vanish from the
-  // app (see classifyItemsAroundCycle/the Bills & Debts "Coming up" list),
-  // but it also must not be double-reserved against a paycheck that isn't
-  // the one actually funding it.
+  // Due the 25th -- after the Jan 17 paycheck, but still inside January.
+  // Before this fix, a second paycheck landing before the 25th made this
+  // look "covered" and the app never reserved it; that's exactly what let
+  // Avant (due the 22nd) go missing from Safe to Spend for someone paid
+  // twice a month. Reserved from day one of the window now, regardless of
+  // how many paychecks land before it.
   const bill: STSBill = { amount: 300, due_date: 25 }
   const r = run([bill], [], 4000)
-  assertEqual(r.billsDue, 0, "a bill due after the next paycheck isn't reserved from this cycle")
-  assertEqual(r.safeToSpend, 4000, "so Safe to Spend is untouched by it this cycle")
+  assertEqual(r.billsDue, 300, "a bill due later this month is reserved even though a paycheck lands first")
+  assertEqual(r.safeToSpend, 3700, "4000 - 300 = 3700")
 }
 
 console.log("Test 6 -- a recurring monthly bill projects to the right occurrence every cycle")
@@ -332,20 +335,23 @@ console.log("  guessing which months, or silently excluding a real bill")
   assertEqual(r.billsDue, 85, "unset parity keeps the conservative every-month fallback")
 }
 
-console.log("Test 16 (regression) -- the full Sep 4 2026 live reconciliation, permanently")
-console.log("  locked in: starting cash minus every real obligation equals the exact")
-console.log("  live figure, and the exact buggy figure it used to produce")
+console.log("Test 16 (updated Sep 9 2026, Vince: \"subtract all bills for that month\") -- the")
+console.log("  full live reconciliation, now over the widened monthly window: Avant and Xfinity")
+console.log("  Internet, both due the 22nd (after the Sep 16 paycheck but still in September),")
+console.log("  are now correctly reserved instead of waiting for their own cycle")
 {
   // Vince's real Sep 4 2026 numbers -- pooled checking $3,678.30 (53rd
   // Checking $3,303.13 + Chime Checking $375.17), next paycheck Sep 16.
+  // windowEndDate for "today" = Sep 4 is Sep 30 -- everything below due
+  // through Sep 30 is reserved now, not just through the Sep 16 paycheck.
   const liveIncome: STSIncome[] = [{ amount: 2578.4, frequency: "biweekly", next_pay_date: "2026-09-16", income_type: null }]
   const liveBills: STSBill[] = [
-    { amount: 24.99, due_date: 1, frequency: "monthly" }, // BitDefender -- due Sep 1, before the Sep 2 last paycheck, so it's the PRIOR cycle's obligation and stays excluded even after the Sep 9 2026 fix (see Test 7)
+    { amount: 24.99, due_date: 1, frequency: "monthly" }, // BitDefender -- due Sep 1, before the Sep 2 last paycheck, so it's the PRIOR cycle's obligation and stays excluded (see Test 7)
     { amount: 8.99, due_date: 6, frequency: "monthly" }, // Netflix
     { amount: 20.0, due_date: 7, frequency: "monthly" }, // Anthropic
     { amount: 201.54, due_date: 11, frequency: "bimonthly", bimonthly_parity: "odd" }, // Addison Water
     { amount: 20.0, due_date: 14, frequency: "monthly" }, // Vercel Pro
-    { amount: 96.31, due_date: 22, frequency: "monthly" }, // Xfinity Internet -- next cycle
+    { amount: 96.31, due_date: 22, frequency: "monthly" }, // Xfinity Internet -- still September, now reserved
   ]
   const signatureVisa: STSDebt = { minimum_payment: 50, due_date: 14, covered_by_transfer: false }
   const capitalOneAuto: STSDebt = { minimum_payment: 596.5, due_date: 15, covered_by_transfer: false }
@@ -356,7 +362,7 @@ console.log("  live figure, and the exact buggy figure it used to produce")
     paid_through: "2026-09-01", // September already marked paid
     covered_by_transfer: false,
   }
-  const avant: STSDebt = { minimum_payment: 507.61, due_date: 22, covered_by_transfer: false } // next cycle
+  const avant: STSDebt = { minimum_payment: 507.61, due_date: 22, covered_by_transfer: false } // still September, now reserved
 
   const today = new Date("2026-09-04T00:00:00")
   const result = computeSafeToSpend({
@@ -367,15 +373,14 @@ console.log("  live figure, and the exact buggy figure it used to produce")
     today,
   })
   const live = withStartingCash(result, { amount: 3678.3, source: "checking", asOf: "2026-09-04" })
-  assertEqual(live.billsDue, 250.53, "Netflix + Anthropic + Addison Water + Vercel Pro = 250.53")
-  assertEqual(live.debtsDue, 646.5, "Signature Visa + Capital One Auto = 646.50 (mortgage already paid, Avant is next cycle)")
-  assertEqual(live.safeToSpend, 2781.27, "3,678.30 - 250.53 - 646.50 = 2,781.27, the exact live figure")
+  assertEqual(live.billsDue, 346.84, "Netflix + Anthropic + Addison Water + Vercel Pro + Xfinity Internet = 346.84")
+  assertEqual(live.debtsDue, 1154.11, "Signature Visa + Capital One Auto + Avant = 1,154.11 (mortgage already paid)")
+  assertEqual(live.safeToSpend, 2177.35, "3,678.30 - 346.84 - 1,154.11 = 2,177.35, Avant and Xfinity now both earmarked")
 
-  // The exact historical bug, permanently reproducible: if Capital One
-  // Auto's payment is dropped from the reservation (the live failure mode --
-  // see Test 11), the same starting cash and bills produce $3,377.77
-  // instead. Locking this in proves the root cause, not just that a
-  // number happened to change.
+  // Same root-cause lock-in as before, re-based on the new monthly window:
+  // dropping Capital One Auto's payment changes safeToSpend by exactly its
+  // $596.50 minimum payment, proving the mechanism, not just that a number
+  // happened to change.
   const buggyResult = computeSafeToSpend({
     income: liveIncome,
     bills: liveBills,
@@ -384,7 +389,7 @@ console.log("  live figure, and the exact buggy figure it used to produce")
     today,
   })
   const buggy = withStartingCash(buggyResult, { amount: 3678.3, source: "checking", asOf: "2026-09-04" })
-  assertEqual(buggy.safeToSpend, 3377.77, "reproduces the exact historical bug figure when Capital One Auto's payment is missing")
+  assertEqual(buggy.safeToSpend, 2773.85, "2,177.35 + 596.50 = 2,773.85 when Capital One Auto's payment is missing")
 }
 
 console.log("Test 17 (regression) -- Safe to Spend and the Bills & Debts obligations list")
@@ -412,6 +417,46 @@ console.log("  settled -- the exact Onity Mortgage bug caught live on Sep 4 2026
     `Next 7 Days must ALSO treat September as settled, not show 'grace'/'overdue' (got '${nextOccurrence.status}')`
   )
   assertEqual(nextOccurrence.occurrenceDate === null ? -1 : Number(nextOccurrence.occurrenceDate.slice(5, 7)), 10, "the next occurrence it finds is October's, not September's")
+}
+
+console.log("Test 18 (Sep 9 2026, Vince: \"don't calculate savings in safe to spend\") -- a goal")
+console.log("  with a real, near-term deadline never reduces Safe to Spend, whether or not one")
+console.log("  is passed in")
+{
+  const withGoal = computeSafeToSpend({
+    income,
+    bills: [],
+    debts: [],
+    goals: [{ target_amount: 10000, current_amount: 0, deadline: "2026-02-01", status: "active" }],
+    today,
+  })
+  const withoutGoal = computeSafeToSpend({ income, bills: [], debts: [], goals: [], today })
+  assertEqual(withGoal.safeToSpend, withoutGoal.safeToSpend, "an aggressive, near-term goal changes nothing")
+  assertEqual(withGoal.safeToSpend, 2000, "just the starting cash (last paycheck, no goal deduction at all)")
+}
+
+console.log("Test 19 (Sep 9 2026, Vince: monthly window) -- the window correctly resets at the")
+console.log("  calendar-month boundary: a bill due early NEXT month is not reserved yet, only one")
+console.log("  due through the end of THIS month is")
+{
+  // Today Jan 25, last paycheck Jan 17, next paycheck Jan 31 -- windowEndDate
+  // is also Jan 31. A bill due on the 3rd projects to Feb 3 from here (its
+  // next occurrence after the Jan 17 last paycheck), which must stay OUT of
+  // January's window even though the window now reaches all the way to
+  // month-end.
+  const lateMonthIncome: STSIncome[] = [{ amount: 2000, frequency: "biweekly", next_pay_date: "2026-01-17", income_type: null }]
+  const nextMonthBill: STSBill = { amount: 400, due_date: 3 }
+  const result = computeSafeToSpend({
+    income: lateMonthIncome,
+    bills: [nextMonthBill],
+    debts: [],
+    goals: [],
+    today: new Date("2026-01-25T00:00:00"),
+  })
+  const r = withStartingCash(result, { amount: 4000, source: "checking", asOf: "2026-01-25" })
+  assertEqual(r.billsDue, 0, "a bill whose next occurrence is next month stays out of this month's window")
+  assertEqual(r.safeToSpend, 4000, "so it doesn't reduce this month's Safe to Spend yet")
+  assertTrue(r.windowEndDate === "2026-01-31", `windowEndDate is the last day of the current calendar month (got ${r.windowEndDate})`)
 }
 
 console.log(`\n${passed} passed, ${failed} failed`)

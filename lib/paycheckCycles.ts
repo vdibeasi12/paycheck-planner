@@ -193,6 +193,23 @@ export function addDays(d: Date, days: number): Date {
   return new Date(d.getTime() + days * MS_PER_DAY)
 }
 
+// Last calendar day of `d`'s month, as an ISO date -- e.g. Sep 9 -> "2026-09-30".
+//
+// CRITICAL FIX (Sep 9 2026, Vince): "If I receive two paychecks a month you
+// need to subtract all bills for that month which will determine safe to
+// spend." lib/safeToSpend.ts used to only reserve what's due before the very
+// NEXT paycheck -- a personal loan or any other bill landing later in the
+// same month, after that next paycheck, fell outside the window entirely and
+// wasn't reserved from today's real cash at all. Widening the window to run
+// through the end of the current calendar month (regardless of how many
+// paychecks land before then) means every bill/debt due this month is always
+// accounted for from day one, which is what "earmarking" a later-month
+// payment actually requires -- see lib/safeToSpend.ts's computeSafeToSpend.
+export function endOfMonthISO(d: Date): string {
+  const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0)
+  return toISODate(lastDay)
+}
+
 export function daysBetween(fromISO: string, toISO: string): number {
   const from = new Date(fromISO + "T00:00:00")
   const to = new Date(toISO + "T00:00:00")

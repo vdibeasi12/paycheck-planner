@@ -86,7 +86,7 @@ export default function WhatIfSpend({ result }: Props) {
   const cartTotal = cart.reduce((sum, item) => sum + item.amount, 0)
   const outcome = cart.length > 0 ? whatIfSpend(result, cartTotal) : null
   const copy = outcome ? VERDICT_COPY[outcome.verdict] : null
-  const stillDue = result.billsDue + result.debtsDue + result.goalContribution
+  const stillDue = result.billsDue + result.debtsDue
 
   return (
     <div className="rounded-2xl border border-gray-700 bg-[#0b1220] p-6 shadow-lg">
@@ -182,15 +182,15 @@ export default function WhatIfSpend({ result }: Props) {
               <span className={outcome.newSafeToSpend >= 0 ? "text-gray-200" : "text-red-400"}>
                 {formatMoney(outcome.newSafeToSpend)}
               </span>{" "}
-              until your next paycheck.
+              for the rest of this month.
             </p>
           </div>
 
           {outcome.newDailyLimit != null && (
             <div className="flex items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm">
               <span className="text-gray-400">
-                New daily limit ({result.daysUntilNextPaycheck ?? 0}{" "}
-                {result.daysUntilNextPaycheck === 1 ? "day" : "days"} left)
+                New daily limit ({result.daysUntilWindowEnd ?? 0}{" "}
+                {result.daysUntilWindowEnd === 1 ? "day" : "days"} left)
               </span>
               <span
                 className={`font-semibold tabular-nums ${
@@ -203,7 +203,7 @@ export default function WhatIfSpend({ result }: Props) {
           )}
 
           <p className="text-xs text-gray-500">
-            Still due before payday ({formatMoney(stillDue)}) is already factored into Safe to Spend -- it doesn&apos;t
+            Still due this month ({formatMoney(stillDue)}) is already factored into Safe to Spend -- it doesn&apos;t
             change as you add to the cart.
           </p>
         </div>
