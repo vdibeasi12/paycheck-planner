@@ -92,10 +92,12 @@ console.log("  same total worked out by hand in chat")
   assertEqual(cost, 1129.85, "5 credit cards + the $0 one + the -$9.33 credit nets to 1,129.85")
 }
 
-console.log("\nTest 2 (REVISED Sep 9 2026, Vince: \"subtract all bills for that month\") --")
-console.log("  with nothing paid off yet, the tightest point in Vince's plan is TODAY, once")
-console.log("  today's checkpoint reserves everything due through month-end (Avant and Home")
-console.log("  Depot included) -- not a later cycle")
+console.log("\nTest 2 (REVISED Sep 10 2026, Vince: \"there are three main bills that come from")
+console.log("  this account car, personal loan, and mortgage. This must be removed from safe")
+console.log("  to spend when you look at the full month\") -- with nothing paid off yet, the")
+console.log("  tightest point in Vince's plan is TODAY, once today's checkpoint reserves")
+console.log("  everything due through month-end PLUS the mortgage's always-reserved next")
+console.log("  payment -- not a later cycle")
 {
   // CRITICAL FIX (Sep 9 2026, Vince, live screenshot of 53rd Checking):
   // "53rd is not counting the personal loan and it needs to earmark the up
@@ -105,21 +107,26 @@ console.log("  Depot included) -- not a later cycle")
   // "everything due through the end of this calendar month" (the same day,
   // Vince: "subtract all bills for that month"), todayCheckpoint here was
   // updated to call computeSafeToSpend directly instead of re-deriving a
-  // narrower window by hand -- so it now already reserves Home Depot ($29)
-  // and Avant ($507.61), both due the 22nd, along with everything else due
-  // in September. That makes today's checkpoint the true tightest point in
-  // the whole forecast (Vince's future cycles are healthy enough that
-  // nothing further out is tighter) -- tightestDate is null, meaning
-  // "today's real cash, net of this month's reservations" is the binding
-  // constraint, not a named future cycle.
+  // narrower window by hand.
+  //
+  // REVISED Sep 10 2026: Vince came back furious that the mortgage
+  // (Onity Mortgage, settled for September via paid_through) still wasn't
+  // being held back -- "car, personal loan, and mortgage... must be
+  // removed... when you look at the full month." computeSafeToSpend now
+  // always reserves a debt's very next payment even when its own occurrence
+  // falls in the following month (see lib/paycheckCycles.ts's
+  // extendForNextOccurrence), so today's checkpoint here also reserves
+  // Onity Mortgage's October payment ($2,220.86) on top of everything
+  // already due in September -- which makes today's checkpoint tighter
+  // still, and, on Vince's real numbers, negative.
   const result = computeDebtPayoffAffordability({ startingCash, income, bills, debts: allDebts, goals, today })
   assertEqual(result.reserve, DEFAULT_PAYOFF_RESERVE, "default reserve is $150")
   assertEqual(result.maxSafeToPayoff, result.tightestRunningBalance - result.reserve, "maxSafeToPayoff is tightestRunningBalance minus reserve")
-  assertEqual(result.tightestRunningBalance, 1725.64, "today's checkpoint, once it reserves the whole month, is the true tightest point")
+  assertEqual(result.tightestRunningBalance, -495.22, "today's checkpoint, once it reserves the whole month PLUS the mortgage's next payment, is the true tightest point")
   assertEqual(
     result.tightestRunningBalance,
-    startingCash - 50 - 50 - 596.5 - 29 - 507.61 - 719.55,
-    "3,678.30 minus every debt due this month (Meijer, Signature Visa, Capital One Auto, Home Depot, Avant = 1,233.11) and every bill due this month (719.55)"
+    startingCash - 50 - 50 - 596.5 - 29 - 507.61 - 2220.86 - 719.55,
+    "3,678.30 minus every debt due this month (Meijer, Signature Visa, Capital One Auto, Home Depot, Avant = 1,233.11), Onity Mortgage's always-reserved next payment (2,220.86), and every bill due this month (719.55)"
   )
   assertTrue(result.tightestDate === null, `today, not a named future cycle, is now the binding constraint (got ${result.tightestDate})`)
   console.log(`  (tightest point: ${result.tightestRunningBalance} on ${result.tightestDate}, maxSafeToPayoff ${result.maxSafeToPayoff})`)
@@ -134,15 +141,16 @@ console.log("  the bank today, no matter how healthy future cycles look")
   // startingCash (3,678.30) -- even though the Oct 28 cycle's OWN paycheck
   // doesn't cover that cycle's OWN bills (cushion -1,159.59; only the cash
   // carried forward from earlier cycles absorbs it). The Sep 5 fix floored
-  // the recommendation at today's real cash; the Sep 9 monthly-window fix
-  // (Test 2 above) tightened today's own checkpoint further still, to the
-  // point where it's now the binding constraint all by itself.
+  // the recommendation at today's real cash; the Sep 9/10 monthly-window
+  // fixes (Test 2 above) tightened today's own checkpoint further still, to
+  // the point where it's now the binding constraint all by itself -- and,
+  // once the mortgage's next payment is always reserved too, negative.
   const result = computeDebtPayoffAffordability({ startingCash, income, bills, debts: allDebts, goals, today })
   assertTrue(
     result.maxSafeToPayoff <= startingCash,
     `maxSafeToPayoff (${result.maxSafeToPayoff}) must never exceed today's real starting cash (${startingCash})`
   )
-  assertEqual(result.maxSafeToPayoff, 1725.64 - DEFAULT_PAYOFF_RESERVE, "1,725.64 (tightest point, Test 2) - 150 (reserve) = 1,575.64, not the old buggy 5,159.67 or the still-too-high 3,478.30/2,581.27")
+  assertEqual(result.maxSafeToPayoff, -495.22 - DEFAULT_PAYOFF_RESERVE, "-495.22 (tightest point, Test 2) - 150 (reserve) = -645.22 -- nothing is safe to send to debt right now once the mortgage is always held back")
 }
 
 console.log("\nTest 2c (regression, Sep 9 2026) -- Extra Debt Payment can never recommend")
@@ -163,16 +171,25 @@ console.log("  same account/window, whatever the two engines are asked about sep
   )
 }
 
-console.log("\nTest 3 -- paying off the real credit-card selection ($1,129.85) is actually safe:")
-console.log("  removing those debts' future minimum payments from the projection raises")
-console.log("  maxSafeToPayoff enough to cover the cost and still respect the reserve")
+console.log("\nTest 3 (REVISED Sep 10 2026) -- paying off the real credit-card selection")
+console.log("  ($1,129.85) is NO LONGER shown as safe, now that Onity Mortgage's next payment")
+console.log("  is always held back too -- a real, honest answer, not the same one dressed up")
 {
+  // Before Sep 10 2026, this was a "yes, safe" test: removing the mortgage
+  // from the picture (it looked settled for the month) left enough room to
+  // cover the $1,129.85 payoff. Once the mortgage's own next payment is
+  // always reserved (Vince's Sep 10 2026 fix), the true picture is tighter:
+  // maxSafeToPayoff even with every credit card removed from the projection
+  // no longer covers the cost. This is the correct, more conservative
+  // answer given what Vince asked for -- Extra Debt Payment must say "not
+  // right now" rather than green-light a payoff that would leave nothing
+  // for October's mortgage.
   const selected = allDebts.filter((d) => CREDIT_CARD_NAMES.includes(d.name))
   const cost = selected.reduce((sum, d) => sum + d.balance, 0)
   const remaining = allDebts.filter((d) => !CREDIT_CARD_NAMES.includes(d.name))
   const result = computeDebtPayoffAffordability({ startingCash, income, bills, debts: remaining, goals, today })
   console.log(`  (cost ${cost}, maxSafeToPayoff after removing them ${result.maxSafeToPayoff})`)
-  assertTrue(cost <= result.maxSafeToPayoff, "the $1,129.85 payoff does not exceed what's safe to send to debt")
+  assertTrue(cost > result.maxSafeToPayoff, "the $1,129.85 payoff now correctly exceeds what's safe to send to debt, once the mortgage is always held back")
 }
 
 console.log("\nTest 4 -- paying off a debt strictly increases (never decreases) maxSafeToPayoff,")
@@ -210,11 +227,10 @@ console.log("  returning something misleading")
   assertTrue(result.tightestDate === null, "no cycle to name when there's no projectable plan")
 }
 
-console.log("\nTest 7 (regression) -- the default horizon has to reach far enough to catch a")
-console.log("  grace-period-shifted debt that lands on the 4th projected paycheck, not just")
-console.log("  the first few -- a synthetic case since Vince's own numbers happen to be")
-console.log("  healthy enough that his tightest point is always the very first cycle")
-console.log("  regardless of horizon (see Test 2), which would hide this exact bug")
+console.log("\nTest 7 (REVISED Sep 10 2026) -- a grace-period-shifted debt that lands on the")
+console.log("  4th projected paycheck used to need the wider 4-cycle default horizon to be")
+console.log("  seen at all; now extendForNextOccurrence catches it immediately at TODAY's own")
+console.log("  checkpoint, so it's visible at ANY horizon -- both fixes cooperate")
 {
   // Same mechanism as the real Onity Mortgage (due the 1st, 15-day grace,
   // September already settled via paid_through) -- nominal Oct 1 shifts to
@@ -222,6 +238,17 @@ console.log("  regardless of horizon (see Test 2), which would hide this exact b
   // Scaled so THIS payment is big enough relative to the paycheck to
   // actually become the tightest point instead of getting absorbed the way
   // Vince's full, healthier plan absorbs his real mortgage (see Test 2).
+  //
+  // REVISED Sep 10 2026: before this date, todayCheckpoint didn't reserve
+  // this debt at all (settled for September, not due again until the Oct
+  // 28 cycle), so only the 4-cycle default (not the old 3-cycle one) could
+  // see it. Now that computeSafeToSpend always reserves a paid_through'd
+  // debt's very next payment regardless of how far out it lands (Vince's
+  // Sep 10 2026 fix), today's OWN checkpoint catches this debt immediately
+  // -- before any future cycle even gets compared. That makes the answer
+  // identical at 3 cycles and 4 cycles: the horizon no longer matters for
+  // this shape of debt at all, which is a strictly stronger guarantee than
+  // "the default happens to be wide enough."
   const synthIncome: CycleIncome[] = [{ amount: 1200, frequency: "biweekly", next_pay_date: "2026-09-16" }]
   const synthDebt: CycleDebt = { minimum_payment: 5000, due_date: 1, grace_period_days: 15, paid_through: "2026-09-01" }
   const synthStartingCash = 500
@@ -265,15 +292,18 @@ console.log("  regardless of horizon (see Test 2), which would hide this exact b
     `  (4-cycle: with debt ${fullHorizon.maxSafeToPayoff} on ${fullHorizon.tightestDate}, without ${fullHorizonWithoutDebt.maxSafeToPayoff}; ` +
       `3-cycle: with debt ${shortHorizon.maxSafeToPayoff}, without ${shortHorizonWithoutDebt.maxSafeToPayoff})`
   )
-  assertTrue(fullHorizon.tightestDate === "2026-10-28", `the debt's effective Oct 16 due date makes the Oct 28 cycle the tightest one (got ${fullHorizon.tightestDate})`)
+  assertTrue(
+    fullHorizon.tightestDate === null,
+    `today's own checkpoint (which now always reserves this debt's next payment) is tighter than the Oct 28 cycle itself, so today -- not a named future cycle -- is the binding constraint (got ${fullHorizon.tightestDate})`
+  )
   assertTrue(
     fullHorizonWithoutDebt.maxSafeToPayoff > fullHorizon.maxSafeToPayoff,
     "at the default 4-cycle horizon, removing the debt changes the answer -- it was actually being considered"
   )
-  assertEqual(
-    shortHorizonWithoutDebt.maxSafeToPayoff,
-    shortHorizon.maxSafeToPayoff,
-    "at a 3-cycle horizon (the old, too-short default), removing the debt changes NOTHING -- it already wasn't being seen, which is exactly the bug the 4-cycle default fixes"
+  assertEqual(shortHorizon.maxSafeToPayoff, fullHorizon.maxSafeToPayoff, "extendForNextOccurrence is horizon-independent -- 3 cycles and 4 cycles now agree")
+  assertTrue(
+    shortHorizonWithoutDebt.maxSafeToPayoff !== shortHorizon.maxSafeToPayoff,
+    "at a 3-cycle horizon (the OLD too-short default), removing the debt now changes the answer too -- the horizon-length bug this test used to lock in can no longer happen for this shape of debt"
   )
 }
 

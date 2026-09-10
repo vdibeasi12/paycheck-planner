@@ -247,7 +247,8 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
         spendableOwnDebts.map((d) => ({ ...d, amount: d.minimum_payment })),
         todayISO,
         cycle.windowEndDate,
-        cycle.lastPaycheckDate
+        cycle.lastPaycheckDate,
+        { extendForNextOccurrence: true }
       )
     }
 

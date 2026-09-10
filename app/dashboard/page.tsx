@@ -231,7 +231,8 @@ export default async function DashboardPage() {
       spendableDebts.map((d) => ({ ...d, amount: d.minimum_payment })),
       todayISO,
       safeToSpendResult.windowEndDate,
-      safeToSpendResult.lastPaycheckDate
+      safeToSpendResult.lastPaycheckDate,
+      { extendForNextOccurrence: true }
     )
   }
 

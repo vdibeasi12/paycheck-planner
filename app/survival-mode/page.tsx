@@ -121,7 +121,8 @@ export default async function SurvivalModePage() {
       spendableDebts.map((d) => ({ ...d, amount: d.minimum_payment })),
       todayISO,
       result.windowEndDate,
-      result.lastPaycheckDate
+      result.lastPaycheckDate,
+      { extendForNextOccurrence: true }
     )
   }
 

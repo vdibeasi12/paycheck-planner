@@ -190,6 +190,17 @@ export function computeSafeToSpend(input: {
   // reserved the same way it always has.
   const windowEndDate = endOfMonthISO(today)
   const billsDue = sumDueInWindow(input.bills, lastPaycheckDate, windowEndDate)
+  // CRITICAL FIX (Sep 10 2026, Vince, live, furious): "There are three main
+  // bills that come from this account: car, personal loan, and mortgage.
+  // This must be removed from safe to spend when you look at the full
+  // month." Traced this to the mortgage specifically: it's marked
+  // paid_through this month already, so its NEXT unpaid payment (next
+  // month, even after its grace period) fell past `windowEndDate` and
+  // dropped out of the reservation entirely -- correct for "what's still
+  // owed by month-end," but not what Vince wants for a recurring debt tied
+  // to this account. extendForNextOccurrence (see itemsDueInWindow)
+  // guarantees every debt always has its very next payment reserved, even
+  // when that payment's own date falls in the following month.
   const debtsDue = sumDueInWindow(
     excludeTransferCoveredDebts(input.debts, input.income).map((d) => ({
       amount: d.minimum_payment,
@@ -198,7 +209,8 @@ export function computeSafeToSpend(input: {
       paid_through: d.paid_through,
     })),
     lastPaycheckDate,
-    windowEndDate
+    windowEndDate,
+    { extendForNextOccurrence: true }
   )
 
   // The transfer tied to the paycheck that already landed (same day, same

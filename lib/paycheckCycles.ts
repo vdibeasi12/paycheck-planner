@@ -359,6 +359,12 @@ function matchesBimonthlyParity(month0: number, parity: "odd" | "even"): boolean
   return parity === "odd" ? isOddMonth : !isOddMonth
 }
 
+// How far past `toISO` to keep looking for a row's very next occurrence when
+// `extendForNextOccurrence` is set and nothing turned up inside the window
+// itself -- comfortably covers a mortgage-style debt with a long grace
+// period or a paid_through set several cycles ahead.
+const EXTEND_SCAN_MONTHS = 12
+
 export function itemsDueInWindow<
   T extends {
     amount: number
@@ -368,7 +374,29 @@ export function itemsDueInWindow<
     frequency?: string | null
     bimonthly_parity?: "odd" | "even" | null
   }
->(rows: T[], fromISO: string, toISO: string): (T & { occurrenceDate: string })[] {
+>(
+  rows: T[],
+  fromISO: string,
+  toISO: string,
+  opts?: {
+    // CRITICAL FIX (Sep 10 2026, Vince, live: "there are three main bills
+    // that come from this account: car, personal loan, and mortgage. This
+    // must be removed from safe to spend when you look at the full month"):
+    // a debt whose only unpaid occurrence lands AFTER `toISO` (a mortgage
+    // already marked paid_through this month, so its next payment doesn't
+    // come due until next month even after its grace period) used to drop
+    // out of the window's total entirely -- correct for "what's due by
+    // month-end," but Vince wants every recurring debt tied to an account to
+    // always have its very next payment reserved, not just the ones that
+    // happen to land before this exact date. When true, a row that produced
+    // ZERO occurrences inside (fromISO, toISO] gets exactly one -- its next
+    // occurrence past toISO -- so it's never simply absent from the total.
+    // Bills are deliberately left out of this (opt-in per call, not global)
+    // -- Vince named debts specifically, and a small monthly utility bill
+    // reserving a cycle early isn't the problem he's describing.
+    extendForNextOccurrence?: boolean
+  }
+): (T & { occurrenceDate: string })[] {
   const from = new Date(fromISO + "T00:00:00")
   const to = new Date(toISO + "T00:00:00")
   const startIdx = from.getFullYear() * 12 + from.getMonth()
@@ -376,6 +404,16 @@ export function itemsDueInWindow<
   const out: (T & { occurrenceDate: string })[] = []
   for (const row of rows) {
     if (!row.due_date) continue
+    let foundInWindow = false
+    // Only true when this window actually LOST an occurrence to paid_through
+    // (it would otherwise have landed inside (fromISO, toISO]) -- NOT true
+    // for a row whose occurrence simply falls at/before fromISO on its own
+    // (that's the ordinary "already the prior cycle's obligation" case, see
+    // Test 7 in safeToSpend.test.ts, and must never trigger the extension
+    // below -- doing so was a real bug caught while building this: a debt
+    // due exactly ON the last paycheck date was wrongly getting an EXTRA
+    // reservation for next month on top of nothing being due this one).
+    let lostToPaidThrough = false
     for (let idx = startIdx; idx <= endIdx; idx++) {
       const year = Math.floor(idx / 12)
       const month = idx % 12
@@ -386,12 +424,34 @@ export function itemsDueInWindow<
         continue
       }
       const nominalDate = billOccurrenceInMonth(row.due_date, year, month)
-      if (row.paid_through && nominalDate <= row.paid_through) continue
-      const date = row.grace_period_days
+      const wouldBeDate = row.grace_period_days
         ? toISODate(addDays(new Date(nominalDate + "T00:00:00"), row.grace_period_days))
         : nominalDate
-      if (date > fromISO && date <= toISO) {
-        out.push({ ...row, occurrenceDate: date })
+      if (row.paid_through && nominalDate <= row.paid_through) {
+        if (wouldBeDate > fromISO && wouldBeDate <= toISO) lostToPaidThrough = true
+        continue
+      }
+      if (wouldBeDate > fromISO && wouldBeDate <= toISO) {
+        out.push({ ...row, occurrenceDate: wouldBeDate })
+        foundInWindow = true
+      }
+    }
+    if (!foundInWindow && lostToPaidThrough && opts?.extendForNextOccurrence) {
+      for (let idx = endIdx + 1; idx <= endIdx + EXTEND_SCAN_MONTHS; idx++) {
+        const year = Math.floor(idx / 12)
+        const month = idx % 12
+        if (row.frequency === "bimonthly" && row.bimonthly_parity && !matchesBimonthlyParity(month, row.bimonthly_parity)) {
+          continue
+        }
+        const nominalDate = billOccurrenceInMonth(row.due_date, year, month)
+        if (row.paid_through && nominalDate <= row.paid_through) continue
+        const date = row.grace_period_days
+          ? toISODate(addDays(new Date(nominalDate + "T00:00:00"), row.grace_period_days))
+          : nominalDate
+        if (date > toISO) {
+          out.push({ ...row, occurrenceDate: date })
+          break
+        }
       }
     }
   }
@@ -424,7 +484,13 @@ export function classifyItemsAroundCycle<T extends { amount: number; due_date: n
   rows: T[],
   todayISO: string,
   nextPaycheckISO: string,
-  lastPaycheckISO?: string | null
+  lastPaycheckISO?: string | null,
+  // Sep 10 2026, Vince -- see itemsDueInWindow's own comment. Callers pass
+  // this for DEBTS only (not bills), so a debt like a mortgage that's
+  // already paid_through this window still shows up once, itemized, as
+  // "upcoming" (its real next due date), instead of the total quietly
+  // including money for it that the itemized list can't account for.
+  opts?: { extendForNextOccurrence?: boolean }
 ): ClassifiedItem<T>[] {
   let scanFromISO: string
   if (lastPaycheckISO) {
@@ -434,7 +500,7 @@ export function classifyItemsAroundCycle<T extends { amount: number; due_date: n
     const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
     scanFromISO = toISODate(addDays(monthStart, -1))
   }
-  const items = itemsDueInWindow(rows, scanFromISO, nextPaycheckISO)
+  const items = itemsDueInWindow(rows, scanFromISO, nextPaycheckISO, opts)
   return items.map((it) => ({
     ...it,
     itemStatus: (it.occurrenceDate <= todayISO ? "alreadyDue" : "upcoming") as ItemStatus,
@@ -513,9 +579,10 @@ export function sumDueInWindow(
     bimonthly_parity?: "odd" | "even" | null
   }[],
   fromISO: string,
-  toISO: string
+  toISO: string,
+  opts?: { extendForNextOccurrence?: boolean }
 ): number {
-  return itemsDueInWindow(rows, fromISO, toISO).reduce((sum, r) => sum + (Number(r.amount) || 0), 0)
+  return itemsDueInWindow(rows, fromISO, toISO, opts).reduce((sum, r) => sum + (Number(r.amount) || 0), 0)
 }
 
 // Real, currently-outstanding obligations: due after the last paycheck that

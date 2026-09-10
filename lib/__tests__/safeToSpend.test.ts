@@ -248,18 +248,28 @@ console.log("  window actually ends, but IS reserved once it does (the mortgage/
   assertEqual(r.debtsDue, 2220.86, "reserved once inside the grace window, not skipped as 'already due'")
 }
 
-console.log("Test 13 (regression) -- 'Mark as paid' (paid_through) settles THIS cycle without")
-console.log("  breaking the NEXT one, even when paid early inside a grace window")
+console.log("Test 13 (REVISED Sep 10 2026, Vince: \"there are three main bills that come")
+console.log("  from this account car, personal loan, and mortgage. This must be removed from")
+console.log("  safe to spend when you look at the full month\") -- 'Mark as paid' (paid_through)")
+console.log("  settles THIS cycle's own occurrence, but now reserves the NEXT one immediately")
+console.log("  instead of waiting for it to enter its own window")
 {
   // Same mortgage as Test 12 (due the 1st, 15-day grace -> effectively due
   // Jan 16), but the user pays it themselves on Jan 2 -- well before the
   // grace deadline even arrives. "Mark as paid" (app/bills-debts/page.tsx)
   // records paid_through as the NOMINAL due date for the cycle just paid
-  // (Jan 1), not the day it was actually paid. This must do two things at
-  // once: stop the Jan 16 effective date from being reserved again this
-  // cycle (the user already paid, and the balance was already debited
-  // directly -- see lib/cashBalance.ts), while still reserving February's
-  // occurrence normally once that comes around.
+  // (Jan 1), not the day it was actually paid.
+  //
+  // Before Sep 10 2026: this settled January's occurrence AND correctly
+  // reserved nothing further that month -- fine for "what's still owed by
+  // month-end," but Vince's live complaint was exactly this shape (a real
+  // recurring debt on the account, quietly reserving $0 for a month just
+  // because its specific occurrence was already marked paid). Now,
+  // extendForNextOccurrence (see itemsDueInWindow) guarantees a debt whose
+  // ONLY occurrence this window would have shown got paid_through'd away
+  // still gets its very next real payment reserved -- so January reserves
+  // February's payment early, exactly the "always hold back for car/loan/
+  // mortgage" behavior Vince asked for.
   const graceIncome: STSIncome[] = [{ amount: 3000, frequency: "monthly", next_pay_date: "2025-12-20", income_type: null }]
 
   const paidMortgage: STSDebt = {
@@ -277,7 +287,11 @@ console.log("  breaking the NEXT one, even when paid early inside a grace window
     today: new Date("2026-01-02T00:00:00"),
   })
   const january = withStartingCash(januaryResult, { amount: 5000, source: "checking", asOf: "2026-01-02" })
-  assertEqual(january.debtsDue, 0, "not reserved again -- already paid and already debited from the balance")
+  assertEqual(
+    january.debtsDue,
+    2220.86,
+    "January's own occurrence is settled, but its next payment (Feb, effective Feb 16) is reserved right away instead of showing $0 for the month"
+  )
 
   // February: same debt, same paid_through (nothing new has been marked
   // paid yet for Feb) -- its Feb 1 occurrence must NOT be skipped just
@@ -335,10 +349,12 @@ console.log("  guessing which months, or silently excluding a real bill")
   assertEqual(r.billsDue, 85, "unset parity keeps the conservative every-month fallback")
 }
 
-console.log("Test 16 (updated Sep 9 2026, Vince: \"subtract all bills for that month\") -- the")
-console.log("  full live reconciliation, now over the widened monthly window: Avant and Xfinity")
-console.log("  Internet, both due the 22nd (after the Sep 16 paycheck but still in September),")
-console.log("  are now correctly reserved instead of waiting for their own cycle")
+console.log("Test 16 (REVISED Sep 10 2026, Vince: \"there are three main bills that come from")
+console.log("  this account car, personal loan, and mortgage. This must be removed from safe")
+console.log("  to spend when you look at the full month\") -- the full live reconciliation:")
+console.log("  Avant and Xfinity Internet (both due the 22nd) plus, now, the mortgage's own")
+console.log("  next payment (already settled for September, but not for October) are all")
+console.log("  reserved -- not just the ones landing before month-end")
 {
   // Vince's real Sep 4 2026 numbers -- pooled checking $3,678.30 (53rd
   // Checking $3,303.13 + Chime Checking $375.17), next paycheck Sep 16.
@@ -374,13 +390,16 @@ console.log("  are now correctly reserved instead of waiting for their own cycle
   })
   const live = withStartingCash(result, { amount: 3678.3, source: "checking", asOf: "2026-09-04" })
   assertEqual(live.billsDue, 346.84, "Netflix + Anthropic + Addison Water + Vercel Pro + Xfinity Internet = 346.84")
-  assertEqual(live.debtsDue, 1154.11, "Signature Visa + Capital One Auto + Avant = 1,154.11 (mortgage already paid)")
-  assertEqual(live.safeToSpend, 2177.35, "3,678.30 - 346.84 - 1,154.11 = 2,177.35, Avant and Xfinity now both earmarked")
+  assertEqual(
+    live.debtsDue,
+    3374.97,
+    "Signature Visa + Capital One Auto + Avant + Onity Mortgage's next payment = 3,374.97 (September's own mortgage payment is already settled, but October's is reserved now)"
+  )
+  assertEqual(live.safeToSpend, -43.51, "3,678.30 - 346.84 - 3,374.97 = -43.51 -- the real number once the mortgage is always held back, not just car + personal loan")
 
-  // Same root-cause lock-in as before, re-based on the new monthly window:
-  // dropping Capital One Auto's payment changes safeToSpend by exactly its
-  // $596.50 minimum payment, proving the mechanism, not just that a number
-  // happened to change.
+  // Same root-cause lock-in as before: dropping Capital One Auto's payment
+  // changes safeToSpend by exactly its $596.50 minimum payment, proving the
+  // mechanism, not just that a number happened to change.
   const buggyResult = computeSafeToSpend({
     income: liveIncome,
     bills: liveBills,
@@ -389,12 +408,13 @@ console.log("  are now correctly reserved instead of waiting for their own cycle
     today,
   })
   const buggy = withStartingCash(buggyResult, { amount: 3678.3, source: "checking", asOf: "2026-09-04" })
-  assertEqual(buggy.safeToSpend, 2773.85, "2,177.35 + 596.50 = 2,773.85 when Capital One Auto's payment is missing")
+  assertEqual(buggy.safeToSpend, 552.99, "-43.51 + 596.50 = 552.99 when Capital One Auto's payment is missing")
 }
 
-console.log("Test 17 (regression) -- Safe to Spend and the Bills & Debts obligations list")
-console.log("  (nextItemOccurrence) must agree on whether a paid_through'd occurrence is")
-console.log("  settled -- the exact Onity Mortgage bug caught live on Sep 4 2026")
+console.log("Test 17 (REVISED Sep 10 2026) -- Safe to Spend and the Bills & Debts obligations")
+console.log("  list (nextItemOccurrence) must still agree on WHICH occurrence is next for a")
+console.log("  paid_through'd debt (October, not September) -- Safe to Spend just no longer")
+console.log("  shows $0 for the month once it knows that, per Vince's Sep 10 2026 fix")
 {
   const onityMortgage: STSDebt = {
     minimum_payment: 2220.86,
@@ -409,7 +429,11 @@ console.log("  settled -- the exact Onity Mortgage bug caught live on Sep 4 2026
     computeSafeToSpend({ income: liveIncome, bills: [], debts: [onityMortgage], goals: [], today: new Date(todayISO + "T00:00:00") }),
     { amount: 5000, source: "checking", asOf: todayISO }
   )
-  assertEqual(stsResult.debtsDue, 0, "Safe to Spend excludes September's occurrence -- already marked paid")
+  assertEqual(
+    stsResult.debtsDue,
+    2220.86,
+    "Safe to Spend agrees September's own occurrence is settled, but reserves October's payment right away instead of showing $0"
+  )
 
   const nextOccurrence = nextItemOccurrence(onityMortgage, todayISO)
   assertTrue(
