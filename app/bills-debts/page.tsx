@@ -36,7 +36,6 @@ import { checkAchievementsAndCelebrate } from '@/lib/checkAchievements'
 import { celebrate, popMilestone, crossedMilestone } from '@/lib/confetti'
 import { DEBT_TYPES, debtTypeLabel } from '@/lib/debtTypes'
 import { toISODate, nextItemOccurrence, excludeTransferCoveredDebts, type CycleIncome } from '@/lib/paycheckCycles'
-import { billOccurrenceInMonth } from '@/lib/schedule'
 import { generateBillsDebtsPdf } from '@/lib/generateBillsDebtsPdf'
 import { resolveStartingCash, type CashAccountRow } from '@/lib/cashBalance'
 import DebtPayoffAffordability from '../components/DebtPayoffAffordability'
@@ -285,6 +284,8 @@ export default function BillsAndDebtsPage() {
   const [payAccountId, setPayAccountId] = useState('')
   const [payAmount, setPayAmount] = useState('')
   const [payBusy, setPayBusy] = useState(false)
+  // "I already paid this and my balance already shows it" -- see confirmPay.
+  const [payAlreadyInBalance, setPayAlreadyInBalance] = useState(false)
 
   const todayISO = toISODate(new Date())
 
@@ -685,21 +686,55 @@ export default function BillsAndDebtsPage() {
     }
   }
 
-  // The nominal (no-grace) occurrence date for this obligation's current
-  // monthly cycle -- what "Mark as paid" records into paid_through, and what
-  // decides whether it's already settled. Deliberately the raw due day, not
-  // the grace-adjusted one: paying early inside a grace window still
-  // settles that cycle (see lib/paycheckCycles.ts's itemsDueInWindow).
-  function currentNominalOccurrence(dueDay: number): string {
-    const today = new Date(todayISO + 'T00:00:00')
-    return billOccurrenceInMonth(dueDay, today.getFullYear(), today.getMonth())
+  // CRITICAL FIX (Sep 10 2026, Vince: "some bills get paid early when people
+  // have money to pay them"). This used to be:
+  //
+  //   billOccurrenceInMonth(dueDay, today.getFullYear(), today.getMonth())
+  //
+  // -- the due day resolved against TODAY'S calendar month, full stop. That
+  // silently recorded the wrong cycle in two real situations, and in both the
+  // payment was simply lost:
+  //
+  //   1. Paying next month's bill early. Pay the Oct 1 mortgage on Sep 28 and
+  //      this returned Sep 1 -- settling a September cycle that was already
+  //      long gone, while the October payment just made stayed "due."
+  //   2. Any bimonthly bill. This ignored bimonthly_parity entirely, so
+  //      paying the Nov 11 water bill early in October wrote a paid_through
+  //      of Oct 11 -- a date the bill has no occurrence on at all. Nov 11 is
+  //      not <= Oct 11, so the bill stayed due and the payment vanished.
+  //
+  // nextItemOccurrence (lib/paycheckCycles.ts) already resolves "the next
+  // occurrence that isn't settled yet" correctly, honoring bimonthly parity,
+  // existing paid_through values and grace periods, and scanning forward
+  // across month boundaries. That occurrence is exactly what a payment made
+  // right now settles, so it's what gets recorded.
+  function payTargetOccurrence(o: Obligation): string | null {
+    return nextItemOccurrence(occurrenceRowOf(o), todayISO).occurrenceDate
   }
 
+  function occurrenceRowOf(o: Obligation) {
+    const raw = o.raw as Bill & Debt
+    return {
+      due_date: o.due_date,
+      grace_period_days: o.type === 'debt' ? raw.grace_period_days : null,
+      paid_through: raw.paid_through,
+      frequency: o.type === 'bill' ? raw.frequency : null,
+      bimonthly_parity: o.type === 'bill' ? raw.bimonthly_parity : null,
+    }
+  }
+
+  // Settled means: honoring paid_through changes which occurrence comes next.
+  // Derived by running the shared occurrence rules twice -- once as-is, once
+  // with paid_through stripped -- rather than comparing dates by hand, so
+  // this can't drift from what Safe to Spend thinks (the same class of bug as
+  // the old statusOf, see the comment above it).
   function isPaidThisCycle(o: Obligation): boolean {
     if (!o.due_date) return false
-    const paidThrough = o.type === 'bill' ? (o.raw as Bill).paid_through : (o.raw as Debt).paid_through
-    if (!paidThrough) return false
-    return paidThrough >= currentNominalOccurrence(o.due_date)
+    const row = occurrenceRowOf(o)
+    if (!row.paid_through) return false
+    const settled = nextItemOccurrence(row, todayISO).occurrenceDate
+    const ignoringPaidThrough = nextItemOccurrence({ ...row, paid_through: null }, todayISO).occurrenceDate
+    return !!ignoringPaidThrough && settled !== ignoringPaidThrough
   }
 
   function startPay(o: Obligation) {
@@ -719,40 +754,64 @@ export default function BillsAndDebtsPage() {
     setPayingId(null)
     setPayAccountId('')
     setPayAmount('')
+    setPayAlreadyInBalance(false)
   }
 
-  // Confirms a real-world payment: settles this obligation's current cycle
-  // (paid_through) so it isn't subtracted again once its due date rolls
-  // around, and debits the chosen account right now instead of leaving that
-  // balance "static" until the next manual edit -- the whole point being
-  // this is a stand-in for a live bank balance (no Plaid Auth), so it has to
-  // move when real money moves.
+  // Confirms a real-world payment: settles this obligation's next unsettled
+  // cycle (paid_through) so it isn't subtracted again once its due date rolls
+  // around, and -- unless the balance already accounts for it -- debits the
+  // chosen account right now instead of leaving that balance "static" until
+  // the next manual edit. The whole point is that this stands in for a live
+  // bank balance (no Plaid Auth), so it has to move when real money moves.
+  //
+  // CRITICAL FIX (Sep 10 2026, Vince): the debit used to be unconditional,
+  // which made this unsafe to use for a payment already visible in the bank.
+  // Vince paid the water bill on Sep 2 and then entered his real Chime
+  // balance from the bank on Sep 9 -- a figure already net of it. Recording
+  // the payment would have subtracted the same $201.54 from that balance a
+  // SECOND time, so the only way to get an accurate app was to not use the
+  // feature. `payAlreadyInBalance` records the cycle without touching the
+  // balance, which is the right behavior any time the payment predates the
+  // balance's own as-of date.
   async function confirmPay(o: Obligation) {
     if (!o.due_date) return
+    const targetOccurrence = payTargetOccurrence(o)
+    if (!targetOccurrence) {
+      alert('This item has no upcoming due date to settle')
+      return
+    }
     const amountNum = Number(payAmount)
-    if (!payAccountId) {
-      alert('Choose which account this came out of')
-      return
-    }
-    if (!(amountNum > 0)) {
-      alert('Enter the amount actually paid')
-      return
-    }
     const account = cashAccounts.find((a) => a.id === payAccountId)
-    if (!account) {
-      alert('That account could not be found -- try reloading the page')
-      return
+    if (!payAlreadyInBalance) {
+      if (!payAccountId) {
+        alert('Choose which account this came out of')
+        return
+      }
+      if (!(amountNum > 0)) {
+        alert('Enter the amount actually paid')
+        return
+      }
+      if (!account) {
+        alert('That account could not be found -- try reloading the page')
+        return
+      }
     }
     setPayBusy(true)
     try {
-      const nominalDate = currentNominalOccurrence(o.due_date)
-      const newBalance = Math.round((Number(account.balance) - amountNum) * 100) / 100
-      const [{ error: obligationError }, { error: accountError }] = await Promise.all([
-        supabase.from(o.type === 'bill' ? 'bills' : 'debts').update({ paid_through: nominalDate }).eq('id', o.id),
-        supabase.from('cash_accounts').update({ balance: newBalance, balance_as_of: todayISO }).eq('id', payAccountId),
-      ])
-      if (obligationError) throw obligationError
-      if (accountError) throw accountError
+      // PromiseLike, not Promise: Supabase's query builder is a thenable that
+      // only runs when awaited, so it doesn't satisfy the full Promise shape.
+      const updates: PromiseLike<{ error: unknown }>[] = [
+        supabase.from(o.type === 'bill' ? 'bills' : 'debts').update({ paid_through: targetOccurrence }).eq('id', o.id),
+      ]
+      if (!payAlreadyInBalance && account) {
+        const newBalance = Math.round((Number(account.balance) - amountNum) * 100) / 100
+        updates.push(
+          supabase.from('cash_accounts').update({ balance: newBalance, balance_as_of: todayISO }).eq('id', payAccountId)
+        )
+      }
+      const results = await Promise.all(updates)
+      const failed = results.find((r) => r.error)
+      if (failed) throw failed.error
       cancelPay()
       loadAll()
     } catch (error) {
@@ -1494,32 +1553,69 @@ export default function BillsAndDebtsPage() {
                 ) : payingId === o.id ? (
                   <div className="space-y-3">
                     <p className="text-sm text-gray-300">
-                      Mark <span className="font-semibold text-white">{o.name}</span> as paid -- this settles it for
-                      this cycle and debits the account below right now.
+                      Mark <span className="font-semibold text-white">{o.name}</span> as paid
+                      {payTargetOccurrence(o) && (
+                        <>
+                          {' '}for the{' '}
+                          <span className="font-semibold text-white">
+                            {new Date(payTargetOccurrence(o)! + 'T00:00:00').toLocaleDateString('en-US', {
+                              month: 'long',
+                              day: 'numeric',
+                            })}
+                          </span>{' '}
+                          payment
+                        </>
+                      )}
+                      {payAlreadyInBalance
+                        ? ' -- recorded only, your balance is left exactly as it is.'
+                        : ' -- this settles that cycle and debits the account below right now.'}
                     </p>
-                    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                      <div>
-                        <label className="text-gray-500 text-xs block mb-1">Amount paid ($)</label>
-                        <input
-                          type="number"
-                          step="0.01"
-                          value={payAmount}
-                          onChange={(e) => setPayAmount(e.target.value)}
-                          className={inputClass}
-                        />
+                    {/*
+                      Sep 10 2026, Vince: paying early and then entering a
+                      real bank balance made this feature unusable -- it would
+                      debit money the balance had already lost. Recording the
+                      payment and moving the balance are now separate choices.
+                    */}
+                    <label className="flex items-start gap-2 rounded-lg border border-gray-700 bg-[#131b2e] px-3 py-2 text-sm text-gray-300">
+                      <input
+                        type="checkbox"
+                        checked={payAlreadyInBalance}
+                        onChange={(e) => setPayAlreadyInBalance(e.target.checked)}
+                        className="mt-0.5"
+                      />
+                      <span>
+                        I already paid this and my account balance already reflects it
+                        <span className="block text-xs text-gray-500">
+                          Use this for anything paid before the balance you last entered -- including bills paid early.
+                          Nothing is deducted twice.
+                        </span>
+                      </span>
+                    </label>
+                    {!payAlreadyInBalance && (
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                        <div>
+                          <label className="text-gray-500 text-xs block mb-1">Amount paid ($)</label>
+                          <input
+                            type="number"
+                            step="0.01"
+                            value={payAmount}
+                            onChange={(e) => setPayAmount(e.target.value)}
+                            className={inputClass}
+                          />
+                        </div>
+                        <div>
+                          <label className="text-gray-500 text-xs block mb-1">Paid from</label>
+                          <select value={payAccountId} onChange={(e) => setPayAccountId(e.target.value)} className={inputClass}>
+                            {cashAccounts.length === 0 && <option value="">No accounts on file</option>}
+                            {cashAccounts.map((a) => (
+                              <option key={a.id} value={a.id}>
+                                {a.name} ({formatMoney(Number(a.balance))})
+                              </option>
+                            ))}
+                          </select>
+                        </div>
                       </div>
-                      <div>
-                        <label className="text-gray-500 text-xs block mb-1">Paid from</label>
-                        <select value={payAccountId} onChange={(e) => setPayAccountId(e.target.value)} className={inputClass}>
-                          {cashAccounts.length === 0 && <option value="">No accounts on file</option>}
-                          {cashAccounts.map((a) => (
-                            <option key={a.id} value={a.id}>
-                              {a.name} ({formatMoney(Number(a.balance))})
-                            </option>
-                          ))}
-                        </select>
-                      </div>
-                    </div>
+                    )}
                     <div className="flex gap-2">
                       <button
                         onClick={() => confirmPay(o)}
@@ -1582,7 +1678,7 @@ export default function BillsAndDebtsPage() {
                             }`
                           : 'No due day set -- edit to add one so this counts toward a specific paycheck.'}
                         {o.type === 'debt' && Number((o.raw as Debt).interest_rate) > 0
-                          ? ` · ${Number((o.raw as Debt).interest_rate).toFixed(2)}% APR`
+                          ? ` \u00b7 ${Number((o.raw as Debt).interest_rate).toFixed(2)}% APR`
                           : ''}
                       </p>
                     </div>

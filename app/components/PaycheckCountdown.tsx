@@ -37,6 +37,10 @@ function formatDate(iso: string): string {
   })
 }
 
+function shortDate(iso: string): string {
+  return new Date(iso + "T00:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" })
+}
+
 /**
  * Paycheck-cycle Safe-to-Spend -- replaces the old flat "this calendar
  * month" SafeToSpend card. All the math lives in lib/safeToSpend.ts; this
@@ -78,11 +82,25 @@ export default function PaycheckCountdown({
   // both, `pastDue` is a per-item flag rather than a second bucket, and
   // upcomingBillsAmount/upcomingDebtsAmount/pastDueTotal below split the
   // SAME already-reserved total for display, not a second deduction.
-  const upcomingBillsAmount = classifiedBills.filter((b) => b.itemStatus === "upcoming").reduce((sum, b) => sum + b.amount, 0)
-  const upcomingDebtsAmount = classifiedDebts.filter((d) => d.itemStatus === "upcoming").reduce((sum, d) => sum + d.amount, 0)
-  const pastDueTotal = [...classifiedBills, ...classifiedDebts]
-    .filter((i) => i.itemStatus === "alreadyDue")
-    .reduce((sum, i) => sum + i.amount, 0)
+  //
+  // CRITICAL FIX (Sep 10 2026, Vince, live screenshot of 53rd Checking
+  // reading -$21.84 on an account holding $3,353.13): "Right now you have
+  // people doing the math and that's not what it's supposed to do, the app is
+  // to do the math and show what is left over to pay down debt. I am not
+  // negative on my accounts." The card showed "Until September 30 - 20 days"
+  // and a $3,324.97 deduction, and never once showed the two $1,660 paychecks
+  // landing inside those same 20 days -- so the only way to reconcile the
+  // headline was to do the missing arithmetic yourself. lib/safeToSpend.ts
+  // now projects a real balance timeline (see projectBalanceTimeline in
+  // lib/paycheckCycles.ts) and the headline is its LOW POINT; this card shows
+  // that timeline directly, money in and money out on the same calendar, with
+  // a breakdown that reproduces the headline exactly.
+  const timeline = result.timeline
+  const pastDueTotal = timeline
+    ? timeline.events.filter((e) => e.pastDue).reduce((sum, e) => sum + -e.delta, 0)
+    : [...classifiedBills, ...classifiedDebts]
+        .filter((i) => i.itemStatus === "alreadyDue")
+        .reduce((sum, i) => sum + i.amount, 0)
   // CRITICAL FIX (Sep 9 2026, Vince, "option 1" -- "reduce Safe to Spend
   // itself" so 53rd earmarks the personal loan/mortgage): when
   // lib/safeToSpend.ts's floorSafeToSpend has pulled safeToSpend down to
@@ -93,21 +111,21 @@ export default function PaycheckCountdown({
   // yet attributed to the specific debt causing it (that would need the
   // classified items for a future cycle, not just this one) -- named
   // generically until that's wired up.
-  const multiCycleReserve = result.reservedThroughDate
-    ? Math.max(0, result.startingCash - (result.billsDue + result.debtsDue) - result.safeToSpend)
-    : 0
-  const allCommittedItems = [
-    ...[...classifiedBills, ...classifiedDebts].map((i) => ({
-      name: i.name,
-      amount: i.amount,
-      date: i.occurrenceDate,
-      pastDue: i.itemStatus === "alreadyDue",
-    })),
-    ...(multiCycleReserve > 0 && result.reservedThroughDate
-      ? [{ name: "Reserved for an upcoming paycheck cycle", amount: multiCycleReserve, date: result.reservedThroughDate, pastDue: false }]
-      : []),
-  ]
-  const totalCommitted = result.billsDue + result.debtsDue + multiCycleReserve
+  // The full schedule behind the number: every bill and debt payment between
+  // now and the end of the projection, in the order they actually hit the
+  // account. Falls back to the classified lists for any caller that hasn't
+  // been given a timeline yet.
+  const allCommittedItems = timeline
+    ? timeline.events
+        .filter((e) => e.delta < 0)
+        .map((e) => ({ name: e.name, amount: -e.delta, date: e.date, pastDue: e.pastDue }))
+    : [...classifiedBills, ...classifiedDebts].map((i) => ({
+        name: i.name,
+        amount: i.amount,
+        date: i.occurrenceDate,
+        pastDue: i.itemStatus === "alreadyDue",
+      }))
+  const incomingCount = timeline ? timeline.events.filter((e) => e.kind === "income").length : 0
 
   if (!result.hasIncome) {
     return (
@@ -146,7 +164,7 @@ export default function PaycheckCountdown({
         <h2 className="text-sm font-medium uppercase tracking-wide text-muted">Safe to spend</h2>
         <InfoHint
           label="About Safe to Spend"
-          text="Based on your starting cash, minus every bill and debt payment due through the end of this month. Savings/goal contributions are never subtracted. Not a live bank balance unless you've linked or entered one yourself on Survival Mode."
+          text="We put every paycheck, bill and debt payment on one calendar and follow your balance forward. This is the lowest it ever gets -- spend up to it and you still cover everything on time. Savings/goal contributions are never subtracted. Not a live bank balance unless you've linked or entered one yourself on Survival Mode."
         />
       </div>
 
@@ -155,11 +173,10 @@ export default function PaycheckCountdown({
       </p>
       <p className="mt-1 flex items-center gap-1.5 text-sm text-muted">
         <CalendarClock size={14} />
-        Until {formatDate(result.windowEndDate)}
-        {result.daysUntilWindowEnd != null && (
-          <span className="text-muted">
-            &nbsp;&middot; {result.daysUntilWindowEnd === 0 ? "today" : `${result.daysUntilWindowEnd} day${result.daysUntilWindowEnd === 1 ? "" : "s"}`}
-          </span>
+        {result.lowestDate ? (
+          <>Your tightest day is {formatDate(result.lowestDate)}</>
+        ) : (
+          <>Nothing ahead dips below what you have today</>
         )}
       </p>
 
@@ -190,37 +207,39 @@ export default function PaycheckCountdown({
             )}
           </>
         )}
-        {upcomingBillsAmount > 0 && (
-          <div className="flex justify-between">
-            <span>Upcoming bills</span>
-            <span className="text-secondary">-{formatMoney(upcomingBillsAmount)}</span>
-          </div>
-        )}
-        {upcomingDebtsAmount > 0 && (
-          <div className="flex justify-between">
-            <span>Debt payments</span>
-            <span className="text-secondary">-{formatMoney(upcomingDebtsAmount)}</span>
-          </div>
-        )}
-        {pastDueTotal > 0 && (
-          <div className="flex justify-between">
-            <span className="text-warning-heading">Past-due unpaid commitments</span>
-            <span className="text-warning-heading">-{formatMoney(pastDueTotal)}</span>
-          </div>
-        )}
-        {multiCycleReserve > 0 && result.reservedThroughDate && (
-          <div className="flex justify-between">
-            <span>Reserved for {formatDate(result.reservedThroughDate)}</span>
-            <span className="text-secondary">-{formatMoney(multiCycleReserve)}</span>
-          </div>
-        )}
-        {(upcomingBillsAmount > 0 || upcomingDebtsAmount > 0 || pastDueTotal > 0 || multiCycleReserve > 0) && (
-          <div className="flex justify-between border-t border-default pt-1.5 font-[600] text-primary">
-            <span>Total committed</span>
-            <span>-{formatMoney(totalCommitted)}</span>
-          </div>
+        {/*
+          These three lines are the whole headline, and they add up to it
+          exactly -- balance + what comes in through the tightest day - what
+          goes out through the tightest day. lib/safeToSpend.ts computes
+          incomeThroughLowest/outflowThroughLowest for precisely this reason,
+          so the card can never again show a number its own breakdown can't
+          reproduce.
+        */}
+        {timeline && result.lowestDate && (
+          <>
+            <div className="flex justify-between">
+              <span>Money coming in by {shortDate(result.lowestDate)}</span>
+              <span className="text-emerald-400">+{formatMoney(result.incomeThroughLowest)}</span>
+            </div>
+            <div className="flex justify-between">
+              <span>Bills &amp; debt payments by {shortDate(result.lowestDate)}</span>
+              <span className="text-secondary">-{formatMoney(result.outflowThroughLowest)}</span>
+            </div>
+            <div className="flex justify-between border-t border-default pt-1.5 font-[600] text-primary">
+              <span>Left on your tightest day</span>
+              <span className={positive ? "text-emerald-400" : "text-red-400"}>{formatMoney(result.safeToSpend)}</span>
+            </div>
+          </>
         )}
       </div>
+
+      {timeline && incomingCount > 0 && (
+        <p className="mt-3 text-sm text-secondary">
+          After that day you have {incomingCount} more paycheck{incomingCount === 1 ? "" : "s"} coming in before{" "}
+          {shortDate(timeline.toISO)}, and everything due in between is already counted below. Your balance
+          ends that stretch around {formatMoney(timeline.endingBalance)}.
+        </p>
+      )}
 
       {(!startingCash || startingCash.source === "lastPaycheck") && (
         <p className="mt-2 text-xs text-muted">
@@ -251,17 +270,42 @@ export default function PaycheckCountdown({
 
       {!positive && (
         <p className="mt-3 text-sm text-red-300">
-          What's still due this month is more than it covers. Consider trimming bills or revisiting your debt plan.
+          This account runs {formatMoney(Math.abs(result.safeToSpend))} short on{" "}
+          {result.lowestDate ? formatDate(result.lowestDate) : "its tightest day"} -- that's the gap to close, not the
+          whole month. Moving that much in from another account, or pushing one payment past that date, clears it.
         </p>
       )}
 
       {allCommittedItems.length > 0 && (
         <div className="mt-4">
           <PaycheckItemBreakdown
-            title="What's committed"
-            hint='All unpaid bills and debt payments are included in Safe to Spend once. Items marked "Past due" already passed their due date and still need to be paid -- they are not a second deduction.'
+            title={timeline ? `Everything due through ${shortDate(timeline.toISO)}` : "What's committed"}
+            hint={
+              timeline
+                ? 'Every bill and debt payment on the calendar between now and then, each counted once, in the order it hits the account. Your paychecks are counted too -- they are why this total can be larger than Safe to Spend without anything being wrong. Items marked "Past due" already passed their due date and still need to be paid.'
+                : 'All unpaid bills and debt payments are included in Safe to Spend once. Items marked "Past due" already passed their due date and still need to be paid -- they are not a second deduction.'
+            }
             items={allCommittedItems}
             defaultOpen
+          />
+        </div>
+      )}
+
+      {/*
+        Sep 10 2026, Vince: "the water bill was already paid on 9-2... I can't
+        keep going back and forth telling you this was paid." Anything due on
+        or before the date the entered balance was taken is already out of
+        that balance, so the projection stops subtracting it a second time
+        (see balanceAsOfISO in lib/paycheckCycles.ts). Listed here rather than
+        dropped silently, so an item that genuinely DIDN'T get paid is still
+        visible and can be corrected instead of quietly disappearing.
+      */}
+      {timeline && timeline.assumedSettled.length > 0 && startingCash?.asOf && (
+        <div className="mt-2">
+          <PaycheckItemBreakdown
+            title={`Already covered by your ${shortDate(startingCash.asOf)} balance`}
+            hint={`These came due on or before ${shortDate(startingCash.asOf)}, the date that balance was taken, so the money is already out of it. Counting them again would deduct them twice. If one of these actually hasn't been paid, update your balance or mark it unpaid.`}
+            items={timeline.assumedSettled.map((a) => ({ name: a.name, amount: a.amount, date: a.date }))}
           />
         </div>
       )}

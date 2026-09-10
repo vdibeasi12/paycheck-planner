@@ -18,7 +18,6 @@
 // does the rest of my plan still hold."
 
 import {
-  projectPaycheckCycles,
   type CycleIncome,
   type CycleBill,
   type CycleDebt,
@@ -88,58 +87,61 @@ export type MultiCycleCheckpoint = {
 // debtsDue_i - goalContribution_i (see projectPaycheckCycles), so the
 // balance right before cycle i's own paycheck lands is simply
 // runningBalance_i - amount_i.
+//
+// CRITICAL FIX (Sep 10 2026, Vince): everything below the signature was
+// replaced. The old implementation compared two kinds of checkpoint and took
+// the minimum -- projected paycheck cycles (which DO credit income), and a
+// `todayCheckpoint` of `startingCash - a month of billsDue/debtsDue` (which
+// does NOT). Being income-blind, todayCheckpoint was almost always the
+// smallest of the set, so it won the min() and dragged Extra Debt Payment
+// down with it: on Vince's real 53rd numbers it produced -$21.84 against an
+// account holding $3,353.13 with $3,320 of pay arriving before month-end.
+// computeSafeToSpend now projects an event-level balance timeline (see
+// projectBalanceTimeline in lib/paycheckCycles.ts) whose low point already IS
+// the tightest checkpoint, at finer resolution than paycheck boundaries could
+// ever give -- it catches the dip between Capital One Auto clearing on the
+// 15th and the paycheck landing on the 16th, which a per-cycle scan sampling
+// only at paycheck dates can miss entirely. Delegating to it outright is both
+// more correct and the strongest possible form of the guarantee this file has
+// always claimed: Extra Debt Payment cannot disagree with Safe to Spend
+// because it is now literally reading the same number.
 function findTightestCheckpoint(input: {
   startingCash: number
+  // Date startingCash was accurate as of -- anything due on or before it is
+  // already inside that balance. See balanceAsOfISO in projectBalanceTimeline.
+  startingCashAsOf?: string | null
   income: CycleIncome[]
   bills: CycleBill[]
   debts: CycleDebt[]
   goals: CycleGoal[]
   today?: Date
+  // Accepted for call-site compatibility, no longer read: the timeline's
+  // 62-day horizon (PROJECTION_HORIZON_DAYS) replaces a count of cycles, and
+  // is deliberately fixed so the answer can't change shape depending on how
+  // many paychecks happen to fall inside it.
   cyclesToConsider?: number
 }): MultiCycleCheckpoint {
-  // CRITICAL FIX (Sep 9 2026, Vince, monthly-window Safe to Spend): this used
-  // to floor todayCheckpoint at alreadyDueSinceLastPaycheck -- everything
-  // ALREADY due as of today, the same narrower window Safe to Spend itself
-  // used before the "subtract all bills for that month" fix. Now that
-  // lib/safeToSpend.ts reserves everything due through the END OF THE
-  // CALENDAR MONTH from today's real cash (not just what's already due, and
-  // not just what's due before the next paycheck), todayCheckpoint has to
-  // match that exactly -- otherwise Extra Debt Payment could recommend
-  // sending away more than Safe to Spend's own headline number says is
-  // free, the exact black-box contradiction this file exists to prevent
-  // (see the comment above computeDebtPayoffAffordability). Reusing
-  // computeSafeToSpend directly (rather than re-deriving the same
-  // billsDue/debtsDue window by hand) means the two can never drift apart.
-  const monthlyWindow = computeSafeToSpend({
+  const projected = computeSafeToSpend({
     income: input.income,
     bills: input.bills,
     debts: input.debts,
     goals: [],
     today: input.today,
-  })
-  const todayCheckpoint = input.startingCash - monthlyWindow.billsDue - monthlyWindow.debtsDue
-
-  const cycles = projectPaycheckCycles({
-    income: input.income,
-    bills: input.bills,
-    debts: input.debts,
-    goals: input.goals,
-    today: input.today,
     startingCash: input.startingCash,
-  }).slice(0, input.cyclesToConsider ?? 4)
-
-  let tightest: MultiCycleCheckpoint = { balance: todayCheckpoint, date: null }
-  for (const c of cycles) {
-    const preCheckpoint = c.runningBalance - c.amount
-    if (preCheckpoint < tightest.balance) {
-      tightest = { balance: preCheckpoint, date: c.date }
-    }
-    if (c.runningBalance < tightest.balance) {
-      tightest = { balance: c.runningBalance, date: c.date }
-    }
+    startingCashAsOf: input.startingCashAsOf,
+  })
+  // No projectable plan (no income at all, or no pay date on any income row):
+  // computeSafeToSpend returns its zeroed `empty` result rather than a
+  // projection, and treating that 0 as a real checkpoint would wrongly claim
+  // an account with money in it can't afford a single dollar toward debt.
+  // Today's real cash is the only honest number available -- same fallback
+  // this function has always had. See Test 6 in debtPayoffSafety.test.ts.
+  if (!projected.hasIncome || projected.missingPayDate || !projected.nextPaycheckDate) {
+    return { balance: input.startingCash, date: null }
   }
-  return tightest
+  return { balance: projected.safeToSpend, date: projected.lowestDate }
 }
+
 
 // Same projection, reserve already applied -- used to floor Safe to Spend
 // itself (lib/accountSafeToSpend.ts) at whatever this multi-cycle search
@@ -148,6 +150,9 @@ function findTightestCheckpoint(input: {
 // carried a built-in cushion of its own -- see lib/safeToSpend.ts.
 export function computeMultiCycleFloor(input: {
   startingCash: number
+  // Date startingCash was accurate as of -- anything due on or before it is
+  // already inside that balance. See balanceAsOfISO in projectBalanceTimeline.
+  startingCashAsOf?: string | null
   income: CycleIncome[]
   bills: CycleBill[]
   debts: CycleDebt[]
@@ -162,6 +167,9 @@ export function computeDebtPayoffAffordability(input: {
   // Real pooled Checking balance projected to today (lib/cashBalance.ts's
   // resolveStartingCash) -- same starting point Safe to Spend uses.
   startingCash: number
+  // Date startingCash was accurate as of -- anything due on or before it is
+  // already inside that balance. See balanceAsOfISO in projectBalanceTimeline.
+  startingCashAsOf?: string | null
   income: CycleIncome[]
   bills: CycleBill[]
   // Whatever's actually still owed -- if the caller is asking "what if I

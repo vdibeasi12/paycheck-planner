@@ -60,6 +60,17 @@ console.log("  unpaid debt payment, 7 days to the next paycheck")
   const today = new Date("2026-09-09T00:00:00")
   const income: STSIncome[] = [{ amount: 2578.4, frequency: "biweekly", next_pay_date: "2026-09-16", income_type: null }]
   const startingCashAmount = 3649.31
+  // REVISED Sep 10 2026: the balance's as-of date below used to be Sep 9
+  // (today). It is now Sep 4 -- one day BEFORE the past-due item's Sep 5 due
+  // date -- because that's what makes this scenario coherent under the fix
+  // Vince asked for ("I can't keep going back and forth telling you this was
+  // paid"). A balance is only evidence about money that had already moved
+  // when it was read: a balance taken Sep 9 is ALREADY net of a Sep 5
+  // payment, so reserving that payment again double-counts it. Dating the
+  // balance Sep 4 keeps this block testing what it was written to test --
+  // an item that genuinely has not left the account yet, reserved exactly
+  // once. Every dollar figure below is unchanged. Invariant 7 at the end of
+  // this file covers the other side of the line.
 
   const upcomingBill: STSBill & { name: string } = { name: "Upcoming Bill", amount: 250.53, due_date: 14 } // Sep 14 -- after today, before Sep 16
   const pastDueDebt: STSDebt & { name: string } = { name: "Past-Due Debt", minimum_payment: 57.99, due_date: 5 } // Sep 5 -- after last paycheck (Sep 2), on/before today (Sep 9), unpaid
@@ -69,7 +80,7 @@ console.log("  unpaid debt payment, 7 days to the next paycheck")
   const debts = [pastDueDebt, upcomingDebt]
 
   let result = computeSafeToSpend({ income, bills, debts, goals: [], today })
-  result = withStartingCash(result, { amount: startingCashAmount, source: "checking", asOf: "2026-09-09" })
+  result = withStartingCash(result, { amount: startingCashAmount, source: "checking", asOf: "2026-09-04" })
 
   // --- Sanity: this is really Vince's scenario, not a different one ---
   assertEqual(result.daysUntilNextPaycheck ?? -1, 7, "7 days to the next paycheck, matching the live screenshot")
@@ -133,7 +144,7 @@ console.log("  unpaid debt payment, 7 days to the next paycheck")
   // EXACTLY $57.99, not more (double-deducted) or less (under-deducted). ---
   const withoutPastDue = withStartingCash(
     computeSafeToSpend({ income, bills, debts: [upcomingDebt], goals: [], today }),
-    { amount: startingCashAmount, source: "checking", asOf: "2026-09-09" }
+    { amount: startingCashAmount, source: "checking", asOf: "2026-09-04" }
   )
   assertEqual(result.safeToSpend, withoutPastDue.safeToSpend - 57.99, "removing the $57.99 past-due debt raises Safe to Spend by exactly $57.99 -- proves it was counted exactly once")
 
@@ -167,11 +178,11 @@ console.log("  goal present or not, aggressive deadline or not")
 
   const withGoal = withStartingCash(
     computeSafeToSpend({ income, bills: [bill], debts: [], goals, today }),
-    { amount: 2000, source: "checking", asOf: "2026-09-09" }
+    { amount: 2000, source: "checking", asOf: "2026-09-04" }
   )
   const withoutGoal = withStartingCash(
     computeSafeToSpend({ income, bills: [bill], debts: [], goals: [], today }),
-    { amount: 2000, source: "checking", asOf: "2026-09-09" }
+    { amount: 2000, source: "checking", asOf: "2026-09-04" }
   )
 
   const classifiedBills = classifyItemsAroundCycle([bill], "2026-09-09", withGoal.windowEndDate as string, withGoal.lastPaycheckDate)
@@ -182,6 +193,45 @@ console.log("  goal present or not, aggressive deadline or not")
   assertEqual(sumOfDisplayedItems, totalCommitted, "the itemized bill list alone equals Total Committed -- no separate goal deduction exists anymore")
   assertEqual(sumOfDisplayedItems, 100, "just the one $100 bill")
   assertEqual(2000 - totalCommitted, withGoal.safeToSpend, "Starting Balance - Total Committed = Safe to Spend still holds, goal in the input or not")
+}
+
+console.log("\nInvariant 7 (Sep 10 2026, Vince: \"the water bill was already paid on 9-2...")
+console.log("  I can't keep going back and forth telling you this was paid\") -- money that")
+console.log("  left before the balance was taken is never charged twice, and never vanishes")
+{
+  // The same obligation, the same day, the only difference being when the
+  // balance was read. This is the whole fix in one comparison: a balance is
+  // evidence about every dollar that had already moved by its own as-of date,
+  // and nothing about dollars that move after it.
+  const today = new Date("2026-09-09T00:00:00")
+  const income: STSIncome[] = [{ amount: 2578.4, frequency: "biweekly", next_pay_date: "2026-09-16", income_type: null }]
+  const paidBeforeBalance: STSBill & { name: string } = { name: "Water Bill", amount: 201.54, due_date: 5 }
+
+  const base = computeSafeToSpend({ income, bills: [paidBeforeBalance], debts: [], goals: [], today })
+  // Balance read Sep 4, bill due Sep 5: the money had NOT left yet, so it is
+  // still owed out of that figure.
+  const balanceBefore = withStartingCash(base, { amount: 1000, source: "checking", asOf: "2026-09-04" })
+  // Balance read Sep 9, same bill due Sep 5: the money was already gone when
+  // that number was read.
+  const balanceAfter = withStartingCash(base, { amount: 1000, source: "checking", asOf: "2026-09-09" })
+
+  assertEqual(balanceBefore.safeToSpend, 798.46, "balance predates the due date -- still reserved, 1000 - 201.54")
+  assertEqual(balanceAfter.safeToSpend, 1000, "balance postdates it -- already inside that 1000, not deducted a second time")
+  assertEqual(
+    balanceAfter.safeToSpend - balanceBefore.safeToSpend,
+    201.54,
+    "the gap between the two is exactly the bill -- one deduction's worth, never two"
+  )
+
+  // Assumed-settled must mean "accounted for elsewhere," never "forgotten."
+  // If this ever regresses to silently dropping items, a genuinely unpaid
+  // bill would disappear from the app with nothing to show the user.
+  assertEqual(balanceAfter.timeline?.assumedSettledTotal ?? -1, 201.54, "and it is still reported, so the UI can show what it stopped charging for")
+  assertEqual(balanceBefore.timeline?.assumedSettledTotal ?? -1, 0, "while the still-owed case reports nothing settled")
+  assertTrue(
+    (balanceAfter.timeline?.assumedSettled ?? []).every((a) => a.date <= "2026-09-09"),
+    "nothing dated after the balance is ever treated as already covered by it"
+  )
 }
 
 console.log(`\n${passed} passed, ${failed} failed`)

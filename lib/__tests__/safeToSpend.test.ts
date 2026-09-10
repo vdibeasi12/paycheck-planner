@@ -59,9 +59,19 @@ function assertTrue(cond: boolean, label: string) {
 const income: STSIncome[] = [{ amount: 2000, frequency: "biweekly", next_pay_date: "2026-01-17", income_type: null }]
 const today = new Date("2026-01-10T00:00:00")
 
-function run(bills: STSBill[], debts: STSDebt[], startingCash: number, opts?: { today?: Date; income?: STSIncome[] }) {
+// `asOf` is the date the starting balance was accurate as of. It defaults to
+// today, which for most tests here is the simplest framing -- but it is a real
+// input, not a formality: anything due on or before it is already inside that
+// balance and is deliberately not subtracted again (see balanceAsOfISO in
+// lib/paycheckCycles.ts). Test 7 below exercises both sides of that line.
+function run(
+  bills: STSBill[],
+  debts: STSDebt[],
+  startingCash: number,
+  opts?: { today?: Date; income?: STSIncome[]; asOf?: string }
+) {
   const result = computeSafeToSpend({ income: opts?.income ?? income, bills, debts, goals: [], today: opts?.today ?? today })
-  return withStartingCash(result, { amount: startingCash, source: "checking", asOf: "2026-01-10" })
+  return withStartingCash(result, { amount: startingCash, source: "checking", asOf: opts?.asOf ?? "2026-01-10" })
 }
 
 console.log("Test 1 -- bills reduce Safe to Spend")
@@ -110,7 +120,30 @@ console.log("  IS deducted now -- this is the Avant/personal-loan fix itself")
   const bill: STSBill = { amount: 300, due_date: 25 }
   const r = run([bill], [], 4000)
   assertEqual(r.billsDue, 300, "a bill due later this month is reserved even though a paycheck lands first")
-  assertEqual(r.safeToSpend, 3700, "4000 - 300 = 3700")
+  // REVISED Sep 10 2026 (Vince, live screenshot: "I am not negative on my
+  // accounts"). This used to assert 3700 -- 4000 minus the bill, with the
+  // $2,000 paycheck landing Jan 17 credited nowhere. That one-sided
+  // subtraction is exactly what printed a negative Safe to Spend on an
+  // account holding $3,353.13; see projectBalanceTimeline in
+  // lib/paycheckCycles.ts. The bill is still reserved and still itemized
+  // (billsDue above is unchanged), it just no longer reduces what's safe to
+  // spend TODAY, because the balance never actually dips: 4000, then +2000
+  // on the 17th, then -300 on the 25th. The low point over that whole run is
+  // today's own 4000.
+  assertEqual(r.safeToSpend, 4000, "balance never dips below today's 4000 -- a $2,000 paycheck lands 8 days before a $300 bill")
+  assertTrue(r.lowestDate === null, "and nothing ahead is tighter than right now")
+
+  // The companion case, and the reason this is a fix and not a loophole: make
+  // the same later-month bill big enough that the paycheck can't absorb it
+  // and it bites in full. $4,000 due the 25th against $2,000 biweekly:
+  // 4000 -> +2000 (Jan 17) -> -4000 (Jan 25) = 2000. Deliberately sized to
+  // stay solvent month over month, so what's being measured is the DIP and
+  // not a plan that simply runs out of money -- the balance recovers to 4000
+  // and repeats the same 2000 trough in February.
+  const bigBill: STSBill = { amount: 4000, due_date: 25 }
+  const big = run([bigBill], [], 4000)
+  assertEqual(big.safeToSpend, 2000, "a later-month bill the paycheck can't absorb still pulls Safe to Spend down, by exactly the shortfall it creates")
+  assertTrue(big.lowestDate === "2026-01-25", "and names the day it happens (got " + big.lowestDate + ")")
 }
 
 console.log("Test 6 -- a recurring monthly bill projects to the right occurrence every cycle")
@@ -147,10 +180,35 @@ console.log("  PRIOR cycle's responsibility, and reserving it again would double
   // that's not what paid_through actually means, and the live bug this
   // caught (a $97.98 "isn't reserved above" warning next to a Safe to Spend
   // figure that hadn't reserved it) was Vince pointing out exactly this.
+  //
+  // REVISED Sep 10 2026 (Vince: "the water bill was already paid on 9-2...
+  // I can't keep going back and forth telling you this was paid"). Whether a
+  // past-due item should still be reserved depends on a variable neither
+  // earlier answer used: WHEN the starting balance was taken. Here the
+  // balance is dated Jan 4 -- before this bill's Jan 5 due date -- so the
+  // money demonstrably had not left yet when that figure was read, and it
+  // must still be reserved. That is the case this test has always been about.
   const bill: STSBill = { amount: 250, due_date: 5 }
-  const r = run([bill], [], 4000)
+  const r = run([bill], [], 4000, { asOf: "2026-01-04" })
   assertEqual(r.billsDue, 250, "due after the last paycheck, still unpaid -- reserved, not assumed paid")
   assertEqual(r.safeToSpend, 3750, "4000 - 250 = 3750")
+
+  // The other side of that line, and the actual fix: the same bill against a
+  // balance taken Jan 10, five days AFTER it came due. A balance read on the
+  // 10th is already net of anything that left on the 5th -- subtracting it
+  // again is a straight double-count, which is what drove Vince's Chime
+  // account negative on paper (Meijer, Netflix and Anthropic all came due
+  // before the Sep 9 balance he entered, and all three were charged twice).
+  const settled = run([bill], [], 4000, { asOf: "2026-01-10" })
+  assertEqual(settled.safeToSpend, 4000, "a bill that came due before the balance was taken is already inside it -- not deducted again")
+  // Critically it is NOT silently dropped: it's reported so the UI can list
+  // it, and so an item that genuinely went unpaid stays visible instead of
+  // disappearing from the app entirely.
+  assertEqual(settled.timeline?.assumedSettledTotal ?? -1, 250, "and it's surfaced as assumed-settled, not quietly discarded")
+  assertTrue(
+    settled.timeline?.assumedSettled.length === 1 && settled.timeline.assumedSettled[0].date === "2026-01-05",
+    "listed with the occurrence date it was settled for"
+  )
 
   // Due the 2nd -- before the last paycheck (Jan 3) even landed, so it was
   // already that PRIOR cycle's responsibility. Still correctly excluded:
@@ -186,7 +244,17 @@ console.log("  transfer is actually on record to back it up")
   ]
   const r = run([], [debt], 4000, { income: withTransferOnFile })
   assertEqual(r.debtsDue, 0, "excluded -- a real transfer is on record backing the flag")
-  assertEqual(r.safeToSpend, 4000, "not double-subtracted")
+  // REVISED Sep 10 2026: this used to assert 4000, because the old model only
+  // ever looked at the transfer tied to the LAST paycheck (a one-day window
+  // ending on lastPaycheckDate) and was blind to every future sweep. The
+  // balance timeline puts scheduled transfers on the calendar like anything
+  // else, so the $2,000 sweep landing Jan 17 is now visible: 4000, sweep out
+  // (-2000) -> 2000, paycheck in (+2000) -> 4000. Same-day ordering applies
+  // outflows first on purpose (see projectBalanceTimeline), so the low point
+  // is that 2000. Still not double-subtracted -- the debt itself is excluded
+  // (debtsDue 0 above); what's subtracted is the transfer that pays it, once.
+  assertEqual(r.safeToSpend, 2000, "the sweep that pays this debt is real money leaving on the 17th, counted once")
+  assertTrue(r.lowestDate === "2026-01-17", "on the day the sweep happens (got " + r.lowestDate + ")")
 }
 
 console.log("Test 11 (regression) -- the Sep 4 2026 bug, root cause: covered_by_transfer was")
@@ -395,7 +463,33 @@ console.log("  reserved -- not just the ones landing before month-end")
     3374.97,
     "Signature Visa + Capital One Auto + Avant + Onity Mortgage's next payment = 3,374.97 (September's own mortgage payment is already settled, but October's is reserved now)"
   )
-  assertEqual(live.safeToSpend, -43.51, "3,678.30 - 346.84 - 3,374.97 = -43.51 -- the real number once the mortgage is always held back, not just car + personal loan")
+  // REVISED Sep 10 2026 (Vince, live screenshot of 53rd Checking reading
+  // -$21.84 on an account holding $3,353.13): this used to assert -43.51,
+  // i.e. 3,678.30 - 346.84 - 3,374.97, subtracting nearly four weeks of
+  // obligations from a balance while crediting none of the $2,578.40
+  // paychecks landing Sep 16 and Sep 30 inside that same stretch. The
+  // balance timeline (projectBalanceTimeline, lib/paycheckCycles.ts) walks
+  // both sides of the calendar and reports the low point instead:
+  //   3,678.30
+  //   Sep 6  Netflix        -8.99   -> 3,669.31
+  //   Sep 7  Anthropic     -20.00   -> 3,649.31
+  //   Sep 11 Addison Water -201.54  -> 3,447.77
+  //   Sep 14 Vercel/Visa    -70.00  -> 3,377.77
+  //   Sep 15 Cap One Auto  -596.50  -> 2,781.27   <-- low point
+  //   Sep 16 paycheck    +2,578.40  -> 5,359.67
+  //   ...never lower again through the horizon, mortgage included
+  // Worth noting what that low point is: $2,781.27 is the exact figure Vince
+  // was reasoning about by hand on Sep 4 ("they will spend the full
+  // $2,781.27 because it's marked safe to spend" -- see the header comment
+  // in lib/debtPayoffSafety.ts). The engine now lands on the same number he
+  // arrived at manually from the same data, which is the whole point.
+  assertEqual(live.safeToSpend, 2781.27, "the low point of the projected balance -- Sep 15, right after Capital One Auto and right before the Sep 16 paycheck")
+  assertTrue(live.lowestDate === "2026-09-15", "on Sep 15 (got " + live.lowestDate + ")")
+  assertEqual(
+    live.startingCash + live.incomeThroughLowest - live.outflowThroughLowest,
+    live.safeToSpend,
+    "and the card's own breakdown reproduces the headline exactly -- balance + in - out through the low point"
+  )
 
   // Same root-cause lock-in as before: dropping Capital One Auto's payment
   // changes safeToSpend by exactly its $596.50 minimum payment, proving the
@@ -408,7 +502,18 @@ console.log("  reserved -- not just the ones landing before month-end")
     today,
   })
   const buggy = withStartingCash(buggyResult, { amount: 3678.3, source: "checking", asOf: "2026-09-04" })
-  assertEqual(buggy.safeToSpend, 552.99, "-43.51 + 596.50 = 552.99 when Capital One Auto's payment is missing")
+  // With Capital One Auto gone, the Sep 15 step disappears and the low point
+  // moves back to Sep 14, right after Vercel + the Visa: $3,377.77. That is
+  // the exact live buggy figure this whole line of fixes started from (see
+  // Test 11's comment and CycleDebt.covered_by_transfer's "CRITICAL
+  // CONSTRAINT"), which is a strong sign the projection is modeling the same
+  // reality the old code was -- it just isn't dropping the income anymore.
+  assertEqual(buggy.safeToSpend, 3377.77, "2,781.27 + 596.50 = 3,377.77 when Capital One Auto's payment is missing")
+  assertEqual(
+    buggy.safeToSpend - live.safeToSpend,
+    596.5,
+    "the gap is exactly Capital One Auto's minimum payment -- the mechanism, not a coincidence of numbers"
+  )
 }
 
 console.log("Test 17 (REVISED Sep 10 2026) -- Safe to Spend and the Bills & Debts obligations")

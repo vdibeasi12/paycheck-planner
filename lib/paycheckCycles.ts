@@ -882,3 +882,265 @@ export function projectPaycheckCycles(input: {
   }
   return cycles
 }
+
+// ---------------------------------------------------------------------------
+// Event-level balance timeline
+// ---------------------------------------------------------------------------
+//
+// CRITICAL FIX (Sep 10 2026, Vince, live screenshot of 53rd Checking showing
+// -$21.84): "I need to calculate what is safe to spend based off this info...
+// Right now you have people doing the math and that's not what it's supposed
+// to do, the app is to do the math and show what is left over to pay down
+// debt. I am not negative on my accounts."
+//
+// Root cause, and it is a structural one: every Safe-to-Spend number in this
+// app was computed as `startingCash - billsDue - debtsDue` over a window that
+// ran from the last paycheck to the END OF THE CALENDAR MONTH (and, since the
+// Sep 10 extendForNextOccurrence fix, one payment past that). That window
+// counted every dollar going OUT over ~3-6 weeks but not one dollar coming
+// IN. Vince's card said "Until September 30 - 20 days" while subtracting
+// $3,324.97; two $1,660 paychecks land inside those same 20 days and neither
+// was credited. A person with $3,353.13 in the bank, $3,320 of pay arriving
+// before month-end, and $3,324.97 of obligations was being told he was
+// $21.84 in the hole. He is not, and no amount of tuning the OBLIGATION side
+// of an income-blind subtraction was ever going to fix that.
+//
+// The replacement is the model a person actually uses when they check whether
+// they can spend money: walk the calendar forward day by day, add paychecks
+// when they land, subtract bills and debts when they come due, and watch for
+// the LOWEST the balance ever gets. That low point is the honest answer to
+// "how much can I spend today and still cover everything" -- spend more than
+// that and you overdraft at that moment; spend that much and you never do.
+//
+// Two properties matter and both come free with this model:
+//   1. Symmetry -- income and obligations are measured over the same window,
+//      so the number can never again be negative purely because the window
+//      was widened on one side only.
+//   2. Timing -- money arriving on Sep 30 does not make it safe to spend on
+//      Sep 10. Summing the whole window would say $3,348.16 is free; the low
+//      point says $2,756.63, because Capital One Auto clears on the 15th and
+//      the next paycheck is not until the 16th. The low point is the number
+//      that is actually safe.
+export const PROJECTION_HORIZON_DAYS = 62
+
+// Far enough forward to always contain at least one full occurrence of every
+// recurring shape this app models: a monthly bill, a monthly debt with a long
+// grace period (a mortgage nominally due the 1st with 15 days of grace lands
+// on the 16th of the following month), and a bimonthly bill that only recurs
+// every other month. Deliberately fixed rather than "end of month" -- a
+// month-end horizon shrinks to nearly nothing on the 28th, which is exactly
+// when a person most needs to see what is coming.
+export function projectionHorizonISO(today: Date): string {
+  return toISODate(addDays(today, PROJECTION_HORIZON_DAYS))
+}
+
+export type BalanceEventKind = "income" | "transfer" | "bill" | "debt"
+
+export type BalanceEvent = {
+  date: string
+  kind: BalanceEventKind
+  name: string
+  // Signed against the running balance: income positive, everything else
+  // negative. Sums in BalanceTimeline below are reported unsigned.
+  delta: number
+  balanceAfter: number
+  // True for an obligation whose effective due date already passed without
+  // being marked paid -- still real money that has to leave, so it is applied
+  // immediately at the start of the projection rather than sorted into the
+  // past where it would silently vanish. See pastDueFromISO below.
+  pastDue: boolean
+}
+
+export type BalanceTimeline = {
+  startingBalance: number
+  fromISO: string
+  toISO: string
+  events: BalanceEvent[]
+  incomeIn: number
+  transfersOut: number
+  billsOut: number
+  debtsOut: number
+  endingBalance: number
+  // The whole point of this file's existence -- see the header comment. Never
+  // higher than startingBalance (you cannot spend more than you hold today no
+  // matter how healthy the forecast is).
+  lowestBalance: number
+  // The date the low point happens, or null when nothing scheduled ever dips
+  // below today's balance -- "today is the tightest it gets."
+  lowestDate: string | null
+  // Everything in / out from now through the low point INCLUSIVE, so a UI can
+  // render startingBalance + incomeThroughLowest - outflowThroughLowest and
+  // have it tie out to lowestBalance exactly. Vince has caught this app
+  // showing a headline that its own breakdown could not reproduce more than
+  // once; these two fields exist so that cannot happen here.
+  incomeThroughLowest: number
+  outflowThroughLowest: number
+  // Obligations skipped because they came due on or before the entered
+  // balance's own as-of date -- see balanceAsOfISO below. Surfaced rather
+  // than silently dropped, so the UI can list them as "already in your
+  // balance" and the user can spot one that genuinely didn't get paid.
+  assumedSettled: { date: string; name: string; amount: number }[]
+  assumedSettledTotal: number
+}
+
+function round2(n: number): number {
+  return Math.round(n * 100) / 100
+}
+
+export function projectBalanceTimeline(input: {
+  startingBalance: number
+  // Exclusive lower bound -- "today". Income and obligations dated on or
+  // before this are already reflected in startingBalance and are not re-applied
+  // (except unpaid past-due obligations, see pastDueFromISO).
+  fromISO: string
+  // Inclusive upper bound -- see projectionHorizonISO.
+  toISO: string
+  // Obligations (not income) are scanned from here instead of fromISO, so a
+  // bill or debt whose due date has already passed but that has NOT been
+  // marked paid still gets subtracted. Normally the last paycheck date. Those
+  // occurrences are stamped at fromISO so they hit the running balance right
+  // away. Omit to scan obligations from fromISO like everything else.
+  pastDueFromISO?: string | null
+  // CRITICAL FIX (Sep 10 2026, Vince): "the water bill was already paid on
+  // 9-2... I can't keep going back and forth telling you this was paid, some
+  // bills get paid early when people have money to pay them."
+  //
+  // The date startingBalance was actually accurate as of (a cash account's
+  // balance_as_of). Any obligation whose effective due date falls on or
+  // before it has ALREADY come out of that balance -- the number the user
+  // read off their bank is net of it -- so subtracting it again is a
+  // straight double-count. The app was doing exactly that: Chime's balance
+  // was entered as of Sep 9, and Meijer (due Sep 4), Netflix (Sep 6) and
+  // Anthropic (Sep 7) were all subtracted a second time on top of it as
+  // "past due and unpaid," pushing that account negative on paper.
+  //
+  // This is the variable that was missing from BOTH previous answers to the
+  // past-due question. On Sep 4 the call was "leave past-due items out, they
+  // may have cleared already"; on Sep 9 it flipped to "reserve them, unmarked
+  // means unpaid." Neither is right on its own, because whether an item is
+  // already in the balance depends entirely on WHEN that balance was taken.
+  // Due on or before the balance date: it's in there, don't count it twice.
+  // Due after it but before today: genuinely not reflected yet, still
+  // reserve it. Nothing here needs the user to confirm anything.
+  //
+  // Omit (or pass null) to keep the old behavior of reserving every unpaid
+  // past-due occurrence -- correct when startingBalance is a projection
+  // rather than a real dated balance.
+  balanceAsOfISO?: string | null
+  income: CycleIncome[]
+  bills: (CycleBill & { name?: string | null })[]
+  debts: (CycleDebt & { name?: string | null })[]
+}): BalanceTimeline {
+  const { startingBalance, fromISO, toISO } = input
+  const from = new Date(fromISO + "T00:00:00")
+  const to = new Date(toISO + "T00:00:00")
+  const monthCount = to.getFullYear() * 12 + to.getMonth() - (from.getFullYear() * 12 + from.getMonth()) + 1
+
+  type Raw = { date: string; kind: BalanceEventKind; name: string; delta: number; pastDue: boolean }
+  const raw: Raw[] = []
+
+  for (const o of projectIncomeOccurrences(input.income, from.getFullYear(), from.getMonth(), monthCount)) {
+    if (o.date > fromISO && o.date <= toISO) {
+      raw.push({ date: o.date, kind: "income", name: "Paycheck", delta: o.amount, pastDue: false })
+    }
+  }
+  for (const o of projectTransferOccurrences(input.income, from.getFullYear(), from.getMonth(), monthCount)) {
+    if (o.date > fromISO && o.date <= toISO) {
+      raw.push({ date: o.date, kind: "transfer", name: "Transfer out", delta: -o.amount, pastDue: false })
+    }
+  }
+
+  const obligationFrom = input.pastDueFromISO && input.pastDueFromISO < fromISO ? input.pastDueFromISO : fromISO
+  const balanceAsOf = input.balanceAsOfISO ?? null
+  const assumedSettled: { date: string; name: string; amount: number }[] = []
+
+  // Returns null when this occurrence is already inside startingBalance (see
+  // balanceAsOfISO) -- the caller records it as assumed-settled and does not
+  // subtract it. Otherwise stamps a still-past-due occurrence at fromISO so
+  // it hits the running balance immediately.
+  const stamp = (occurrenceDate: string, name: string, amount: number): { date: string; pastDue: boolean } | null => {
+    if (balanceAsOf && occurrenceDate <= balanceAsOf) {
+      assumedSettled.push({ date: occurrenceDate, name, amount })
+      return null
+    }
+    return occurrenceDate <= fromISO ? { date: fromISO, pastDue: true } : { date: occurrenceDate, pastDue: false }
+  }
+
+  const billRows = input.bills.map((b) => ({ ...b, amount: Number(b.amount) || 0 }))
+  for (const b of itemsDueInWindow(billRows, obligationFrom, toISO)) {
+    const amount = Number(b.amount) || 0
+    const name = b.name || "Bill"
+    const at = stamp(b.occurrenceDate, name, amount)
+    if (!at) continue
+    raw.push({ date: at.date, kind: "bill", name, delta: -amount, pastDue: at.pastDue })
+  }
+
+  const debtRows = excludeTransferCoveredDebts(input.debts, input.income).map((d) => ({
+    ...d,
+    amount: Number(d.minimum_payment) || 0,
+  }))
+  for (const d of itemsDueInWindow(debtRows, obligationFrom, toISO)) {
+    const amount = Number(d.amount) || 0
+    const name = d.name || "Debt payment"
+    const at = stamp(d.occurrenceDate, name, amount)
+    if (!at) continue
+    raw.push({ date: at.date, kind: "debt", name, delta: -amount, pastDue: at.pastDue })
+  }
+
+  // Same-day ordering is deliberately conservative: money going OUT is applied
+  // before money coming IN. When a bill and a paycheck land on the same date
+  // there is no way to know which posts first, and assuming the bill does is
+  // the direction that can only ever understate what is safe to spend.
+  const kindOrder: Record<BalanceEventKind, number> = { bill: 0, debt: 0, transfer: 0, income: 1 }
+  raw.sort((a, b) => (a.date === b.date ? kindOrder[a.kind] - kindOrder[b.kind] : a.date.localeCompare(b.date)))
+
+  let balance = round2(startingBalance)
+  let lowestBalance = balance
+  let lowestDate: string | null = null
+  let lowestIdx = -1
+  let incomeIn = 0
+  let transfersOut = 0
+  let billsOut = 0
+  let debtsOut = 0
+  const events: BalanceEvent[] = []
+
+  for (const e of raw) {
+    balance = round2(balance + e.delta)
+    if (e.kind === "income") incomeIn += e.delta
+    else if (e.kind === "transfer") transfersOut += -e.delta
+    else if (e.kind === "bill") billsOut += -e.delta
+    else debtsOut += -e.delta
+    if (balance < lowestBalance) {
+      lowestBalance = balance
+      lowestDate = e.date
+      lowestIdx = events.length
+    }
+    events.push({ date: e.date, kind: e.kind, name: e.name, delta: e.delta, balanceAfter: balance, pastDue: e.pastDue })
+  }
+
+  let incomeThroughLowest = 0
+  let outflowThroughLowest = 0
+  for (let i = 0; i <= lowestIdx; i++) {
+    const e = events[i]
+    if (e.delta > 0) incomeThroughLowest += e.delta
+    else outflowThroughLowest += -e.delta
+  }
+
+  return {
+    startingBalance: round2(startingBalance),
+    fromISO,
+    toISO,
+    events,
+    incomeIn: round2(incomeIn),
+    transfersOut: round2(transfersOut),
+    billsOut: round2(billsOut),
+    debtsOut: round2(debtsOut),
+    endingBalance: balance,
+    lowestBalance,
+    lowestDate,
+    incomeThroughLowest: round2(incomeThroughLowest),
+    outflowThroughLowest: round2(outflowThroughLowest),
+    assumedSettled: assumedSettled.sort((a, b) => a.date.localeCompare(b.date)),
+    assumedSettledTotal: round2(assumedSettled.reduce((sum, a) => sum + a.amount, 0)),
+  }
+}

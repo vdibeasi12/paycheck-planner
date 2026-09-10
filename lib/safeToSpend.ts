@@ -24,6 +24,8 @@ import {
   daysBetween,
   endOfMonthISO,
   projectIncomeOccurrences,
+  projectBalanceTimeline,
+  projectionHorizonISO,
   sumDueInWindow,
   sumTransfersInWindow,
   excludeTransferCoveredDebts,
@@ -31,6 +33,7 @@ import {
   type CycleBill,
   type CycleDebt,
   type CycleGoal,
+  type BalanceTimeline,
 } from "./paycheckCycles"
 
 // How far past/forward we're willing to scan looking for a paycheck date.
@@ -98,6 +101,43 @@ export type SafeToSpendResult = {
   // the immediate window above. Undefined/null means the immediate window
   // itself is the binding constraint, same as today.
   reservedThroughDate?: string | null
+
+  // CRITICAL FIX (Sep 10 2026, Vince) -- see projectBalanceTimeline in
+  // lib/paycheckCycles.ts for the full root cause. safeToSpend above is now
+  // the LOWEST point of the projected balance between today and the horizon,
+  // not "starting cash minus a month of obligations with no income credited."
+  // Everything below supports that number.
+
+  // The date the projected balance bottoms out, or null when nothing ahead
+  // dips below what's on hand today.
+  lowestDate: string | null
+  // Paychecks landing, and obligations coming due, from today through the low
+  // point INCLUSIVE. startingCash + incomeThroughLowest - outflowThroughLowest
+  // === safeToSpend, exactly, so the UI breakdown can always reproduce the
+  // headline.
+  incomeThroughLowest: number
+  outflowThroughLowest: number
+  // Every paycheck/bill/debt event across the whole horizon with a running
+  // balance attached -- what the "What's committed" list renders from.
+  timeline: BalanceTimeline | null
+  // Total real income arriving between today and the end of the same window
+  // billsDue/debtsDue are measured over. Surfaced because its ABSENCE was the
+  // bug: a card that subtracts 20 days of obligations has to show the 20 days
+  // of pay alongside it or it is lying by omission.
+  incomeInWindow: number
+
+  // Internal. The inputs projectBalanceTimeline needs, carried on the result
+  // so withStartingCash() can rebuild the projection against a real bank
+  // balance without every existing call site having to pass them a second
+  // time. Not for display; nothing outside this file should read it.
+  _projection?: {
+    income: STSIncome[]
+    bills: STSBill[]
+    debts: STSDebt[]
+    todayISO: string
+    horizonISO: string
+    lastPaycheckDate: string
+  }
 }
 
 export type WhatIfVerdict = "fine" | "tight" | "not-recommended"
@@ -123,6 +163,17 @@ export function computeSafeToSpend(input: {
   // longer reduce safeToSpend at all.
   goals: STSGoal[]
   today?: Date
+  // Real cash on hand right now (see lib/cashBalance.ts). When provided, the
+  // projection is grounded in it directly and withStartingCash() is not
+  // needed afterward. When omitted, falls back to the last paycheck amount
+  // (net of any same-day transfer) exactly as before -- a projection, not a
+  // balance, and labeled that way in the UI.
+  startingCash?: number
+  // The date startingCash was accurate as of. Anything due on or before it is
+  // already inside that balance and must not be subtracted again -- see
+  // balanceAsOfISO in projectBalanceTimeline (lib/paycheckCycles.ts) for the
+  // double-count this closes. Only meaningful alongside startingCash.
+  startingCashAsOf?: string | null
 }): SafeToSpendResult {
   const today = input.today ?? new Date()
   const todayStr = toISODate(today)
@@ -146,6 +197,11 @@ export function computeSafeToSpend(input: {
     startingCash: 0,
     startingCashSource: "lastPaycheck",
     startingCashAsOf: null,
+    lowestDate: null,
+    incomeThroughLowest: 0,
+    outflowThroughLowest: 0,
+    timeline: null,
+    incomeInWindow: 0,
   }
   if (!hasIncome || missingPayDate) return empty
 
@@ -222,8 +278,37 @@ export function computeSafeToSpend(input: {
   const dayBeforeLastPaycheck = toISODate(addDays(new Date(lastPaycheckDate + "T00:00:00"), -1))
   const transfersOut = sumTransfersInWindow(input.income, dayBeforeLastPaycheck, lastPaycheckDate)
 
-  const startingCash = lastPaycheckAmount - transfersOut
-  const safeToSpend = startingCash - billsDue - debtsDue
+  const startingCash = input.startingCash ?? lastPaycheckAmount - transfersOut
+
+  // CRITICAL FIX (Sep 10 2026, Vince, live screenshot showing -$21.84 on an
+  // account with $3,353.13 in it): safeToSpend used to be
+  // `startingCash - billsDue - debtsDue`, which measured a month-plus of
+  // obligations against zero income even though the card itself said the
+  // window ran 20 more days -- and two $1,660 paychecks land inside those 20
+  // days. See projectBalanceTimeline in lib/paycheckCycles.ts for the whole
+  // argument; the short version is that the honest answer to "what can I
+  // spend today" is the LOWEST the balance ever gets between now and the
+  // horizon, with income and obligations both on the calendar.
+  const horizonISO = projectionHorizonISO(today)
+  const timeline = projectBalanceTimeline({
+    startingBalance: startingCash,
+    fromISO: todayStr,
+    toISO: horizonISO,
+    // Anything already due since the last paycheck and still not marked paid
+    // is real money that has to leave, so it lands immediately -- same
+    // behavior the old lastPaycheckDate-anchored window had.
+    pastDueFromISO: lastPaycheckDate,
+    balanceAsOfISO: input.startingCash != null ? input.startingCashAsOf ?? null : null,
+    income: input.income,
+    bills: input.bills,
+    debts: input.debts,
+  })
+  const safeToSpend = timeline.lowestBalance
+
+  const incomeInWindow = timeline.events
+    .filter((e) => e.kind === "income" && e.date <= windowEndDate)
+    .reduce((sum, e) => sum + e.delta, 0)
+
   const daysUntilNextPaycheck = Math.max(0, daysBetween(todayStr, nextPaycheckDate))
   const daysUntilWindowEnd = Math.max(0, daysBetween(todayStr, windowEndDate))
   const dailyLimit = daysUntilWindowEnd > 0 ? safeToSpend / daysUntilWindowEnd : safeToSpend
@@ -243,8 +328,21 @@ export function computeSafeToSpend(input: {
     safeToSpend,
     dailyLimit,
     startingCash,
-    startingCashSource: "lastPaycheck",
-    startingCashAsOf: null,
+    startingCashSource: input.startingCash != null ? "checking" : "lastPaycheck",
+    startingCashAsOf: input.startingCash != null ? input.startingCashAsOf ?? null : null,
+    lowestDate: timeline.lowestDate,
+    incomeThroughLowest: timeline.incomeThroughLowest,
+    outflowThroughLowest: timeline.outflowThroughLowest,
+    timeline,
+    incomeInWindow: Math.round(incomeInWindow * 100) / 100,
+    _projection: {
+      income: input.income,
+      bills: input.bills,
+      debts: input.debts,
+      todayISO: todayStr,
+      horizonISO,
+      lastPaycheckDate,
+    },
   }
 }
 
@@ -261,11 +359,53 @@ export function withStartingCash(
   if (!result.hasIncome || result.missingPayDate || !result.nextPaycheckDate) {
     return result
   }
-  const safeToSpend = cash.amount - result.billsDue - result.debtsDue
+  // CRITICAL FIX (Sep 10 2026, Vince): this used to redo the same
+  // income-blind `cash - billsDue - debtsDue` subtraction computeSafeToSpend
+  // did, which made it the function that actually produced the wrong number
+  // on screen (every page grounds the result in a real balance through here).
+  // It now re-runs the same projection computeSafeToSpend runs, against the
+  // real balance, so the two can never disagree.
+  const proj = result._projection
+  if (!proj) {
+    // No projection inputs carried (a hand-built result in a test, say) --
+    // fall back to the old subtraction rather than throwing.
+    const safeToSpend = cash.amount - result.billsDue - result.debtsDue
+    return {
+      ...result,
+      safeToSpend,
+      dailyLimit:
+        result.daysUntilWindowEnd != null && result.daysUntilWindowEnd > 0
+          ? safeToSpend / result.daysUntilWindowEnd
+          : safeToSpend,
+      startingCash: cash.amount,
+      startingCashSource: cash.source,
+      startingCashAsOf: cash.asOf,
+    }
+  }
+
+  const timeline = projectBalanceTimeline({
+    startingBalance: cash.amount,
+    fromISO: proj.todayISO,
+    toISO: proj.horizonISO,
+    pastDueFromISO: proj.lastPaycheckDate,
+    // Only a real dated bank balance can settle anything -- a "lastPaycheck"
+    // projection has no as-of date to reason from. See balanceAsOfISO in
+    // projectBalanceTimeline.
+    balanceAsOfISO: cash.source === "checking" ? cash.asOf : null,
+    income: proj.income,
+    bills: proj.bills,
+    debts: proj.debts,
+  })
+  const safeToSpend = timeline.lowestBalance
   const dailyLimit =
     result.daysUntilWindowEnd != null && result.daysUntilWindowEnd > 0
       ? safeToSpend / result.daysUntilWindowEnd
       : safeToSpend
+  const incomeInWindow = result.windowEndDate
+    ? timeline.events
+        .filter((e) => e.kind === "income" && e.date <= result.windowEndDate!)
+        .reduce((sum, e) => sum + e.delta, 0)
+    : 0
   return {
     ...result,
     safeToSpend,
@@ -273,6 +413,11 @@ export function withStartingCash(
     startingCash: cash.amount,
     startingCashSource: cash.source,
     startingCashAsOf: cash.asOf,
+    lowestDate: timeline.lowestDate,
+    incomeThroughLowest: timeline.incomeThroughLowest,
+    outflowThroughLowest: timeline.outflowThroughLowest,
+    timeline,
+    incomeInWindow: Math.round(incomeInWindow * 100) / 100,
   }
 }
 

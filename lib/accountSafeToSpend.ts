@@ -182,8 +182,24 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
     const ownBills = bills.filter((b) => b.cash_account_id === account.id)
     const ownDebts = debts.filter((d) => d.cash_account_id === account.id)
 
-    let cycle = computeSafeToSpend({ income: scheduleIncome, bills: ownBills, debts: ownDebts, goals: [], today })
+    // CRITICAL FIX (Sep 10 2026, Vince): the real balance is now resolved
+    // BEFORE the cycle is computed and passed straight in, so the projection
+    // (see projectBalanceTimeline in lib/paycheckCycles.ts) is built against
+    // this account's actual cash from the start rather than against a
+    // last-paycheck stand-in that withStartingCash then had to patch over.
+    // The withStartingCash call below is kept because it's what stamps
+    // startingCashAsOf for the "as of Sep 10" line in the UI; it re-runs the
+    // same projection with the same balance and lands on the same number.
     const projectedBalance = projectAccountBalance(account, { income, bills, debts, todayISO })
+    let cycle = computeSafeToSpend({
+      income: scheduleIncome,
+      bills: ownBills,
+      debts: ownDebts,
+      goals: [],
+      today,
+      startingCash: projectedBalance,
+      startingCashAsOf: account.balance_as_of,
+    })
     cycle = withStartingCash(cycle, {
       amount: projectedBalance,
       source: "checking",
@@ -212,6 +228,7 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
     }))
     const affordability = computeDebtPayoffAffordability({
       startingCash: projectedBalance,
+      startingCashAsOf: account.balance_as_of,
       income: scheduleIncome,
       bills: ownBills,
       debts: payoffCandidates,
@@ -231,6 +248,7 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
     // bug -- it means the immediate number was already the true floor).
     const floor = computeMultiCycleFloor({
       startingCash: projectedBalance,
+      startingCashAsOf: account.balance_as_of,
       income: scheduleIncome,
       bills: ownBills,
       debts: payoffCandidates,
