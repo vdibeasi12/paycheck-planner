@@ -5,8 +5,10 @@ import { PiggyBank } from "lucide-react"
 import PaycheckCountdown from "@/app/components/PaycheckCountdown"
 import MonthlySafeToSpendCard from "@/app/components/MonthlySafeToSpendCard"
 import ExtraDebtPaymentCard from "@/app/components/ExtraDebtPaymentCard"
+import MonthlyDebtCapacityCard from "@/app/components/MonthlyDebtCapacityCard"
 import { computeSafeToSpend, withStartingCash, floorSafeToSpend } from "@/lib/safeToSpend"
 import { computeMonthlySafeToSpend } from "@/lib/monthlySafeToSpend"
+import { computeMonthlyDebtCapacity } from "@/lib/monthlyDebtCapacity"
 import { computeDebtPayoffAffordability, computeMultiCycleFloor } from "@/lib/debtPayoffSafety"
 import {
   classifyItemsAroundCycle,
@@ -131,10 +133,24 @@ export default async function SafeToSpendPage() {
   }))
   const affordability = computeDebtPayoffAffordability({
     startingCash: startingCash.amount,
+    startingCashAsOf: startingCash.asOf,
     income,
     bills,
     debts: payoffCandidates,
     goals: [],
+  })
+
+  // Sep 10 2026, Vince: "show what you can safely pay extra towards debt per
+  // month basis." The recurring counterpart to affordability's one-time lump
+  // sum -- see lib/monthlyDebtCapacity.ts. Uses the full debt rows (not
+  // payoffCandidates) because it needs each debt's own frequency/name for the
+  // monthly rollup, and does its own transfer-covered filtering.
+  const monthlyCapacity = computeMonthlyDebtCapacity({
+    startingCash: startingCash.amount,
+    startingCashAsOf: startingCash.asOf,
+    income,
+    bills,
+    debts,
   })
 
   // CRITICAL FIX (Sep 9 2026, Vince, "option 1" -- "reduce Safe to Spend
@@ -186,7 +202,7 @@ export default async function SafeToSpendPage() {
             You've linked bills, debts, or paychecks to more than one checking account, so these are split by
             account -- money reserved for one account's bills is never counted as safe to spend out of another.
           </p>
-          {split.accounts.map(({ account, cycle, monthly, affordability: accountAffordability, classifiedBills: accountBills, classifiedDebts: accountDebts, coveredDebts: accountCovered }) => (
+          {split.accounts.map(({ account, cycle, monthly, affordability: accountAffordability, monthlyDebtCapacity: accountMonthlyCapacity, classifiedBills: accountBills, classifiedDebts: accountDebts, coveredDebts: accountCovered }) => (
             <div key={account.id}>
               <h2 className="mb-3 text-lg font-semibold text-primary">{account.name}</h2>
               <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -200,6 +216,7 @@ export default async function SafeToSpendPage() {
                 <div className="space-y-6">
                   <MonthlySafeToSpendCard result={monthly} />
                   <ExtraDebtPaymentCard affordability={accountAffordability} />
+                  <MonthlyDebtCapacityCard capacity={accountMonthlyCapacity} />
                 </div>
               </div>
             </div>
@@ -223,6 +240,7 @@ export default async function SafeToSpendPage() {
           <div className="space-y-6">
             <MonthlySafeToSpendCard result={monthlyResult} />
             <ExtraDebtPaymentCard affordability={affordability} />
+            <MonthlyDebtCapacityCard capacity={monthlyCapacity} />
           </div>
         </div>
       )}

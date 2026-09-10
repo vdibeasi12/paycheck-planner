@@ -74,6 +74,7 @@ import {
   type CycleGoal,
   type ClassifiedItem,
 } from "./paycheckCycles"
+import { computeMonthlyDebtCapacity, type MonthlyDebtCapacity } from "./monthlyDebtCapacity"
 import { projectAccountBalance, type CashAccountRow } from "./cashBalance"
 
 type WithAccountLink = { cash_account_id?: string | null }
@@ -87,6 +88,10 @@ export type AccountSafeToSpend<TBill extends BillRow = BillRow, TDebt extends De
   cycle: SafeToSpendResult
   monthly: MonthlySafeToSpendResult
   affordability: DebtPayoffAffordability
+  // Sep 10 2026, Vince: "show what you can safely pay extra towards debt per
+  // month basis." A RECURRING commitment, not affordability's one-time lump
+  // sum -- see lib/monthlyDebtCapacity.ts for why the two differ so much.
+  monthlyDebtCapacity: MonthlyDebtCapacity
   classifiedBills: ClassifiedItem<TBill>[]
   classifiedDebts: ClassifiedItem<TDebt & { amount: number }>[]
   coveredDebts: { name: string; amount: number }[]
@@ -270,7 +275,26 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
       )
     }
 
-    return { account, cycle, monthly, affordability, classifiedBills, classifiedDebts, coveredDebts }
+    const monthlyDebtCapacity = computeMonthlyDebtCapacity({
+      startingCash: projectedBalance,
+      startingCashAsOf: account.balance_as_of,
+      income: ownIncome,
+      bills: ownBills,
+      debts: ownDebts,
+      lastPaycheckDate: cycle.lastPaycheckDate,
+      today,
+    })
+
+    return {
+      account,
+      cycle,
+      monthly,
+      affordability,
+      monthlyDebtCapacity,
+      classifiedBills,
+      classifiedDebts,
+      coveredDebts,
+    }
   })
 
   return {
