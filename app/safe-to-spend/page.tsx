@@ -140,7 +140,7 @@ export default async function SafeToSpendPage() {
   }))
   const affordability = computeDebtPayoffAffordability({
     startingCash: startingCash.amount,
-    startingCashAsOf: startingCash.asOf,
+    startingCashAsOf: startingCash.effectiveAsOf ?? startingCash.asOf,
     income,
     bills,
     debts: payoffCandidates,
@@ -154,7 +154,7 @@ export default async function SafeToSpendPage() {
   // monthly rollup, and does its own transfer-covered filtering.
   const monthlyCapacity = computeMonthlyDebtCapacity({
     startingCash: startingCash.amount,
-    startingCashAsOf: startingCash.asOf,
+    startingCashAsOf: startingCash.effectiveAsOf ?? startingCash.asOf,
     income,
     bills,
     debts,

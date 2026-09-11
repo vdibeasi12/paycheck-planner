@@ -346,7 +346,15 @@ export function computeSafeToSpend(input: {
 // result couldn't be computed in the first place (no income/pay date).
 export function withStartingCash(
   result: SafeToSpendResult,
-  cash: { amount: number; source: SafeToSpendResult["startingCashSource"]; asOf: string | null }
+  cash: {
+    amount: number
+    source: SafeToSpendResult["startingCashSource"]
+    asOf: string | null
+    // The date `amount` is accurate as of -- see StartingCash.effectiveAsOf
+    // in lib/cashBalance.ts. Falls back to `asOf` for callers handing in a
+    // raw, un-projected balance, where the two are the same date.
+    effectiveAsOf?: string | null
+  }
 ): SafeToSpendResult {
   if (!result.hasIncome || result.missingPayDate || !result.nextPaycheckDate) {
     return result
@@ -383,7 +391,7 @@ export function withStartingCash(
     // Only a real dated bank balance can settle anything -- a "lastPaycheck"
     // projection has no as-of date to reason from. See balanceAsOfISO in
     // projectBalanceTimeline.
-    balanceAsOfISO: cash.source === "checking" ? cash.asOf : null,
+    balanceAsOfISO: cash.source === "checking" ? cash.effectiveAsOf ?? cash.asOf : null,
     income: proj.income,
     bills: proj.bills,
     debts: proj.debts,

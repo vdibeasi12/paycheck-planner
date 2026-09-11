@@ -189,8 +189,15 @@ export function toISODate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`
 }
 
+// CRITICAL FIX (Sep 11 2026, audit): this added `days * 86400000` ms, which
+// is not a day across a DST change. Confirmed in America/New_York:
+// addDays("2026-11-01", 1) returned 2026-11-01 -- adding a day moved nothing
+// -- and addDays("2026-03-09", -1) returned 2026-03-07, skipping two. That
+// silently shifted every grace-period effective date (see itemsDueInWindow)
+// and the projection horizon around the clock changes. Calendar arithmetic
+// keeps the same local wall-clock time and cannot drift.
 export function addDays(d: Date, days: number): Date {
-  return new Date(d.getTime() + days * MS_PER_DAY)
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days)
 }
 
 // Last calendar day of `d`'s month, as an ISO date -- e.g. Sep 9 -> "2026-09-30".

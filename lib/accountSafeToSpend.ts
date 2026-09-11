@@ -206,12 +206,18 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
       goals: [],
       today,
       startingCash: projectedBalance,
-      startingCashAsOf: account.balance_as_of,
+      // todayISO, NOT account.balance_as_of: projectAccountBalance has already
+      // carried this account's anchor forward to today and deducted everything
+      // due along the way. Passing the older anchor made the projection deduct
+      // those same items a second time as past-due. See
+      // StartingCash.effectiveAsOf in lib/cashBalance.ts.
+      startingCashAsOf: todayISO,
     })
     cycle = withStartingCash(cycle, {
       amount: projectedBalance,
       source: "checking",
       asOf: account.balance_as_of,
+      effectiveAsOf: todayISO,
     })
 
     const monthly = computeMonthlySafeToSpend({
@@ -236,7 +242,7 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
     }))
     const affordability = computeDebtPayoffAffordability({
       startingCash: projectedBalance,
-      startingCashAsOf: account.balance_as_of,
+      startingCashAsOf: todayISO,
       income: scheduleIncome,
       bills: ownBills,
       debts: payoffCandidates,
@@ -259,7 +265,7 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
 
     const monthlyDebtCapacity = computeMonthlyDebtCapacity({
       startingCash: projectedBalance,
-      startingCashAsOf: account.balance_as_of,
+      startingCashAsOf: todayISO,
       income: ownIncome,
       bills: ownBills,
       debts: ownDebts,

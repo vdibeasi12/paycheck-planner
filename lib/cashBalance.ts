@@ -71,8 +71,25 @@ export type StartingCash = {
   source: StartingCashSource
   // The (oldest) balance_as_of date among the pooled checking accounts --
   // lets the UI say "as of Sept 1, projected to today" instead of implying
-  // a live balance.
+  // a live balance. DISPLAY ONLY. It is the date the user last typed a
+  // number in, which is NOT the date `amount` above is accurate as of.
   asOf: string | null
+  // CRITICAL FIX (Sep 11 2026, found in a full-codebase audit): the date
+  // `amount` is actually accurate as of, which after projectRunningBalance
+  // has carried it forward is TODAY, not the anchor.
+  //
+  // Conflating the two double-subtracted every obligation falling between
+  // the anchor and today. resolveStartingCash already deducted them while
+  // projecting the balance forward; callers then passed `asOf` (the older
+  // anchor) as projectBalanceTimeline's balanceAsOfISO, so those same
+  // obligations failed the "already inside this balance" test and were
+  // applied a SECOND time as past-due. Reproduced: a $3,000 balance dated
+  // Sep 1 with a $500 bill due Sep 5, read on Sep 11, resolved to $2,500
+  // correctly and then reported $2,000 safe to spend.
+  //
+  // Anything doing math with the balance must use this; anything printing
+  // "as of <date>" for a human must use `asOf`.
+  effectiveAsOf?: string | null
 }
 
 // Anything linked to one of these accounts is savings money and is excluded
@@ -114,7 +131,7 @@ export function resolveStartingCash(
   lastPaycheckAmount: number
 ): StartingCash {
   if (checkingRows.length === 0) {
-    return { amount: lastPaycheckAmount, source: "lastPaycheck", asOf: null }
+    return { amount: lastPaycheckAmount, source: "lastPaycheck", asOf: null, effectiveAsOf: null }
   }
   const pooledBalance = checkingRows.reduce((sum, r) => sum + Number(r.balance), 0)
   const anchorDateISO = checkingRows.reduce(
@@ -129,7 +146,7 @@ export function resolveStartingCash(
     bills: excludeSavingsLinked(input.bills, input.savingsAccountIds),
     debts: excludeSavingsLinked(input.debts, input.savingsAccountIds),
   })
-  return { amount, source: "checking", asOf: anchorDateISO }
+  return { amount, source: "checking", asOf: anchorDateISO, effectiveAsOf: input.todayISO }
 }
 
 // The savings account ids out of a full account list -- what every caller of

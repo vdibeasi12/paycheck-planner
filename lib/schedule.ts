@@ -16,6 +16,34 @@ function clampDay(year: number, month: number, day: number): number {
   return Math.min(day, lastDay)
 }
 
+// CRITICAL FIX (Sep 11 2026, found in a full-codebase audit): weekly and
+// biweekly dates used to be stepped with `date.getTime() + n * 86400000`.
+// That is ABSOLUTE-time arithmetic, and a local calendar day is not always
+// 86,400,000 ms -- it is 23 or 25 hours on the two days a year the clocks
+// change. Stepping from a local midnight therefore drifted to 23:00 the
+// previous day (fall back) or 01:00 (spring forward), and the drift is
+// cumulative across a year of steps.
+//
+// The damage was not cosmetic. With a biweekly paycheck anchored 2026-01-02
+// in America/New_York, the occurrence due 2026-07-31 drifted to 23:00 on
+// 07-30... and then failed the `current <= monthEnd` test against local
+// midnight, so it was dropped entirely: an ENTIRE PAYCHECK vanished from
+// July, and Safe to Spend reported a shortfall that did not exist. Two rows
+// describing the same real pay schedule from different anchor dates also
+// disagreed with each other.
+//
+// Calendar arithmetic via the Date(y, m, d + n) constructor always lands on
+// the same local wall-clock time, so it is immune to this.
+function addCalendarDays(d: Date, days: number): Date {
+  return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days)
+}
+
+// Whole days between two local midnights. Rounds because a DST crossing makes
+// the span 23 or 25 hours; the error is at most an hour, never half a day.
+function daysApart(from: Date, to: Date): number {
+  return Math.round((to.getTime() - from.getTime()) / MS_PER_DAY)
+}
+
 /**
  * Returns every occurrence (as 'YYYY-MM-DD' strings) of a recurring item that
  * falls within the given calendar month, projected from a single anchor date.
@@ -44,12 +72,12 @@ export function occurrencesInMonth(
 
     let current: Date
     if (anchor <= monthStart) {
-      const stepsNeeded = Math.ceil((monthStart.getTime() - anchor.getTime()) / (intervalDays * MS_PER_DAY))
-      current = new Date(anchor.getTime() + stepsNeeded * intervalDays * MS_PER_DAY)
+      const stepsNeeded = Math.ceil(daysApart(anchor, monthStart) / intervalDays)
+      current = addCalendarDays(anchor, stepsNeeded * intervalDays)
     } else {
-      current = new Date(anchor)
+      current = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate())
       while (current > monthStart) {
-        const prev = new Date(current.getTime() - intervalDays * MS_PER_DAY)
+        const prev = addCalendarDays(current, -intervalDays)
         if (prev < monthStart) break
         current = prev
       }
@@ -58,7 +86,7 @@ export function occurrencesInMonth(
     const results: string[] = []
     while (current <= monthEnd) {
       if (current >= monthStart) results.push(toISODate(current))
-      current = new Date(current.getTime() + intervalDays * MS_PER_DAY)
+      current = addCalendarDays(current, intervalDays)
     }
     return results
   }
