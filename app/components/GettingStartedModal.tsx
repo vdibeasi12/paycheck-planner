@@ -17,6 +17,7 @@ import {
   Bell,
   X,
   LayoutDashboard,
+  PiggyBank,
   Sparkles,
 } from "lucide-react"
 import ReferralCard from "@/app/components/ReferralCard"
@@ -37,7 +38,18 @@ type StepDef = {
   progressKey?: string
 }
 
-// Cumulative by tier: each higher tier shows every lower-tier step plus its own.
+// Ordered the way someone actually sets the app up, top to bottom (Sep 11
+// 2026, Vince: "getting started is out of order"). It previously ran income,
+// debts, bills, 2FA, notifications -- debts before bills even though they
+// share a page, and two account-admin tasks wedged into the middle of the
+// money setup. Safe to Spend, the page people open most, had no step at all,
+// the same gap the product tour had.
+//
+// `rank` is the PLAN TIER (0 Free, 1 Momentum, 2 Accelerate, 3 Autopilot) and
+// drives locking plus the tier badge -- it is NOT the sort key, the array
+// order is. Every rank below is unchanged from before this reorder; nothing
+// moved between plans. The order is also kept ascending by rank so the tier
+// badges don't jump around as you read down the list.
 const STEP_DEFS: StepDef[] = [
   {
     key: "income", rank: 0, kind: "data", href: "/income", Icon: Wallet, table: "income",
@@ -45,24 +57,29 @@ const STEP_DEFS: StepDef[] = [
     desc: "Enter each paycheck and how often it arrives so the budget math is right.",
   },
   {
-    key: "debts", rank: 0, kind: "data", href: "/bills-debts", Icon: CreditCard, table: "debts",
-    title: "Add your first debt",
-    desc: "Enter a balance, interest rate (APR), and minimum payment so we can build your payoff plan.",
-  },
-  {
     key: "bills", rank: 0, kind: "data", href: "/bills-debts", Icon: Receipt, table: "bills",
     title: "Add a bill",
-    desc: "Track what's coming in and going out each month.",
+    desc: "Add your recurring bills so nothing slips through the cracks.",
   },
   {
-    key: "mfa", rank: 0, kind: "mfa", href: "/mfa/setup", Icon: Shield,
-    title: "Secure your account (2FA)",
-    desc: "Add a one-time code at sign-in -- authenticator app or email, your choice.",
+    key: "debts", rank: 0, kind: "data", href: "/bills-debts", Icon: CreditCard, table: "debts",
+    title: "Add your first debt",
+    desc: "Balances, interest rates (APR), and minimum payments power your payoff plan.",
+  },
+  {
+    key: "safe_to_spend", rank: 0, kind: "action", href: "/safe-to-spend", Icon: PiggyBank, progressKey: "safe_to_spend_reviewed",
+    title: "See what's safe to spend",
+    desc: "Once your income and bills are in, this is the number to check before you buy anything.",
   },
   {
     key: "notifications", rank: 0, kind: "action", href: "/account", Icon: Bell, progressKey: "notifications_reviewed",
     title: "Review your notification preferences",
-    desc: "Choose what you want to hear about -- bill reminders, new Financial Hub posts, and more.",
+    desc: "Choose which reminders and alerts you want, and how you get them.",
+  },
+  {
+    key: "mfa", rank: 0, kind: "mfa", href: "/mfa/setup", Icon: Shield,
+    title: "Secure your account (2FA)",
+    desc: "Add two-factor authentication so only you can get to your financial data.",
   },
   {
     key: "payoff", rank: 1, kind: "action", href: "/amortization", Icon: CalendarClock, progressKey: "payoff_reviewed",
@@ -72,17 +89,17 @@ const STEP_DEFS: StepDef[] = [
   {
     key: "ai", rank: 2, kind: "action", href: "/ai-chat", Icon: MessageSquare, progressKey: "ai_tried",
     title: "Try AI Insights",
-    desc: "Ask a question in plain English and get answers tied to your numbers.",
+    desc: "Ask questions about your own numbers in plain English.",
   },
   {
     key: "connect_bank", rank: 3, kind: "plaid", href: "/account", Icon: CreditCard,
     title: "Connect your credit card - Autopilot",
-    desc: "Securely link an institution so balances and APRs update on their own. Let balances refresh automatically so your plan stays accurate without manual entry.",
+    desc: "Sync balances and due dates automatically instead of typing them in.",
   },
   {
     key: "autopilot", rank: 3, kind: "action", href: "/paycheck-autopilot", Icon: Wand2, progressKey: "autopilot_reviewed",
     title: "Preview Plan Autopilot",
-    desc: "A few days before payday, see your next paycheck plan drafted automatically -- bills, debt, and goals already broken out.",
+    desc: "See what your next paycheck needs to cover, drafted for you a few days ahead.",
   },
 ]
 
