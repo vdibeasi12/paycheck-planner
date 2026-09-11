@@ -94,14 +94,6 @@ export type SafeToSpendResult = {
   // "checking" -- null otherwise. Lets the UI say "as of Sept 1" instead of
   // implying a live bank feed.
   startingCashAsOf: string | null
-  // Set only by floorSafeToSpend() below (Sep 9 2026, Vince: "53rd is not
-  // counting the personal loan and it needs to earmark the up coming
-  // mortgage payment") -- the date of the future paycheck cycle this number
-  // got pulled down to protect, when a LATER cycle turns out tighter than
-  // the immediate window above. Undefined/null means the immediate window
-  // itself is the binding constraint, same as today.
-  reservedThroughDate?: string | null
-
   // CRITICAL FIX (Sep 10 2026, Vince) -- see projectBalanceTimeline in
   // lib/paycheckCycles.ts for the full root cause. safeToSpend above is now
   // the LOWEST point of the projected balance between today and the horizon,
@@ -418,46 +410,6 @@ export function withStartingCash(
     outflowThroughLowest: timeline.outflowThroughLowest,
     timeline,
     incomeInWindow: Math.round(incomeInWindow * 100) / 100,
-  }
-}
-
-// CRITICAL FIX (Sep 9 2026, Vince, live screenshot of 53rd Checking): "53rd
-// is not counting the personal loan and it needs to earmark the up coming
-// mortgage payment... reduce Safe to Spend itself." The immediate window
-// above (this cycle only) is what a person actually asked "can I spend
-// this" would want -- but if a LATER cycle's own paycheck doesn't cover
-// that cycle's own bills/debts by enough to keep the running balance (fed
-// by TODAY's number never having been spent) above what it needs, spending
-// everything safeToSpend allows today would leave that later cycle short.
-// lib/debtPayoffSafety.ts's computeMultiCycleFloor runs the exact same
-// multi-cycle search Extra Debt Payment already uses (so the two can never
-// contradict each other) and this floors safeToSpend at it whenever it's
-// tighter than the immediate window -- a no-op whenever, like Vince's real
-// 53rd numbers turned out to be, later cycles are actually healthier than
-// the very next one.
-export function floorSafeToSpend(
-  result: SafeToSpendResult,
-  floor: { balance: number; date: string | null }
-): SafeToSpendResult {
-  if (!result.hasIncome || result.missingPayDate || !result.nextPaycheckDate) {
-    return result
-  }
-  // The immediate window is already at least as tight, or the "tighter"
-  // point IS this same cycle (date null means today, which this result
-  // already reflects) -- nothing to floor.
-  if (floor.balance >= result.safeToSpend || floor.date === null) {
-    return result
-  }
-  const safeToSpend = floor.balance
-  const dailyLimit =
-    result.daysUntilWindowEnd != null && result.daysUntilWindowEnd > 0
-      ? safeToSpend / result.daysUntilWindowEnd
-      : safeToSpend
-  return {
-    ...result,
-    safeToSpend,
-    dailyLimit,
-    reservedThroughDate: floor.date,
   }
 }
 

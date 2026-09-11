@@ -6,16 +6,16 @@ import PaycheckCountdown from "@/app/components/PaycheckCountdown"
 import MonthlySafeToSpendCard from "@/app/components/MonthlySafeToSpendCard"
 import ExtraDebtPaymentCard from "@/app/components/ExtraDebtPaymentCard"
 import MonthlyDebtCapacityCard from "@/app/components/MonthlyDebtCapacityCard"
-import { computeSafeToSpend, withStartingCash, floorSafeToSpend } from "@/lib/safeToSpend"
+import { computeSafeToSpend, withStartingCash } from "@/lib/safeToSpend"
 import { computeMonthlySafeToSpend } from "@/lib/monthlySafeToSpend"
 import { computeMonthlyDebtCapacity } from "@/lib/monthlyDebtCapacity"
-import { computeDebtPayoffAffordability, computeMultiCycleFloor } from "@/lib/debtPayoffSafety"
+import { computeDebtPayoffAffordability } from "@/lib/debtPayoffSafety"
 import {
   classifyItemsAroundCycle,
   excludeTransferCoveredDebts,
   toISODate,
 } from "@/lib/paycheckCycles"
-import { resolveStartingCash, type CashAccountRow } from "@/lib/cashBalance"
+import { resolveStartingCash, savingsAccountIdsOf, type CashAccountRow } from "@/lib/cashBalance"
 import { computeAccountSplitSafeToSpend } from "@/lib/accountSafeToSpend"
 
 // app/safe-to-spend/page.tsx
@@ -77,13 +77,18 @@ export default async function SafeToSpendPage() {
     .eq("user_id", user.id)
   const cashRows = (cashRowsData ?? []) as CashAccountRow[]
   const checkingRows = cashRows.filter((r) => r.kind === "checking")
+  // Sep 11 2026, Vince: "stop counting the savings in Chime, that is for
+  // emergency money only... it's not to be used to pay bills or debt."
+  // Anything linked to a savings account is kept out of every spendable
+  // figure -- see resolveStartingCash in lib/cashBalance.ts.
+  const savingsAccountIds = savingsAccountIdsOf(cashRows)
 
   // 1. Safe to Spend -- real balance minus everything due through the end of
   // this calendar month (see lib/safeToSpend.ts's Sep 9 2026 fix).
   let safeToSpendResult = computeSafeToSpend({ income, bills, debts, goals })
   const startingCash = resolveStartingCash(
     checkingRows,
-    { income, bills, debts, todayISO },
+    { income, bills, debts, todayISO, savingsAccountIds },
     safeToSpendResult.lastPaycheckAmount
   )
   safeToSpendResult = withStartingCash(safeToSpendResult, startingCash)
@@ -153,20 +158,6 @@ export default async function SafeToSpendPage() {
     debts,
   })
 
-  // CRITICAL FIX (Sep 9 2026, Vince, "option 1" -- "reduce Safe to Spend
-  // itself"): same multi-cycle search Extra Debt Payment above already
-  // runs, applied to the headline number too, so it can't recommend more
-  // than is actually safe once a later cycle (not just the immediate
-  // window) is considered. See lib/safeToSpend.ts's floorSafeToSpend.
-  const multiCycleFloor = computeMultiCycleFloor({
-    startingCash: startingCash.amount,
-    income,
-    bills,
-    debts: payoffCandidates,
-    goals: [],
-  })
-  safeToSpendResult = floorSafeToSpend(safeToSpendResult, multiCycleFloor)
-
   // Per-account split (Sep 9 2026, Vince): "53rd only gets $1660 per
   // paycheck to save and pay [mortgage/car/personal loan]... Chime gets the
   // rest to pay utilities and credit cards. If I spend all that [pooled]
@@ -181,6 +172,7 @@ export default async function SafeToSpendPage() {
     debts,
     goals,
     todayISO,
+    savingsAccountIds,
   })
 
   return (

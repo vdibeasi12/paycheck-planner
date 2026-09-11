@@ -75,9 +75,42 @@ export type StartingCash = {
   asOf: string | null
 }
 
+// Anything linked to one of these accounts is savings money and is excluded
+// from every spendable figure below -- see resolveStartingCash's comment.
+type WithAccount = { cash_account_id?: string | null }
+function excludeSavingsLinked<T extends WithAccount>(rows: T[], savingsAccountIds?: string[] | null): T[] {
+  if (!savingsAccountIds || savingsAccountIds.length === 0) return rows
+  const savings = new Set(savingsAccountIds)
+  return rows.filter((r) => !r.cash_account_id || !savings.has(r.cash_account_id))
+}
+
 export function resolveStartingCash(
   checkingRows: CashAccountRow[],
-  input: { income: CycleIncome[]; bills: CycleBill[]; debts: CycleDebt[]; todayISO: string },
+  input: {
+    income: CycleIncome[]
+    bills: CycleBill[]
+    debts: CycleDebt[]
+    todayISO: string
+    // CRITICAL FIX (Sep 11 2026, Vince): "stop counting the savings in Chime,
+    // that is for emergency money only not part of safe to spend... it's not
+    // to be used to pay bills or debt."
+    //
+    // The anchor balance above has always been checking-only, but the
+    // projection carrying it forward to today was fed EVERY income, bill and
+    // debt row regardless of which account it belongs to. So a paycheck
+    // deposited into savings was added to the checking pool, and a bill
+    // linked to savings was subtracted from it -- savings money leaking into
+    // and out of a "checking" figure in both directions. Nothing of Vince's
+    // is linked to savings today, so this wasn't visibly wrong yet, but the
+    // app offers savings accounts in the account pickers, so it was one
+    // dropdown selection away from being wrong and silently so.
+    //
+    // Pass every savings account's id here and anything linked to one is left
+    // out. Rows with NO account linked still count, deliberately and exactly
+    // as before (see CycleIncome.cash_account_id) -- "not assigned yet" means
+    // "counts toward the pooled total," not "belongs to savings."
+    savingsAccountIds?: string[] | null
+  },
   lastPaycheckAmount: number
 ): StartingCash {
   if (checkingRows.length === 0) {
@@ -92,19 +125,18 @@ export function resolveStartingCash(
     anchorBalance: pooledBalance,
     anchorDateISO,
     asOfISO: input.todayISO,
-    income: input.income,
-    bills: input.bills,
-    debts: input.debts,
+    income: excludeSavingsLinked(input.income, input.savingsAccountIds),
+    bills: excludeSavingsLinked(input.bills, input.savingsAccountIds),
+    debts: excludeSavingsLinked(input.debts, input.savingsAccountIds),
   })
   return { amount, source: "checking", asOf: anchorDateISO }
 }
 
-// Sums a set of account rows as-is (no projection) -- used as the fallback
-// pooled total when nothing is linked to any account yet (see
-// CashBalanceEditor, which prefers the sum of projectAllAccountBalances
-// below once at least one bill/debt/income is actually linked).
-export function poolBalance(rows: CashAccountRow[]): number {
-  return Math.round(rows.reduce((sum, r) => sum + Number(r.balance), 0) * 100) / 100
+// The savings account ids out of a full account list -- what every caller of
+// resolveStartingCash should hand it. Exported so no page has to re-derive
+// (and mistype) the filter.
+export function savingsAccountIdsOf(rows: CashAccountRow[]): string[] {
+  return rows.filter((r) => r.kind === "savings").map((r) => r.id)
 }
 
 export type AccountProjectionInput = {

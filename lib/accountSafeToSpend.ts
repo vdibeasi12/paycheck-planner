@@ -56,18 +56,13 @@
 import {
   computeSafeToSpend,
   withStartingCash,
-  floorSafeToSpend,
   type SafeToSpendResult,
   type STSIncome,
   type STSBill,
   type STSDebt,
 } from "./safeToSpend"
 import { computeMonthlySafeToSpend, type MonthlySafeToSpendResult } from "./monthlySafeToSpend"
-import {
-  computeDebtPayoffAffordability,
-  computeMultiCycleFloor,
-  type DebtPayoffAffordability,
-} from "./debtPayoffSafety"
+import { computeDebtPayoffAffordability, type DebtPayoffAffordability } from "./debtPayoffSafety"
 import {
   excludeTransferCoveredDebts,
   classifyItemsAroundCycle,
@@ -151,8 +146,16 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
   goals: CycleGoal[]
   todayISO: string
   today?: Date
+  // Sep 11 2026, Vince: "stop counting the savings in Chime, that is for
+  // emergency money only." Items linked to a savings account belong to
+  // neither checking account, and must not be reported as "unassigned"
+  // either -- that warning means "you forgot to link this," which would be
+  // wrong and alarming for money deliberately kept in savings.
+  savingsAccountIds?: string[] | null
 }): AccountSplitResult<TBill, TDebt> {
   const { checkingAccounts, income, bills, debts, todayISO } = input
+  const savingsIds = new Set(input.savingsAccountIds ?? [])
+  const isSavingsLinked = (r: WithAccountLink) => !!r.cash_account_id && savingsIds.has(r.cash_account_id)
   const today = input.today ?? new Date(todayISO + "T00:00:00")
 
   const isSplit = shouldSplitByAccount(checkingAccounts, income, bills, debts)
@@ -167,10 +170,10 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
 
   const knownAccountIds = new Set(checkingAccounts.map((a) => a.id))
   const unassignedBillsTotal = bills
-    .filter((b) => !b.cash_account_id || !knownAccountIds.has(b.cash_account_id))
+    .filter((b) => !isSavingsLinked(b) && (!b.cash_account_id || !knownAccountIds.has(b.cash_account_id)))
     .reduce((sum, b) => sum + (Number(b.amount) || 0), 0)
   const unassignedDebtsTotal = excludeTransferCoveredDebts(
-    debts.filter((d) => !d.cash_account_id || !knownAccountIds.has(d.cash_account_id)),
+    debts.filter((d) => !isSavingsLinked(d) && (!d.cash_account_id || !knownAccountIds.has(d.cash_account_id))),
     income
   ).reduce((sum, d) => sum + (Number(d.minimum_payment) || 0), 0)
 
@@ -240,27 +243,6 @@ export function computeAccountSplitSafeToSpend<TBill extends BillRow, TDebt exte
       goals: [],
       today,
     })
-
-    // "53rd is not counting the personal loan and it needs to earmark the
-    // up coming mortgage payment... reduce Safe to Spend itself" (Sep 9
-    // 2026, Vince, "option 1"). Runs the same multi-cycle search Extra Debt
-    // Payment above already runs and pulls THIS account's own Safe to Spend
-    // down to match whenever a later cycle -- Avant, the mortgage, whatever
-    // else is linked to this account -- turns out tighter than the
-    // immediate window. A no-op whenever, like 53rd's real numbers, this
-    // account's own paycheck refill rate already outpaces what's coming due
-    // later (see lib/safeToSpend.ts's floorSafeToSpend for why that's not a
-    // bug -- it means the immediate number was already the true floor).
-    const floor = computeMultiCycleFloor({
-      startingCash: projectedBalance,
-      startingCashAsOf: account.balance_as_of,
-      income: scheduleIncome,
-      bills: ownBills,
-      debts: payoffCandidates,
-      goals: [],
-      today,
-    })
-    cycle = floorSafeToSpend(cycle, floor)
 
     let classifiedBills: ClassifiedItem<TBill>[] = []
     let classifiedDebts: ClassifiedItem<TDebt & { amount: number }>[] = []

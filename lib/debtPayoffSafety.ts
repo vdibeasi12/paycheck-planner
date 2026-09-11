@@ -143,26 +143,6 @@ function findTightestCheckpoint(input: {
 }
 
 
-// Same projection, reserve already applied -- used to floor Safe to Spend
-// itself (lib/accountSafeToSpend.ts) at whatever this multi-cycle search
-// finds, on top of Extra Debt Payment above. Reserve defaults to 0 here
-// (unlike computeDebtPayoffAffordability) because Safe to Spend has never
-// carried a built-in cushion of its own -- see lib/safeToSpend.ts.
-export function computeMultiCycleFloor(input: {
-  startingCash: number
-  // Date startingCash was accurate as of -- anything due on or before it is
-  // already inside that balance. See balanceAsOfISO in projectBalanceTimeline.
-  startingCashAsOf?: string | null
-  income: CycleIncome[]
-  bills: CycleBill[]
-  debts: CycleDebt[]
-  goals: CycleGoal[]
-  today?: Date
-  cyclesToConsider?: number
-}): MultiCycleCheckpoint {
-  return findTightestCheckpoint(input)
-}
-
 export function computeDebtPayoffAffordability(input: {
   // Real pooled Checking balance projected to today (lib/cashBalance.ts's
   // resolveStartingCash) -- same starting point Safe to Spend uses.

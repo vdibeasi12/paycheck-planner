@@ -101,16 +101,6 @@ export default function PaycheckCountdown({
     : [...classifiedBills, ...classifiedDebts]
         .filter((i) => i.itemStatus === "alreadyDue")
         .reduce((sum, i) => sum + i.amount, 0)
-  // CRITICAL FIX (Sep 9 2026, Vince, "option 1" -- "reduce Safe to Spend
-  // itself" so 53rd earmarks the personal loan/mortgage): when
-  // lib/safeToSpend.ts's floorSafeToSpend has pulled safeToSpend down to
-  // protect a LATER paycheck cycle (result.reservedThroughDate), that gap
-  // needs its own visible line here too -- otherwise this list's own total
-  // would quietly stop matching the headline number above it, the exact
-  // "$868.04 vs $926.03" black-box problem Vince already caught once. Not
-  // yet attributed to the specific debt causing it (that would need the
-  // classified items for a future cycle, not just this one) -- named
-  // generically until that's wired up.
   // The full schedule behind the number: every bill and debt payment between
   // now and the end of the projection, in the order they actually hit the
   // account. Falls back to the classified lists for any caller that hasn't

@@ -1,7 +1,6 @@
 import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
-import { computeSafeToSpend, withStartingCash, floorSafeToSpend } from "@/lib/safeToSpend"
-import { computeMultiCycleFloor } from "@/lib/debtPayoffSafety"
+import { computeSafeToSpend, withStartingCash } from "@/lib/safeToSpend"
 import {
   classifyItemsAroundCycle,
   excludeTransferCoveredDebts,
@@ -9,7 +8,7 @@ import {
   toISODate,
 } from "@/lib/paycheckCycles"
 import { nearestWeakCycle, buildUpcomingForecast } from "@/lib/planResilience"
-import { resolveStartingCash, projectAllAccountBalances, type CashAccountRow } from "@/lib/cashBalance"
+import { resolveStartingCash, projectAllAccountBalances, savingsAccountIdsOf, type CashAccountRow } from "@/lib/cashBalance"
 import { computeAccountSplitSafeToSpend } from "@/lib/accountSafeToSpend"
 import SurvivalModeView, { type SurvivalModeAccountSection } from "@/app/components/SurvivalModeView"
 
@@ -64,11 +63,16 @@ export default async function SurvivalModePage() {
   const goals = goalsRes.data ?? []
   const cashRows = (cashRes.data ?? []) as CashAccountRow[]
   const checkingRows = cashRows.filter((r) => r.kind === "checking")
+  // Sep 11 2026, Vince: "stop counting the savings in Chime, that is for
+  // emergency money only... it's not to be used to pay bills or debt."
+  // Anything linked to a savings account is kept out of every spendable
+  // figure -- see resolveStartingCash in lib/cashBalance.ts.
+  const savingsAccountIds = savingsAccountIdsOf(cashRows)
 
   let result = computeSafeToSpend({ income, bills, debts, goals })
 
   const todayISO = toISODate(new Date())
-  const startingCash = resolveStartingCash(checkingRows, { income, bills, debts, todayISO }, result.lastPaycheckAmount)
+  const startingCash = resolveStartingCash(checkingRows, { income, bills, debts, todayISO, savingsAccountIds }, result.lastPaycheckAmount)
   result = withStartingCash(result, startingCash)
 
   // Debts covered_by_transfer are paid automatically from a linked transfer
@@ -86,24 +90,6 @@ export default async function SurvivalModePage() {
   }
   const spendableDebts = excludeTransferCoveredDebts(debts, income)
 
-  // CRITICAL FIX (Sep 9 2026, Vince, "option 1" -- "reduce Safe to Spend
-  // itself"): same multi-cycle search Extra Debt Payment
-  // (lib/debtPayoffSafety.ts) already runs, applied to this page's own
-  // headline number too -- see lib/safeToSpend.ts's floorSafeToSpend and
-  // app/safe-to-spend/page.tsx's identical call.
-  const multiCycleFloor = computeMultiCycleFloor({
-    startingCash: startingCash.amount,
-    income,
-    bills,
-    debts: spendableDebts.map((d) => ({
-      minimum_payment: d.minimum_payment,
-      due_date: d.due_date,
-      grace_period_days: d.grace_period_days,
-      paid_through: d.paid_through,
-    })),
-    goals: [],
-  })
-  result = floorSafeToSpend(result, multiCycleFloor)
 
   // Only show a debt as "covered by transfer" here if it's ACTUALLY excluded
   // above -- covered_by_transfer alone is no longer trusted without a real
@@ -168,6 +154,7 @@ export default async function SurvivalModePage() {
     debts,
     goals,
     todayISO,
+    savingsAccountIds,
   })
   const accountSections: SurvivalModeAccountSection[] | undefined = split.isSplit
     ? split.accounts.map(({ account, cycle, classifiedBills: b, classifiedDebts: d, coveredDebts: c }) => ({

@@ -11,8 +11,7 @@ import InfoHint from "@/app/components/InfoHint"
 import PaycheckCountdown from "@/app/components/PaycheckCountdown"
 import WhatIfSpend from "@/app/components/WhatIfSpend"
 import PaycheckSurplusPrompt from "@/app/components/PaycheckSurplusPrompt"
-import { computeSafeToSpend, withStartingCash, floorSafeToSpend } from "@/lib/safeToSpend"
-import { computeMultiCycleFloor } from "@/lib/debtPayoffSafety"
+import { computeSafeToSpend, withStartingCash } from "@/lib/safeToSpend"
 import { detectClosedCycleSurplus } from "@/lib/paycheckSurplus"
 import { detectStartingCycleSnapshot } from "@/lib/planDrift"
 import {
@@ -22,7 +21,7 @@ import {
   toISODate,
 } from "@/lib/paycheckCycles"
 import { nearestWeakCycle, buildUpcomingForecast } from "@/lib/planResilience"
-import { resolveStartingCash, type CashAccountRow } from "@/lib/cashBalance"
+import { resolveStartingCash, savingsAccountIdsOf, type CashAccountRow } from "@/lib/cashBalance"
 import { computeAccountSplitSafeToSpend } from "@/lib/accountSafeToSpend"
 import { computeCapacityForCycles, generatePaycheckTalk } from "@/lib/paycheckCapacity"
 import PaycheckTalkCard from "@/app/components/PaycheckTalkCard"
@@ -177,9 +176,14 @@ export default async function DashboardPage() {
     .eq("user_id", user.id)
   const cashRows = (cashRowsData ?? []) as CashAccountRow[]
   const checkingRows = cashRows.filter((r) => r.kind === "checking")
+  // Sep 11 2026, Vince: "stop counting the savings in Chime, that is for
+  // emergency money only... it's not to be used to pay bills or debt."
+  // Anything linked to a savings account is kept out of every spendable
+  // figure -- see resolveStartingCash in lib/cashBalance.ts.
+  const savingsAccountIds = savingsAccountIdsOf(cashRows)
   const startingCash = resolveStartingCash(
     checkingRows,
-    { income, bills, debts, todayISO: todayISOForCash },
+    { income, bills, debts, todayISO: todayISOForCash, savingsAccountIds },
     safeToSpendResult.lastPaycheckAmount
   )
   safeToSpendResult = withStartingCash(safeToSpendResult, startingCash)
@@ -202,25 +206,6 @@ export default async function DashboardPage() {
     .filter((d) => d.covered_by_transfer && !spendableDebtIds.has(d.id))
     .map((d) => ({ name: d.name, amount: Number(d.minimum_payment) || 0 }))
 
-  // CRITICAL FIX (Sep 9 2026, Vince, "option 1" -- "reduce Safe to Spend
-  // itself"): same multi-cycle search Extra Debt Payment
-  // (lib/debtPayoffSafety.ts) already runs, applied to this headline number
-  // too -- see lib/safeToSpend.ts's floorSafeToSpend and
-  // app/safe-to-spend/page.tsx's identical call. Must run before this card
-  // is a candidate for display just below.
-  const multiCycleFloor = computeMultiCycleFloor({
-    startingCash: startingCash.amount,
-    income,
-    bills,
-    debts: spendableDebts.map((d) => ({
-      minimum_payment: d.minimum_payment,
-      due_date: d.due_date,
-      grace_period_days: d.grace_period_days,
-      paid_through: d.paid_through,
-    })),
-    goals: [],
-  })
-  safeToSpendResult = floorSafeToSpend(safeToSpendResult, multiCycleFloor)
 
   let classifiedBills: ReturnType<typeof classifyItemsAroundCycle<typeof bills[number]>> = []
   let classifiedDebts: ReturnType<typeof classifyItemsAroundCycle<typeof debts[number]>> = []
@@ -253,6 +238,7 @@ export default async function DashboardPage() {
     debts,
     goals,
     todayISO: todayISOForCash,
+    savingsAccountIds,
   })
 
   // Paycheck Capacity / "If This Paycheck Could Talk" (Aug 26 2026): reuses
@@ -512,4 +498,4 @@ export default async function DashboardPage() {
 
     </div>
   )
-}
+}
