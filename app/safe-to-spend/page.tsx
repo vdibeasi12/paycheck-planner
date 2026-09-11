@@ -6,6 +6,8 @@ import PaycheckCountdown from "@/app/components/PaycheckCountdown"
 import MonthlySafeToSpendCard from "@/app/components/MonthlySafeToSpendCard"
 import ExtraDebtPaymentCard from "@/app/components/ExtraDebtPaymentCard"
 import MonthlyDebtCapacityCard from "@/app/components/MonthlyDebtCapacityCard"
+import SimpleSafeToSpendCard from "@/app/components/SimpleSafeToSpendCard"
+import SafeToSpendModeSwitch from "@/app/components/SafeToSpendModeSwitch"
 import { computeSafeToSpend, withStartingCash } from "@/lib/safeToSpend"
 import { computeMonthlySafeToSpend } from "@/lib/monthlySafeToSpend"
 import { computeMonthlyDebtCapacity } from "@/lib/monthlyDebtCapacity"
@@ -175,67 +177,85 @@ export default async function SafeToSpendPage() {
     savingsAccountIds,
   })
 
+  // Sep 11 2026, Vince: "I don't like the way this is laid out. It's way too
+  // complicated and most people won't want this much detail... We need to
+  // create a detailed version and a simplified version... with a toggle."
+  //
+  // Both trees are built here, from the SAME computed results, and handed to
+  // a client switch. Simple is not a different calculation and must never
+  // become one -- it is the same numbers with the reasoning hidden.
+  const simpleView = split.isSplit ? (
+    <div className="space-y-5">
+      {split.accounts.map(({ account, cycle, affordability: accountAffordability }) => (
+        <SimpleSafeToSpendCard
+          key={account.id}
+          accountName={account.name}
+          result={cycle}
+          affordability={accountAffordability}
+        />
+      ))}
+    </div>
+  ) : (
+    <SimpleSafeToSpendCard result={safeToSpendResult} affordability={affordability} />
+  )
+
+  const detailedView = split.isSplit ? (
+    <div className="space-y-10">
+      <p className="max-w-2xl text-sm text-muted">
+        You&apos;ve linked bills, debts, or paychecks to more than one checking account, so these are split by
+        account -- money reserved for one account&apos;s bills is never counted as safe to spend out of another.
+      </p>
+      {split.accounts.map(({ account, cycle, monthly, affordability: accountAffordability, monthlyDebtCapacity: accountMonthlyCapacity, classifiedBills: accountBills, classifiedDebts: accountDebts, coveredDebts: accountCovered }) => (
+        <div key={account.id}>
+          <h2 className="mb-3 text-lg font-semibold text-primary">{account.name}</h2>
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+            <PaycheckCountdown
+              result={cycle}
+              startingCash={{ amount: cycle.startingCash, source: cycle.startingCashSource, asOf: cycle.startingCashAsOf }}
+              classifiedBills={accountBills}
+              classifiedDebts={accountDebts}
+              coveredDebts={accountCovered}
+            />
+            <div className="space-y-6">
+              <MonthlySafeToSpendCard result={monthly} />
+              <ExtraDebtPaymentCard affordability={accountAffordability} />
+              <MonthlyDebtCapacityCard capacity={accountMonthlyCapacity} />
+            </div>
+          </div>
+        </div>
+      ))}
+      {(split.unassignedBillsTotal > 0 || split.unassignedDebtsTotal > 0) && (
+        <p className="max-w-2xl text-xs text-muted">
+          Not tied to a specific account above, so not part of either account&apos;s numbers: bills/debts without
+          an account assigned in Bills &amp; Debts. Assign an account to each one to have it counted.
+        </p>
+      )}
+    </div>
+  ) : (
+    <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+      <PaycheckCountdown
+        result={safeToSpendResult}
+        startingCash={startingCash}
+        classifiedBills={classifiedBills}
+        classifiedDebts={classifiedDebts}
+        coveredDebts={coveredDebts}
+      />
+      <div className="space-y-6">
+        <MonthlySafeToSpendCard result={monthlyResult} />
+        <ExtraDebtPaymentCard affordability={affordability} />
+        <MonthlyDebtCapacityCard capacity={monthlyCapacity} />
+      </div>
+    </div>
+  )
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
-      <div className="mb-6 flex items-center gap-2.5">
+      <div className="mb-4 flex items-center gap-2.5">
         <PiggyBank size={24} className="text-emerald-400" />
         <h1 className="text-2xl font-bold text-primary">Safe to Spend</h1>
       </div>
-      <p className="mb-6 max-w-2xl text-sm text-muted">
-        Two different, both-correct answers to "how much do I actually have," both covering the rest of this
-        calendar month: what's safe to spend from your real balance once every bill and debt due this month is
-        set aside, and what's left over based on your average monthly income -- plus how much extra you could
-        safely put toward debt right now.
-      </p>
 
-      {split.isSplit ? (
-        <div className="space-y-10">
-          <p className="-mt-4 max-w-2xl text-sm text-muted">
-            You've linked bills, debts, or paychecks to more than one checking account, so these are split by
-            account -- money reserved for one account's bills is never counted as safe to spend out of another.
-          </p>
-          {split.accounts.map(({ account, cycle, monthly, affordability: accountAffordability, monthlyDebtCapacity: accountMonthlyCapacity, classifiedBills: accountBills, classifiedDebts: accountDebts, coveredDebts: accountCovered }) => (
-            <div key={account.id}>
-              <h2 className="mb-3 text-lg font-semibold text-primary">{account.name}</h2>
-              <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-                <PaycheckCountdown
-                  result={cycle}
-                  startingCash={{ amount: cycle.startingCash, source: cycle.startingCashSource, asOf: cycle.startingCashAsOf }}
-                  classifiedBills={accountBills}
-                  classifiedDebts={accountDebts}
-                  coveredDebts={accountCovered}
-                />
-                <div className="space-y-6">
-                  <MonthlySafeToSpendCard result={monthly} />
-                  <ExtraDebtPaymentCard affordability={accountAffordability} />
-                  <MonthlyDebtCapacityCard capacity={accountMonthlyCapacity} />
-                </div>
-              </div>
-            </div>
-          ))}
-          {(split.unassignedBillsTotal > 0 || split.unassignedDebtsTotal > 0) && (
-            <p className="max-w-2xl text-xs text-muted">
-              Not tied to a specific account above, so not part of either account's numbers: bills/debts without
-              an account assigned in Bills &amp; Debts. Assign an account to each one to have it counted.
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <PaycheckCountdown
-            result={safeToSpendResult}
-            startingCash={startingCash}
-            classifiedBills={classifiedBills}
-            classifiedDebts={classifiedDebts}
-            coveredDebts={coveredDebts}
-          />
-          <div className="space-y-6">
-            <MonthlySafeToSpendCard result={monthlyResult} />
-            <ExtraDebtPaymentCard affordability={affordability} />
-            <MonthlyDebtCapacityCard capacity={monthlyCapacity} />
-          </div>
-        </div>
-      )}
+      <SafeToSpendModeSwitch simple={simpleView} detailed={detailedView} />
     </div>
   )
 }
