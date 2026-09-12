@@ -20,6 +20,8 @@
 import {
   projectAccountBalance,
   projectAllAccountBalances,
+  resolveStartingCash,
+  savingsAccountIdsOf,
   type CashAccountRow,
   type AccountProjectionInput,
 } from "../cashBalance"
@@ -27,6 +29,16 @@ import type { CycleBill, CycleDebt, CycleIncome } from "../paycheckCycles"
 
 let passed = 0
 let failed = 0
+
+function assertTrue(cond: boolean, label: string) {
+  if (cond) {
+    passed++
+    console.log(`  PASS  ${label}`)
+  } else {
+    failed++
+    console.error(`  FAIL  ${label}`)
+  }
+}
 
 function assertEqual(actual: number, expected: number, label: string) {
   if (Math.abs(actual - expected) < 0.005) {
@@ -116,6 +128,58 @@ console.log("Test 7 -- projectAllAccountBalances computes every account at once,
   assertEqual(map.get("acct-checking") ?? -1, 3303.13 - 200, "53rd Checking reflects its own linked debt")
   assertEqual(map.get("acct-other") ?? -1, 375.17, "Chime Checking is untouched")
   assertEqual(map.get("acct-savings") ?? -1, 1007.37, "Chime Savings is untouched")
+}
+
+console.log("\nSavings is emergency money and never spendable (Sep 11 2026, Vince: \"stop")
+console.log("  counting the savings in Chime, that is for emergency money only not part of")
+console.log("  safe to spend... it's not to be used to pay bills or debt\")")
+{
+  // The anchor balance resolveStartingCash starts from has always been
+  // checking-only. The leak was on the OTHER side: the projection carrying
+  // that anchor forward to today was handed every income/bill/debt row
+  // regardless of which account it belonged to. So money moving in or out of
+  // SAVINGS moved the CHECKING figure. These lock both directions shut.
+  const savingsIds = savingsAccountIdsOf([checking, otherChecking, savings])
+  assertEqual(savingsIds.length, 1, "savingsAccountIdsOf picks out only the savings account")
+  assertTrue(savingsIds[0] === savings.id, "and it's the right one")
+
+  const base = { income: [] as CycleIncome[], bills: [] as CycleBill[], debts: [] as CycleDebt[], todayISO: "2026-09-20" }
+  const pooledChecking = 3303.13 + 375.17
+
+  // A paycheck deposited into SAVINGS must not inflate checking.
+  const payToSavings: CycleIncome = { amount: 2000, frequency: "monthly", next_pay_date: "2026-09-10", cash_account_id: savings.id }
+  const withSavingsIncome = resolveStartingCash([checking, otherChecking], { ...base, income: [payToSavings], savingsAccountIds: savingsIds }, 0)
+  assertEqual(withSavingsIncome.amount, pooledChecking, "a paycheck paid into savings does not raise the checking total")
+
+  const leakedIncome = resolveStartingCash([checking, otherChecking], { ...base, income: [payToSavings] }, 0)
+  assertEqual(leakedIncome.amount, pooledChecking + 2000, "and without the savings ids it WOULD have -- this is the bug being fixed, not a hypothetical")
+
+  // A bill paid out of SAVINGS must not drain checking either.
+  const billFromSavings: CycleBill = { amount: 500, due_date: 12, cash_account_id: savings.id }
+  const withSavingsBill = resolveStartingCash([checking, otherChecking], { ...base, bills: [billFromSavings], savingsAccountIds: savingsIds }, 0)
+  assertEqual(withSavingsBill.amount, pooledChecking, "a bill linked to savings does not reduce the checking total")
+
+  const debtFromSavings: CycleDebt = { minimum_payment: 300, due_date: 12, cash_account_id: savings.id }
+  const withSavingsDebt = resolveStartingCash([checking, otherChecking], { ...base, debts: [debtFromSavings], savingsAccountIds: savingsIds }, 0)
+  assertEqual(withSavingsDebt.amount, pooledChecking, "nor does a debt linked to savings")
+
+  // The deliberate exception, unchanged: an item with NO account linked is
+  // "not assigned yet," not "belongs to savings," and still counts. Breaking
+  // this would silently drop real obligations out of Safe to Spend.
+  const unlinkedBill: CycleBill = { amount: 500, due_date: 12 }
+  const withUnlinked = resolveStartingCash([checking, otherChecking], { ...base, bills: [unlinkedBill], savingsAccountIds: savingsIds }, 0)
+  assertEqual(withUnlinked.amount, pooledChecking - 500, "an unlinked bill still counts against checking, exactly as before")
+
+  // And a checking-linked item is obviously unaffected by any of this.
+  const checkingBill: CycleBill = { amount: 500, due_date: 12, cash_account_id: checking.id }
+  const withCheckingBill = resolveStartingCash([checking, otherChecking], { ...base, bills: [checkingBill], savingsAccountIds: savingsIds }, 0)
+  assertEqual(withCheckingBill.amount, pooledChecking - 500, "a checking-linked bill still counts")
+
+  // The headline guarantee, stated as one assertion: the savings balance
+  // itself never appears in the spendable figure, whatever it holds.
+  const richSavings: CashAccountRow = { ...savings, balance: 999999 }
+  const withRichSavings = resolveStartingCash([checking, otherChecking], { ...base, savingsAccountIds: savingsAccountIdsOf([checking, otherChecking, richSavings]) }, 0)
+  assertEqual(withRichSavings.amount, pooledChecking, "a savings balance of any size changes the spendable total by exactly nothing")
 }
 
 console.log(`\n${passed} passed, ${failed} failed`)

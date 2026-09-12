@@ -122,13 +122,31 @@ console.log("  payment -- not a later cycle")
   const result = computeDebtPayoffAffordability({ startingCash, income, bills, debts: allDebts, goals, today })
   assertEqual(result.reserve, DEFAULT_PAYOFF_RESERVE, "default reserve is $150")
   assertEqual(result.maxSafeToPayoff, result.tightestRunningBalance - result.reserve, "maxSafeToPayoff is tightestRunningBalance minus reserve")
-  assertEqual(result.tightestRunningBalance, -495.22, "today's checkpoint, once it reserves the whole month PLUS the mortgage's next payment, is the true tightest point")
+  // REVISED Sep 10 2026 (Vince, live screenshot: "I am not negative on my
+  // accounts"). These used to assert -495.22 -- today's cash minus a month of
+  // bills, a month of debts AND the mortgage's next payment, with the two
+  // $2,578.40 paychecks landing Sep 16 and Sep 30 credited nowhere. That is
+  // the same income-blind subtraction that printed a negative Safe to Spend
+  // on an account holding $3,353.13; see findTightestCheckpoint's comment and
+  // projectBalanceTimeline in lib/paycheckCycles.ts. The tightest point is
+  // now found by walking the real calendar with both directions of cash flow:
+  //   3,678.30
+  //   Sep 4  Meijer (past due)   -50.00  -> 3,628.30
+  //   Sep 6  Netflix              -8.99  -> 3,619.31
+  //   Sep 7  Anthropic           -20.00  -> 3,599.31
+  //   Sep 11 Addison Water      -201.54  -> 3,397.77
+  //   Sep 14 Vercel + Visa       -70.00  -> 3,327.77
+  //   Sep 15 Capital One Auto   -596.50  -> 2,731.27   <-- tightest
+  //   Sep 16 paycheck         +2,578.40  -> 5,309.67
+  //   ...and never lower again through the horizon, October's mortgage and
+  //   every remaining September bill included.
+  assertEqual(result.tightestRunningBalance, 2731.27, "the low point of the projected balance -- Sep 15, after Capital One Auto clears and before the Sep 16 paycheck lands")
   assertEqual(
     result.tightestRunningBalance,
-    startingCash - 50 - 50 - 596.5 - 29 - 507.61 - 2220.86 - 719.55,
-    "3,678.30 minus every debt due this month (Meijer, Signature Visa, Capital One Auto, Home Depot, Avant = 1,233.11), Onity Mortgage's always-reserved next payment (2,220.86), and every bill due this month (719.55)"
+    startingCash - 50 - 8.99 - 20 - 201.54 - 20 - 50 - 596.5,
+    "3,678.30 minus exactly what leaves before that day: Meijer (past due), Netflix, Anthropic, Addison Water, Vercel Pro, Signature Visa, Capital One Auto = 947.03"
   )
-  assertTrue(result.tightestDate === null, `today, not a named future cycle, is now the binding constraint (got ${result.tightestDate})`)
+  assertTrue(result.tightestDate === "2026-09-15", `and it names the actual day instead of a vague 'today' (got ${result.tightestDate})`)
   console.log(`  (tightest point: ${result.tightestRunningBalance} on ${result.tightestDate}, maxSafeToPayoff ${result.maxSafeToPayoff})`)
 }
 
@@ -150,7 +168,7 @@ console.log("  the bank today, no matter how healthy future cycles look")
     result.maxSafeToPayoff <= startingCash,
     `maxSafeToPayoff (${result.maxSafeToPayoff}) must never exceed today's real starting cash (${startingCash})`
   )
-  assertEqual(result.maxSafeToPayoff, -495.22 - DEFAULT_PAYOFF_RESERVE, "-495.22 (tightest point, Test 2) - 150 (reserve) = -645.22 -- nothing is safe to send to debt right now once the mortgage is always held back")
+  assertEqual(result.maxSafeToPayoff, 2731.27 - DEFAULT_PAYOFF_RESERVE, "2,731.27 (tightest point, Test 2) - 150 (reserve) = 2,581.27 is what's genuinely free to send to debt")
 }
 
 console.log("\nTest 2c (regression, Sep 9 2026) -- Extra Debt Payment can never recommend")
@@ -189,7 +207,18 @@ console.log("  is always held back too -- a real, honest answer, not the same on
   const remaining = allDebts.filter((d) => !CREDIT_CARD_NAMES.includes(d.name))
   const result = computeDebtPayoffAffordability({ startingCash, income, bills, debts: remaining, goals, today })
   console.log(`  (cost ${cost}, maxSafeToPayoff after removing them ${result.maxSafeToPayoff})`)
-  assertTrue(cost > result.maxSafeToPayoff, "the $1,129.85 payoff now correctly exceeds what's safe to send to debt, once the mortgage is always held back")
+  // REVISED Sep 10 2026: this assertion has now been flipped twice, and the
+  // reason is worth recording. Originally "yes, safe." On Sep 10 morning it
+  // became "no, not safe," because the mortgage's next payment was being
+  // reserved out of a balance that was never credited with the two paychecks
+  // arriving first -- so the plan looked broke when it wasn't. With income on
+  // the same calendar as obligations, the honest answer is "yes, safe" again,
+  // and now for a reason that survives inspection: after clearing the cards,
+  // the projected low point is $2,831.27 (Sep 15), leaving $2,681.27 free of
+  // the $150 reserve -- comfortably more than the $1,129.85 the payoff costs,
+  // with October's mortgage still fully covered further down the timeline.
+  assertTrue(cost < result.maxSafeToPayoff, "the $1,129.85 payoff fits inside what's safe to send to debt, with October's mortgage still covered")
+  assertEqual(result.maxSafeToPayoff, 2681.27, "and the exact headroom is 2,831.27 at the Sep 15 low point, less the $150 reserve")
 }
 
 console.log("\nTest 4 -- paying off a debt strictly increases (never decreases) maxSafeToPayoff,")
@@ -292,10 +321,22 @@ console.log("  checkpoint, so it's visible at ANY horizon -- both fixes cooperat
     `  (4-cycle: with debt ${fullHorizon.maxSafeToPayoff} on ${fullHorizon.tightestDate}, without ${fullHorizonWithoutDebt.maxSafeToPayoff}; ` +
       `3-cycle: with debt ${shortHorizon.maxSafeToPayoff}, without ${shortHorizonWithoutDebt.maxSafeToPayoff})`
   )
+  // REVISED Sep 10 2026 (second time today): this asserted `null` on the
+  // theory that today's income-blind checkpoint was always the tightest
+  // point. It isn't, and saying so was hiding the most useful fact in the
+  // whole projection. With income and obligations on one calendar, this
+  // synthetic plan really does survive until the debt actually lands:
+  //   500 -> +1,200 (Sep 16) -> +1,200 (Sep 30) -> +1,200 (Oct 14) = 4,100
+  //   -> -5,000 (Oct 16, the debt's effective date after its 15-day grace)
+  //   = -900   <-- the real trouble, on the real day it happens
+  //   -> +1,200 (Oct 28) = 300
+  // Naming Oct 16 is strictly more actionable than "today": it tells the
+  // person WHEN they run short and therefore how long they have to fix it.
   assertTrue(
-    fullHorizon.tightestDate === null,
-    `today's own checkpoint (which now always reserves this debt's next payment) is tighter than the Oct 28 cycle itself, so today -- not a named future cycle -- is the binding constraint (got ${fullHorizon.tightestDate})`
+    fullHorizon.tightestDate === "2026-10-16",
+    `the projection names the day the balance actually bottoms out, not a vague 'today' (got ${fullHorizon.tightestDate})`
   )
+  assertEqual(fullHorizon.tightestRunningBalance, -900, "500 + three $1,200 paychecks - the $5,000 payment landing Oct 16")
   assertTrue(
     fullHorizonWithoutDebt.maxSafeToPayoff > fullHorizon.maxSafeToPayoff,
     "at the default 4-cycle horizon, removing the debt changes the answer -- it was actually being considered"

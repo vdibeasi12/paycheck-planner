@@ -2,7 +2,7 @@ import { redirect } from "next/navigation"
 import { createClient } from "@/lib/supabase/server"
 import { computePlanResilience, computeAccountSplitPlanResilience } from "@/lib/planResilience"
 import { shouldSplitByAccount } from "@/lib/accountSafeToSpend"
-import { resolveStartingCash, type CashAccountRow } from "@/lib/cashBalance"
+import { resolveStartingCash, savingsAccountIdsOf, type CashAccountRow } from "@/lib/cashBalance"
 import { toISODate } from "@/lib/paycheckCycles"
 import PaycheckShieldView from "@/app/components/PaycheckShieldView"
 
@@ -69,11 +69,14 @@ export default async function PaycheckShieldPage() {
   const debts = debtsRes.data ?? []
   const goals = goalsRes.data ?? []
   const checkingRows = ((cashRes.data ?? []) as CashAccountRow[]).filter((r) => r.kind === "checking")
+  // See resolveStartingCash in lib/cashBalance.ts -- savings is emergency
+  // money and never part of what a plan is scored against (Sep 11 2026, Vince).
+  const savingsAccountIds = savingsAccountIdsOf((cashRes.data ?? []) as CashAccountRow[])
 
   const todayISO = toISODate(new Date())
   // lastPaycheckAmount fallback doesn't matter here (only used when there's
   // no checking balance on file) -- 0 is fine since this page never shows it.
-  const startingCash = resolveStartingCash(checkingRows, { income, bills, debts, todayISO }, 0)
+  const startingCash = resolveStartingCash(checkingRows, { income, bills, debts, todayISO, savingsAccountIds }, 0)
 
   const result = computePlanResilience({
     income,
