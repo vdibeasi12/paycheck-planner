@@ -36,6 +36,7 @@ import GettingStartedModal from "./GettingStartedModal"
 import ProductTour from "./ProductTour"
 import LocaleCurrencySelector from "./LocaleCurrencySelector"
 import ThemeToggle from "./ThemeToggle"
+import DisplaySettingsMenu from "./DisplaySettingsMenu"
 import { useLocale } from "@/lib/i18n/LocaleProvider"
 import { supabase } from "@/lib/supabase/client"
 import { hardSignOut } from "@/lib/signOut"
@@ -276,8 +277,11 @@ export default function Sidebar() {
           <Logo size="md" />
         </Link>
         <div className="flex items-center gap-1.5">
-          <ThemeToggle inline />
-          <LocaleCurrencySelector inline />
+          {/* Same overflow as the logged-out header, one control worse: this
+              row also carries Account, Sign out and the hamburger, so the two
+              fixed-width selects pushed the menu button toward the edge on a
+              360px screen. Collapsed below sm; unchanged from sm up. */}
+          <DisplaySettingsMenu />
           {/* Account + Sign out live right next to the language/currency
               selector (Vince, Aug 27 2026) -- always visible up top instead
               of buried in the nav list below. */}

@@ -30,17 +30,22 @@ export default function AppNav({ loggedIn }: { loggedIn: boolean }) {
 
   // Logged-out visitors only see marketing links.
   if (!loggedIn) {
+    // Tightened Sep 12 2026 alongside DisplaySettingsMenu. gap-6 plus px-6 on
+    // the button was ~85px of padding in a row that was already running off
+    // the right edge of a phone, taking "Log In" with it. whitespace-nowrap
+    // matters too: without it the button is the first thing a cramped flex row
+    // decides to wrap mid-word.
     return (
-      <div className="flex gap-6 items-center">
+      <div className="flex items-center gap-3 sm:gap-6">
         <Link
           href="/pricing"
-          className="text-secondary hover:text-primary transition text-sm font-medium"
+          className="text-secondary hover:text-primary transition text-sm font-medium whitespace-nowrap"
         >
           Pricing
         </Link>
         <Link
           href="/login"
-          className="bg-green-500 hover:bg-green-600 text-black font-semibold px-6 py-2 rounded text-sm transition"
+          className="bg-green-500 hover:bg-green-600 text-black font-semibold px-4 sm:px-6 py-2 rounded text-sm transition whitespace-nowrap"
         >
           Login
         </Link>

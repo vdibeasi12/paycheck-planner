@@ -35,7 +35,9 @@
   },
   "selector": {
     "language": "Language",
-    "currency": "Currency"
+    "currency": "Currency",
+    "theme": "Theme",
+    "displaySettings": "Display settings"
   },
   "home": {
     "heroPrefix": "Plan Every Paycheck.",

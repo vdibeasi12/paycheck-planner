@@ -13,8 +13,7 @@ import AppNav from "./components/AppNav"
 import Sidebar from "./components/Sidebar"
 import FloatingChat from "./components/FloatingChat"
 import FeedbackWidget from "./components/FeedbackWidget"
-import LocaleCurrencySelector from "./components/LocaleCurrencySelector"
-import ThemeToggle from "./components/ThemeToggle"
+import DisplaySettingsMenu from "./components/DisplaySettingsMenu"
 import { ThemeProvider, THEME_INIT_SCRIPT } from "./components/ThemeProvider"
 import StructuredData from "./components/StructuredData"
 import { LocaleProvider } from "@/lib/i18n/LocaleProvider"
@@ -200,9 +199,11 @@ export default async function RootLayout({
                     <Logo size="md" />
                   </Link>
 
-                  <div className="flex items-center gap-4">
-                    <ThemeToggle inline />
-                    <LocaleCurrencySelector inline />
+                  {/* gap-2 on a phone, gap-4 once there is room. The old
+                      flat gap-4 spent 24px of a 360px screen on whitespace
+                      between controls that were already overflowing. */}
+                  <div className="flex items-center gap-2 sm:gap-4">
+                    <DisplaySettingsMenu />
                     <AppNav loggedIn={false} />
                   </div>
                 </div>
