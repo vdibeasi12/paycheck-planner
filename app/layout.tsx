@@ -9,6 +9,7 @@ import PushNotificationsInit from "./components/PushNotificationsInit"
 import ReviewPromptInit from "./components/ReviewPromptInit"
 import AttributionCapture from "./components/AttributionCapture"
 import PageViewTracker from "./components/PageViewTracker"
+import FirstPromoterReferral from "./components/FirstPromoterReferral"
 import { redirect } from "next/navigation"
 import AppNav from "./components/AppNav"
 import { isProtectedPath } from "@/lib/protectedRoutes"
@@ -239,6 +240,18 @@ export default async function RootLayout({
               sets, so it must mount after it -- order matters here. */}
           <AttributionCapture />
           <PageViewTracker />
+
+          {/* Reports a Google/OAuth or email-confirmation signup to
+              FirstPromoter. Self-limits to accounts created in the last ten
+              minutes and dedupes by email, so this is inert on every
+              ordinary page load. The email/password form reports itself. */}
+          {user?.email && (
+            <FirstPromoterReferral
+              uid={user.id}
+              email={user.email}
+              createdAt={user.created_at}
+            />
+          )}
 
           {/* Logged-in users get the left sidebar (desktop) + mobile drawer. */}
           {showAppChrome && <Sidebar />}

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { isNativeApp, useIsIOSApp } from "@/lib/platform"
 import { useLocale } from "@/lib/i18n/LocaleProvider"
+import { trackFirstPromoterSignup } from "@/lib/firstPromoter"
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -110,7 +111,7 @@ export default function SignupPage() {
     }
 
     try {
-      const { error: signupError } = await supabase.auth.signUp({
+      const { data: signupData, error: signupError } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -121,6 +122,17 @@ export default function SignupPage() {
       if (signupError) {
         setError(signupError.message)
       } else {
+        // Report the signup to FirstPromoter from THIS browser, before the
+        // redirect. It has to happen here rather than after email
+        // confirmation: the _fprom_tid cookie identifying the referring
+        // affiliate lives in the browser that clicked the ?fpr= link, and a
+        // confirmation link is often opened somewhere else entirely -- a
+        // phone, a webmail preview pane. Waiting would silently drop the
+        // attribution for exactly the referrals that worked.
+        //
+        // Not awaited and no error branch, by design: this must never delay
+        // or fail an account creation that already succeeded.
+        trackFirstPromoterSignup(email, signupData?.user?.id)
         router.push("/login?message=Check%20your%20email%20to%20confirm%20your%20account")
       }
     } catch (err) {
