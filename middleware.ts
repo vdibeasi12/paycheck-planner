@@ -1,32 +1,11 @@
 import { createServerClient } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
+import { isProtectedPath } from "@/lib/protectedRoutes"
 
-// Routes that require a logged-in user. Anything not listed stays public
-// (home, /login, /signup, /pricing, /features, marketing pages, etc.).
-const PROTECTED = [
-  "/dashboard",
-  "/admin",
-  "/debts",
-  "/bills",
-  "/income",
-  "/analytics",
-  "/ai-chat",
-  "/ai-advisor",
-  "/ai-recommendations",
-  "/report",
-  "/debt-payoff-calculator",
-  "/documents",
-  "/goals",
-  "/survival-mode",
-  "/safe-to-spend",
-  "/paycheck-shield",
-  "/paycheck-autopilot",
-  "/plan-drift",
-  "/achievements",
-  "/account",
-  "/insights",
-  "/mfa",
-]
+// Routes that require a logged-in user now live in lib/protectedRoutes.ts --
+// app/layout.tsx needs the same list to decide whether an unfinished MFA
+// step-up should be redirected, and two copies of a security list is how a
+// route quietly stops being protected in one of them.
 
 // MFA (AAL2) is deliberately NOT enforced page-by-page here. It's required
 // in exactly two places instead: the login-time challenge for anyone who
@@ -110,9 +89,7 @@ export async function middleware(request: NextRequest) {
     user = null
   }
 
-  const isProtected = PROTECTED.some(
-    (p) => path === p || path.startsWith(p + "/")
-  )
+  const isProtected = isProtectedPath(path)
 
   // Logged-in users shouldn't land on the marketing home page (it reads as
   // "login didn't work"). Send them straight into the app.

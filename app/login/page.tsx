@@ -19,10 +19,8 @@ function LoginForm() {
   const [error, setError] = useState(message || "")
   const [loading, setLoading] = useState(false)
 
-  // MFA challenge state
-  const [mfaRequired, setMfaRequired] = useState(false)
-  const [factorId, setFactorId] = useState<string | null>(null)
-  const [mfaCode, setMfaCode] = useState("")
+  // No MFA state here any more -- see handleLogin. This page used to run its
+  // own second-factor challenge, a worse duplicate of the one on /mfa.
   // App Store Guideline 4.8: an app that offers third-party/social login
   // must also offer Sign in with Apple as an equivalent option. Rather than
   // build that (Apple Developer Services ID + Supabase provider config),
@@ -47,43 +45,46 @@ function LoginForm() {
       // Check directly for a verified factor. A fresh session can report
       // aal1 even when a verified factor exists, so this checks factors
       // directly instead of relying on the assurance-level next-step field.
-      const { data: factors } = await supabase.auth.mfa.listFactors()
-      const totp = factors?.totp?.find((f) => f.status === "verified")
-      if (totp) {
-        setFactorId(totp.id)
-        setMfaRequired(true)
+      //
+      // Sep 12 2026, Vince: "OTP doesn't let you login sometimes." Two bugs
+      // lived in the five lines this replaces.
+      //
+      // 1. The error from listFactors() was never checked. On a failure --
+      //    a dropped request in the Android WebView is enough -- `factors`
+      //    came back undefined, `totp` was undefined, and control fell
+      //    straight through to /dashboard with a session still at aal1 and a
+      //    second factor never presented. The user was "signed in" without
+      //    completing MFA, and then hit the dead end described in
+      //    app/layout.tsx. Any error now stops the login instead.
+      //
+      // 2. `.find()` returns the FIRST verified TOTP factor, and an account
+      //    can legitimately have more than one -- this account has exactly
+      //    that: an authenticator-app factor and a separately enrolled
+      //    email-backup factor (both stored as TOTP, see
+      //    app/api/mfa/email/send). This screen always challenged the older
+      //    one and offered no way to switch, so if the code you had was for
+      //    the other factor, it could never verify. That is the "sometimes"
+      //    in the report: it depended on which factor you happened to be
+      //    holding a code for.
+      //
+      // Rather than fix both here, the challenge is handed to /mfa, which
+      // already solves all of it -- it retargets factorId when a code is
+      // emailed, offers "use my authenticator instead", and does not trap a
+      // user who has no usable factor. One challenge screen, not two.
+      const { data: factors, error: factorsError } = await supabase.auth.mfa.listFactors()
+      if (factorsError) {
+        setError(t("login.genericError"))
+        return
+      }
+      const hasVerifiedFactor = (factors?.all ?? []).some((f) => f.status === "verified")
+      if (hasVerifiedFactor) {
+        window.location.href = "/mfa?redirectTo=%2Fdashboard"
         return
       }
 
       window.location.href = "/dashboard"
     } catch {
       setError(t("login.genericError"))
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const verifyMfa = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (!factorId) return
-    setError("")
-    setLoading(true)
-    try {
-      const { data: challenge, error: cErr } = await supabase.auth.mfa.challenge({ factorId })
-      if (cErr) {
-        setError(cErr.message)
-        return
-      }
-      const { error: vErr } = await supabase.auth.mfa.verify({
-        factorId,
-        challengeId: challenge.id,
-        code: mfaCode,
-      })
-      if (vErr) {
-        setError(vErr.message)
-        return
-      }
-      window.location.href = "/dashboard"
     } finally {
       setLoading(false)
     }
@@ -142,35 +143,8 @@ function LoginForm() {
           </div>
         )}
 
-        {mfaRequired ? (
-          /* ---- MFA challenge ---- */
-          <>
-            <h2 className="text-2xl font-bold mb-2">{t("login.twoFactorTitle")}</h2>
-            <p className="text-gray-400 text-sm mb-6">
-              {t("login.twoFactorSubtitle")}
-            </p>
-            <form onSubmit={verifyMfa} className="space-y-4">
-              <input
-                inputMode="numeric"
-                autoFocus
-                placeholder="123456"
-                className="w-full bg-[#1a233a] border border-gray-700 rounded-lg px-4 py-3 text-center text-xl tracking-[0.4em] text-white placeholder-gray-600 focus:outline-none focus:border-green-500"
-                value={mfaCode}
-                onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                required
-              />
-              <button
-                type="submit"
-                disabled={loading || mfaCode.length < 6}
-                className="w-full bg-green-500 hover:bg-green-600 disabled:bg-gray-600 text-black font-semibold py-3 rounded-lg transition"
-              >
-                {loading ? t("login.verifying") : t("login.verify")}
-              </button>
-            </form>
-          </>
-        ) : (
-          /* ---- Email + Google sign-in ---- */
-          <>
+        {/* ---- Email + Google sign-in ---- */}
+        <>
             <h2 className="text-2xl font-bold mb-2">{t("login.welcomeBack")}</h2>
             <p className="text-gray-400 text-sm mb-6">
               {t("login.welcomeBackSubtitle")}
@@ -239,8 +213,7 @@ function LoginForm() {
                 </Link>
               </p>
             </div>
-          </>
-        )}
+        </>
       </div>
     </div>
   )

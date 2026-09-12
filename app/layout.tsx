@@ -9,7 +9,9 @@ import PushNotificationsInit from "./components/PushNotificationsInit"
 import ReviewPromptInit from "./components/ReviewPromptInit"
 import AttributionCapture from "./components/AttributionCapture"
 import PageViewTracker from "./components/PageViewTracker"
+import { redirect } from "next/navigation"
 import AppNav from "./components/AppNav"
+import { isProtectedPath } from "@/lib/protectedRoutes"
 import Sidebar from "./components/Sidebar"
 import FloatingChat from "./components/FloatingChat"
 import FeedbackWidget from "./components/FeedbackWidget"
@@ -121,6 +123,10 @@ export default async function RootLayout({
   // check, which could disagree with this aal2-based decision and reproduce
   // the same off-center bug on /mfa/setup for not-yet-enrolled users).
   let showAppChrome = false
+  // Set inside the try below; acted on AFTER it. redirect() signals by
+  // throwing, so calling it inside that try/catch would have the catch
+  // swallow it and silently leave the user on the dead-end page.
+  let stepUpFrom: string | null = null
 
   try {
     const { createClient } = await import("@/lib/supabase/server")
@@ -144,11 +150,39 @@ export default async function RootLayout({
 
       const aal2Status = await checkAal2Status(supabase)
       showAppChrome = aal2Status !== "needs_step_up" && !onMfaGate
+
+      // THE DEAD END (Sep 12 2026, Vince: "you can't do anything... I had to
+      // uninstall and reinstall to refresh").
+      //
+      // A session sitting at aal1 with a verified factor still pending -- get
+      // one by closing the app mid-OTP, which in the Android WebView leaves
+      // the cookie behind and reopens straight onto /dashboard -- set
+      // showAppChrome false above. That is correct for the /mfa interstitial
+      // it was written for, but on /dashboard it rendered the page with NO
+      // sidebar, NO mobile header, NO sign-out: every route out of the screen
+      // is in the chrome that was just suppressed. And nothing anywhere sent
+      // the user to /mfa to finish, because middleware only redirects when
+      // there is no user at all -- this user has one.
+      //
+      // So the app was unusable and unescapable, and the only exit was
+      // clearing the cookie by uninstalling. Finish the sign-in instead. This
+      // costs nothing: checkAal2Status already ran on the line above.
+      //
+      // Scoped to protected routes on purpose -- someone half-signed-in who
+      // is reading /pricing or the blog should be left alone, not yanked into
+      // a challenge screen.
+      if (aal2Status === "needs_step_up" && !onMfaGate && isProtectedPath(pathname)) {
+        stepUpFrom = pathname
+      }
     }
   } catch (error) {
     // Supabase not configured or error - continue without auth
     user = null
     showAppChrome = false
+  }
+
+  if (stepUpFrom) {
+    redirect("/mfa?redirectTo=" + encodeURIComponent(stepUpFrom))
   }
 
   return (
