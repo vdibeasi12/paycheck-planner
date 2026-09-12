@@ -4,6 +4,7 @@ import { NextResponse } from "next/server"
 import { createClient } from "@/lib/supabase/server"
 import { planForPriceId } from "@/lib/plans"
 import { track } from "@/lib/track"
+import { cookies } from "next/headers"
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY as string, {
   apiVersion: "2026-02-25.clover",
@@ -58,6 +59,26 @@ export async function POST(req: Request) {
       priceId,
     }
     if (plan) metadata.plan = plan
+
+    // FirstPromoter referral attribution (Sep 12 2026). fpr.js sets a
+    // _fprom_tid cookie in the browser when a visitor arrives on an affiliate
+    // link; FirstPromoter then matches a Stripe payment to that affiliate by
+    // reading fp_tid out of the session metadata.
+    //
+    // Read from the cookie SERVER-SIDE rather than having the client post the
+    // tid up with the request, which is the other pattern in their docs. This
+    // route is called from several places -- UpgradeButton, PaywallOverlay,
+    // the pricing page -- and threading fp_tid through every one of them is
+    // three chances to forget it in a file nobody touches for months. The
+    // cookie is already on the request; taking it here covers every entry
+    // point at once, including any added later.
+    //
+    // Absent for the large majority of checkouts (anyone who did not arrive
+    // on a referral link), which is why it is only set when present: an empty
+    // string in Stripe metadata is a value, not a blank, and would show up as
+    // a referral with no affiliate.
+    const fpTid = (await cookies()).get("_fprom_tid")?.value
+    if (fpTid) metadata.fp_tid = fpTid
 
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",

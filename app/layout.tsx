@@ -205,6 +205,28 @@ export default async function RootLayout({
             initial-resolve logic via the shared THEME_INIT_SCRIPT/
             THEME_STORAGE_KEY constants -- see that file. */}
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        {/* FirstPromoter affiliate click tracking (Sep 12 2026). Sets the
+            _fprom_ref and _fprom_tid cookies when someone arrives on a
+            referral link; app/api/stripe/checkout/route.ts reads _fprom_tid
+            back out server-side and attaches it to the Stripe session.
+
+            Inline in <head> rather than next/script on purpose: it has to run
+            on the FIRST paint of the landing page, because that is the only
+            request that carries the ?ref= parameter. A script that waits for
+            hydration can miss a visitor who bounces, and a missed click is an
+            affiliate who never gets paid.
+
+            cid is the public campaign id, not a secret -- it ships in every
+            page of every FirstPromoter customer. */}
+        <script
+          dangerouslySetInnerHTML={{
+            __html:
+              '(function(w){w.fpr=w.fpr||function(){w.fpr.q=w.fpr.q||[];' +
+              "w.fpr.q[arguments[0]=='set'?'unshift':'push'](arguments);};})(window);" +
+              'fpr("init", {cid:"1ns45z0o"}); fpr("click");',
+          }}
+        />
+        <script src="https://cdn.firstpromoter.com/fpr.js" async />
       </head>
       <body className={`${inter.variable} bg-canvas text-primary`} suppressHydrationWarning>
         <ThemeProvider>
