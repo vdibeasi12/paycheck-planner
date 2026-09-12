@@ -279,13 +279,32 @@ export default function PricingPage() {
 
           {/* Mobile: pick one plan at a time, no horizontal scrolling at all */}
           <div className="mt-8 md:hidden">
-            <div className="flex gap-2 overflow-x-auto pb-1">
+            {/* Sep 12 2026, Vince, with a photo of a Galaxy: "Autopilot" was
+                sliced in half by the right edge. This was a horizontal
+                scroller (flex + overflow-x-auto + shrink-0 pills) with no
+                scroll affordance at all -- no fade, no arrow, no partial
+                second row -- so a clipped tab read as broken rather than as
+                "swipe me." Four pills need about 404px and the page column is
+                312px on a 360px screen.
+
+                A scroller was the wrong shape for this anyway. The whole
+                point of the section is COMPARING plans, and the tab that was
+                falling off the edge is the most expensive one. Hiding the
+                top tier behind an invisible swipe is a hidden upsell.
+
+                Two rows of two on a phone, one row of four from sm up. Every
+                plan visible at once, nothing to discover, no scrolling --
+                which is also what the comment on this block already promised
+                ("no horizontal scrolling at all") and the tab strip itself
+                was quietly breaking. */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {VISIBLE_TIERS.map((t) => (
                 <button
                   key={t.id}
                   type="button"
                   onClick={() => setMobileTierId(t.id)}
-                  className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${
+                  aria-pressed={mobileTierId === t.id}
+                  className={`w-full rounded-full px-3 py-2.5 text-sm font-semibold transition ${
                     mobileTierId === t.id
                       ? "bg-gradient-to-r from-emerald-400 to-teal-400 text-slate-950"
                       : "border border-slate-700 text-slate-300"
