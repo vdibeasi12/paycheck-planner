@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo, useState } from 'react'
 import Link from 'next/link'
 import { CheckCircle2, Smartphone, Receipt, TrendingDown, PiggyBank, Home, Calendar, User, Wallet, Activity } from 'lucide-react'
 import MemberMilestone from './components/MemberMilestone'
+import AppQrCode from './components/AppQrCode'
 import { useLocale } from '@/lib/i18n/LocaleProvider'
 import { trackCta } from '@/lib/trackClient'
 import { isNativeApp } from '@/lib/platform'
@@ -324,11 +325,39 @@ export default function HomePage() {
             <div className="text-sm font-bold uppercase tracking-wider text-green-500 mb-4">{t('home.mobileEyebrow')}</div>
             <h2 className="text-[30px] md:text-[42px] font-extrabold mb-4 leading-tight">{t('home.mobileHeading')}</h2>
             <p className="text-gray-300 text-lg mb-7 max-w-[440px]">{t('home.mobileDesc')}</p>
-            <div className="flex flex-wrap gap-3.5">
+            {/* Sep 12 2026. This used to be a Google Play LINK on every
+                screen size, which on the screen most visitors arrive on is a
+                dead end: you cannot install an Android app on a computer, so
+                clicking it just relocates the problem to another tab. The
+                only thing that actually gets the app onto the phone in
+                someone's pocket from a desktop page is a code they can scan,
+                so on desktop the code IS the call to action and the store
+                link is gone.
+
+                Below md the logic inverts for the mirror reason -- you cannot
+                scan the screen you are holding -- so the phone gets the store
+                link, where tapping it genuinely installs the app. Each size
+                gets the one action that works there and is not offered the
+                one that doesn't. */}
+            <div className="hidden md:flex items-start gap-5">
+              {/* Sized on the SVG, not the wrapper: the old footer version put
+                  padding on a fixed-size box, which ate into the code itself
+                  and left it too small to scan. The white frame here is purely
+                  contrast against the dark page -- the spec-required quiet
+                  zone is inside the SVG's own viewBox. */}
+              <div className="rounded-xl border border-gray-700 bg-white p-3">
+                <AppQrCode className="h-44 w-44" />
+              </div>
+              <div className="pt-1">
+                <p className="text-base font-semibold text-white">{t('home.mobileScanTitle')}</p>
+                <p className="mt-1.5 text-sm text-gray-400 max-w-[230px]">{t('home.mobileScanDesc')}</p>
+                <p className="mt-4 text-sm text-gray-500">{t('home.mobileAppStoreSoon')}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-3.5 md:hidden">
               <a
-                href="https://play.google.com/store/apps/details?id=com.dibeasi.paycheckplanner"
-                target="_blank"
-                rel="noopener noreferrer"
+                href="/app?s=homepage"
                 onClick={() => trackCta('google_play_hero')}
                 className="flex items-center gap-2.5 border border-gray-700 rounded-xl px-5 py-3 text-sm text-gray-200 hover:border-gray-500 transition"
               >

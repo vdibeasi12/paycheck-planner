@@ -2,6 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
+import AppQrCode from './AppQrCode'
 
 export default function Footer() {
   // The homepage has its own full "Your Financial Plan. In Your Pocket."
@@ -38,9 +39,7 @@ export default function Footer() {
                   Available now on Google Play. Coming soon to the App Store.
                 </p>
                 <div className="mt-4 flex flex-col items-center gap-3 sm:flex-row md:items-start">
-                  <a href="https://play.google.com/store/apps/details?id=com.dibeasi.paycheckplanner"
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <a href="/app?s=footer"
                     className="inline-flex items-center gap-2 rounded-lg border border-gray-700 bg-black px-4 py-2 text-sm text-gray-200 transition hover:border-gray-500"
                   >
                     <span className="text-xs text-gray-400">Get it on</span>
@@ -56,15 +55,17 @@ export default function Footer() {
                 </div>
               </div>
 
+              {/* Not a link. Clicking a QR code on the machine you are
+                  already sitting at accomplishes nothing -- the code exists
+                  for the phone, and the store link is right there to its
+                  left for anyone who wants to click something. */}
               <div className="flex flex-col items-center">
-                <a href="https://play.google.com/store/apps/details?id=com.dibeasi.paycheckplanner"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex h-28 w-28 items-center justify-center rounded-lg border border-gray-700 bg-white p-2"
-                  title="Scan to get Paycheck Planner on Google Play"
+                <div
+                  className="flex items-center justify-center rounded-lg border border-gray-700 bg-white p-2"
+                  title="Scan to get the Paycheck Planner app"
                 >
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 39 39" shapeRendering="crispEdges" className="h-full w-full"><path fill="#ffffff" d="M0 0h39v39H0z"/><path stroke="#000000" d="M1 1.5h7m3 0h2m6 0h1m1 0h2m1 0h1m1 0h2m1 0h1m1 0h7M1 2.5h1m5 0h1m3 0h3m3 0h4m4 0h4m2 0h1m5 0h1M1 3.5h1m1 0h3m1 0h1m1 0h3m2 0h1m1 0h1m3 0h4m1 0h1m1 0h1m1 0h1m1 0h1m1 0h3m1 0h1M1 4.5h1m1 0h3m1 0h1m1 0h1m3 0h3m1 0h5m1 0h1m2 0h2m3 0h1m1 0h3m1 0h1M1 5.5h1m1 0h3m1 0h1m1 0h2m2 0h4m2 0h3m1 0h2m4 0h1m1 0h1m1 0h3m1 0h1M1 6.5h1m5 0h1m1 0h2m1 0h2m1 0h3m1 0h1m2 0h2m4 0h2m1 0h1m5 0h1M1 7.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M9 8.5h3m10 0h1m1 0h1m4 0h1M1 9.5h1m1 0h5m3 0h1m1 0h1m1 0h2m2 0h1m1 0h1m1 0h2m1 0h2m3 0h5M1 10.5h1m3 0h1m2 0h2m1 0h2m1 0h5m3 0h1m1 0h1m7 0h1m3 0h1M1 11.5h1m2 0h1m2 0h1m1 0h1m3 0h2m3 0h1m2 0h3m2 0h4m1 0h1m2 0h1m1 0h2M1 12.5h1m1 0h1m8 0h1m1 0h1m2 0h1m4 0h1m1 0h2m1 0h2m2 0h2m1 0h1m2 0h1M2 13.5h6m1 0h1m1 0h1m3 0h1m1 0h2m2 0h1m1 0h5m2 0h4m1 0h3M1 14.5h4m1 0h1m1 0h3m1 0h1m1 0h2m1 0h6m1 0h2m3 0h1m2 0h1M3 15.5h1m1 0h1m1 0h1m1 0h5m1 0h2m1 0h1m3 0h1m5 0h2m2 0h3m1 0h2M1 16.5h2m1 0h3m5 0h3m1 0h4m2 0h2m3 0h1m1 0h5m2 0h2M1 17.5h2m2 0h3m2 0h1m1 0h1m1 0h1m2 0h1m5 0h6m1 0h2m1 0h1m1 0h1M6 18.5h1m1 0h1m1 0h2m2 0h1m1 0h1m2 0h1m1 0h1m2 0h1m1 0h2m1 0h1m2 0h1m2 0h2M1 19.5h1m3 0h1m1 0h4m4 0h3m2 0h1m2 0h1m3 0h4m2 0h1m2 0h2M1 20.5h1m1 0h3m2 0h2m3 0h1m1 0h2m2 0h7m5 0h3m3 0h1M1 21.5h3m2 0h3m1 0h1m1 0h1m1 0h3m1 0h1m1 0h2m1 0h1m1 0h4m1 0h2m1 0h3M4 22.5h3m7 0h1m2 0h1m1 0h3m1 0h2m1 0h1m2 0h1m4 0h1M1 23.5h1m1 0h2m2 0h2m1 0h1m1 0h2m2 0h2m1 0h1m1 0h1m1 0h1m4 0h1m2 0h4m1 0h2M4 24.5h3m4 0h3m2 0h1m5 0h1m1 0h1m2 0h1m1 0h1m2 0h2m2 0h1M2 25.5h4m1 0h2m1 0h3m6 0h1m3 0h5m1 0h3m1 0h1m1 0h2M1 26.5h2m1 0h2m2 0h1m1 0h2m2 0h4m4 0h1m1 0h1m4 0h1m4 0h1M1 27.5h1m4 0h4m3 0h3m11 0h3m1 0h2m2 0h3M1 28.5h1m1 0h1m1 0h1m3 0h1m1 0h3m3 0h1m2 0h1m1 0h1m4 0h2m1 0h4m2 0h2M1 29.5h1m1 0h2m2 0h2m2 0h1m6 0h1m4 0h1m1 0h2m1 0h8M9 30.5h1m1 0h1m5 0h2m1 0h2m2 0h1m3 0h2m3 0h2m1 0h1M1 31.5h7m2 0h4m2 0h3m2 0h1m1 0h1m2 0h1m2 0h1m1 0h1m1 0h1m1 0h1m1 0h1M1 32.5h1m5 0h1m1 0h2m2 0h2m1 0h1m1 0h5m1 0h2m1 0h3m3 0h2m1 0h1M1 33.5h1m1 0h3m1 0h1m1 0h1m2 0h6m2 0h2m1 0h1m1 0h9m1 0h1m1 0h1M1 34.5h1m1 0h3m1 0h1m1 0h1m5 0h2m2 0h4m1 0h1m1 0h1m3 0h2m1 0h1m1 0h1m1 0h1M1 35.5h1m1 0h3m1 0h1m1 0h4m3 0h2m3 0h3m1 0h6m4 0h3M1 36.5h1m5 0h1m3 0h1m1 0h2m1 0h1m2 0h1m1 0h3m1 0h1m2 0h4m1 0h1m3 0h1M1 37.5h7m1 0h1m1 0h2m1 0h3m1 0h1m5 0h4m2 0h2m1 0h5"/></svg>
-                </a>
+                  <AppQrCode className="h-36 w-36" />
+                </div>
                 <p className="mt-2 text-xs text-gray-500">Scan to download</p>
               </div>
             </div>
