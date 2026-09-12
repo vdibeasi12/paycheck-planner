@@ -1,0 +1,58 @@
+# Line endings.
+#
+# Added Sep 12 2026. Before this, the repo had no line-ending policy at all,
+# and the result was 13 files sitting in CRLF among ~360 in LF -- app/layout.tsx,
+# app/components/Footer.tsx, app/account/page.tsx, lib/money-score.ts and
+# friends -- with app/api/money-score/submit/route.ts carrying DOUBLED \r\r\n
+# endings, which no editor produces on purpose.
+#
+# The cost was not cosmetic. Any tool that rewrites a file (a codemod, a
+# find-and-replace script, an editor with a different default) flips that
+# file's endings wholesale, so a genuine 27-line change lands as a 481-line
+# diff. Real edits become unreviewable, `git blame` loses the history of every
+# line in the file, and two people editing the same file conflict on all of it
+# rather than on the part they both touched. That happened here.
+#
+# `text=auto eol=lf` makes git the authority: it normalizes to LF on commit
+# and checks out LF everywhere, Windows included. Modern Windows tooling --
+# VS Code, PowerShell, Node, Next.js -- all handle LF fine, so there is no
+# reason to keep CRLF in the working tree.
+#
+# One-time step to apply this to the files already committed:
+#
+#     git add --renormalize .
+#     git commit -m "Normalize line endings to LF"
+#
+# Do that as its OWN commit, separate from any real change, or the real change
+# will be buried in exactly the noise this file exists to end.
+* text=auto eol=lf
+
+# Windows batch files are the genuine exception: cmd.exe can mis-parse a .bat
+# with LF endings, and android/gradlew.bat is one of these.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Shell scripts must stay LF even when checked out on Windows -- android/gradlew
+# is run by CI and by macOS/Linux builds.
+*.sh text eol=lf
+gradlew text eol=lf
+
+# Binary: never normalized, never diffed as text.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.pdf binary
+*.jar binary
+*.keystore binary
+*.jks binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+
+# Generated. Marking the lockfile as such keeps a dependency bump from
+# rendering as thousands of reviewable lines in a pull request.
+package-lock.json -diff linguist-generated
