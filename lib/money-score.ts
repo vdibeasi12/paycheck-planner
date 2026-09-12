@@ -224,6 +224,29 @@ export function getScoreBand(score: number): ScoreBand {
   return { key: "atRisk", label: "At Risk", color: "#f87171" };
 }
 
+// SECURITY FIX (Sep 11 2026, audit): this was
+// `Math.random().toString(36).slice(2, 10)`. Math.random is a fast PRNG
+// (xorshift128+), NOT a CSPRNG -- its internal state is recoverable from a
+// handful of outputs, and anyone can mint outputs at will by taking the quiz.
+// That matters here because the slug is the ONLY thing gating access to a
+// result row: migration 20260813060000 grants anon SELECT and UPDATE on
+// money_score_results scoped by share_slug alone. A predictable slug means
+// reading someone else's score and overwriting their captured email.
+// `.slice(2, 10)` could also return fewer than 8 characters, since
+// toString(36) does not pad.
+//
+// crypto.getRandomValues is available in every runtime this ships to (Node
+// 18+, Vercel edge, and browsers), unlike Node's `crypto.randomBytes`.
+// 12 characters from a 32-character alphabet is 60 bits. The alphabet omits
+// l/o/0/1 so a slug read aloud or retyped from a screenshot is unambiguous,
+// and 256 is an exact multiple of 32, so `byte % 32` introduces no modulo
+// bias.
+const SLUG_ALPHABET = "abcdefghijkmnpqrstuvwxyz23456789";
+
 export function generateShareSlug(): string {
-  return Math.random().toString(36).slice(2, 10);
-}
+  const bytes = new Uint8Array(12);
+  globalThis.crypto.getRandomValues(bytes);
+  let out = "";
+  for (const b of bytes) out += SLUG_ALPHABET[b % SLUG_ALPHABET.length];
+  return out;
+}

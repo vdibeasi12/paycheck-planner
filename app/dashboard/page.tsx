@@ -36,6 +36,8 @@ import { monthlyFactor } from "@/lib/monthlyFactor"
 import { findBillDebtOverlaps } from "@/lib/billDebtOverlap"
 import BillDebtOverlapWarning from "@/app/components/BillDebtOverlapWarning"
 import { bumpActivityStreak } from "@/lib/activityStreak"
+import DataLoadError from "@/app/components/DataLoadError"
+import { newLoadTracker, rowsOrFail, didAnyLoadFail } from "@/lib/dataLoad"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -81,11 +83,11 @@ export default async function DashboardPage() {
     plan = profile.plan
   }
 
-  const { data: debtsData } = await supabase
-    .from("debts")
-    .select("*")
-    .eq("user_id", user.id)
-  const debts = Array.isArray(debtsData) ? debtsData : []
+  // See lib/dataLoad.ts: a failed query here must not become an empty list,
+  // because every headline number on this page is derived from these rows and
+  // an empty obligation list inflates them.
+  const load = newLoadTracker()
+  const debts = rowsOrFail(load, "debts", await supabase.from("debts").select("*").eq("user_id", user.id))
   const totalDebt = debts.reduce((sum, d) => sum + (Number(d.balance) || 0), 0)
   const monthlyPayments = debts.reduce((sum, d) => sum + (Number(d.minimum_payment) || 0), 0)
 
@@ -117,22 +119,28 @@ export default async function DashboardPage() {
   const percentPaid =
     originalDebtTotal > 0 ? Math.max(0, Math.min(100, (paidDownTotal / originalDebtTotal) * 100)) : 0
 
-  const { data: incomeData } = await supabase
-    .from("income")
-    .select("amount, frequency, income_type, next_pay_date, cash_account_id")
-    .eq("user_id", user.id)
-  const income = Array.isArray(incomeData) ? incomeData : []
+  const income = rowsOrFail(
+    load,
+    "income",
+    await supabase
+      .from("income")
+      .select("amount, frequency, income_type, next_pay_date, cash_account_id")
+      .eq("user_id", user.id)
+  )
   // "transfer" rows are money moving between the user's own accounts (e.g. a
   // CSV-detected "Transfer from Chime Checking Account"), not real income.
   // lib/safeToSpend.ts applies this same exclusion internally, so it's not
   // re-filtered here -- the raw `income` array (with next_pay_date) is
   // passed straight into computeSafeToSpend below.
 
-  const { data: billsData } = await supabase
-    .from("bills")
-    .select("id, name, amount, frequency, due_date, paid_through, bimonthly_parity, cash_account_id")
-    .eq("user_id", user.id)
-  const bills = Array.isArray(billsData) ? billsData : []
+  const bills = rowsOrFail(
+    load,
+    "bills",
+    await supabase
+      .from("bills")
+      .select("id, name, amount, frequency, due_date, paid_through, bimonthly_parity, cash_account_id")
+      .eq("user_id", user.id)
+  )
   const monthlyBills = bills.reduce(
     (sum, b) => sum + (Number(b.amount) || 0) * monthlyFactor(b.frequency),
     0
@@ -170,11 +178,23 @@ export default async function DashboardPage() {
   // already on file, so it doesn't go stale -- falling back to the original
   // projection when they haven't entered one yet.
   const todayISOForCash = toISODate(new Date())
-  const { data: cashRowsData } = await supabase
+  const cashRowsResult = await supabase
     .from("cash_accounts")
     .select("id, kind, name, balance, balance_as_of")
     .eq("user_id", user.id)
-  const cashRows = (cashRowsData ?? []) as CashAccountRow[]
+  const cashRows = rowsOrFail(load, "account balances", cashRowsResult) as CashAccountRow[]
+
+  // Every dollar figure on this page comes from the rows above. If any of
+  // them failed to load, show an honest error instead of numbers built on a
+  // silently-empty list -- see lib/dataLoad.ts.
+  if (didAnyLoadFail(load)) {
+    return (
+      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6">
+        <h1 className="mb-4 text-2xl font-bold text-primary">Dashboard</h1>
+        <DataLoadError missing={load.failed} />
+      </div>
+    )
+  }
   const checkingRows = cashRows.filter((r) => r.kind === "checking")
   // Sep 11 2026, Vince: "stop counting the savings in Chime, that is for
   // emergency money only... it's not to be used to pay bills or debt."

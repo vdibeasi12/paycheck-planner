@@ -8,6 +8,8 @@ import ExtraDebtPaymentCard from "@/app/components/ExtraDebtPaymentCard"
 import MonthlyDebtCapacityCard from "@/app/components/MonthlyDebtCapacityCard"
 import SimpleSafeToSpendCard from "@/app/components/SimpleSafeToSpendCard"
 import SafeToSpendModeSwitch from "@/app/components/SafeToSpendModeSwitch"
+import DataLoadError from "@/app/components/DataLoadError"
+import { newLoadTracker, rowsOrFail, didAnyLoadFail } from "@/lib/dataLoad"
 import { computeSafeToSpend, withStartingCash } from "@/lib/safeToSpend"
 import { computeMonthlySafeToSpend } from "@/lib/monthlySafeToSpend"
 import { computeMonthlyDebtCapacity } from "@/lib/monthlyDebtCapacity"
@@ -48,23 +50,31 @@ export default async function SafeToSpendPage() {
     redirect("/login")
   }
 
-  const { data: incomeData } = await supabase
-    .from("income")
-    .select("amount, frequency, income_type, next_pay_date, cash_account_id")
-    .eq("user_id", user.id)
-  const income = Array.isArray(incomeData) ? incomeData : []
+  // Every query below feeds a dollar figure, so a failure is tracked rather
+  // than silently becoming an empty list -- see lib/dataLoad.ts. An empty
+  // bills/debts list does not render as zero, it renders as a LARGER Safe to
+  // Spend, which is the one direction this page must never be wrong in.
+  const load = newLoadTracker()
 
-  const { data: billsData } = await supabase
-    .from("bills")
-    .select("id, name, amount, frequency, due_date, paid_through, bimonthly_parity, cash_account_id")
-    .eq("user_id", user.id)
-  const bills = Array.isArray(billsData) ? billsData : []
+  const income = rowsOrFail(
+    load,
+    "income",
+    await supabase
+      .from("income")
+      .select("amount, frequency, income_type, next_pay_date, cash_account_id")
+      .eq("user_id", user.id)
+  )
 
-  const { data: debtsData } = await supabase
-    .from("debts")
-    .select("*")
-    .eq("user_id", user.id)
-  const debts = Array.isArray(debtsData) ? debtsData : []
+  const bills = rowsOrFail(
+    load,
+    "bills",
+    await supabase
+      .from("bills")
+      .select("id, name, amount, frequency, due_date, paid_through, bimonthly_parity, cash_account_id")
+      .eq("user_id", user.id)
+  )
+
+  const debts = rowsOrFail(load, "debts", await supabase.from("debts").select("*").eq("user_id", user.id))
 
   const { data: goalsData } = await supabase
     .from("financial_goals")
@@ -73,11 +83,26 @@ export default async function SafeToSpendPage() {
   const goals = Array.isArray(goalsData) ? goalsData : []
 
   const todayISO = toISODate(new Date())
-  const { data: cashRowsData } = await supabase
-    .from("cash_accounts")
-    .select("id, kind, name, balance, balance_as_of")
-    .eq("user_id", user.id)
-  const cashRows = (cashRowsData ?? []) as CashAccountRow[]
+  const cashRows = rowsOrFail(
+    load,
+    "account balances",
+    await supabase
+      .from("cash_accounts")
+      .select("id, kind, name, balance, balance_as_of")
+      .eq("user_id", user.id)
+  ) as CashAccountRow[]
+
+  if (didAnyLoadFail(load)) {
+    return (
+      <div className="mx-auto max-w-5xl px-4 py-8 sm:px-6">
+        <div className="mb-4 flex items-center gap-2.5">
+          <PiggyBank size={24} className="text-emerald-400" />
+          <h1 className="text-2xl font-bold text-primary">Safe to Spend</h1>
+        </div>
+        <DataLoadError missing={load.failed} />
+      </div>
+    )
+  }
   const checkingRows = cashRows.filter((r) => r.kind === "checking")
   // Sep 11 2026, Vince: "stop counting the savings in Chime, that is for
   // emergency money only... it's not to be used to pay bills or debt."

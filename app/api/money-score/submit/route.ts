@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { calculateMoneyScore, generateShareSlug } from "@/lib/money-score";
 import { track } from "@/lib/track";
+import { checkAnonRateLimit, getClientIp } from "@/lib/anonRateLimit";
 
 // Same first-touch attribution the rest of the site captures into the
 // pp_attr cookie (see app/components/AttributionCapture.tsx) -- read here
@@ -39,6 +40,17 @@ export async function POST(req: Request) {
 
     if (!answers || typeof answers !== "object") {
       return NextResponse.json({ error: "Missing answers" }, { status: 400 });
+    }
+
+    // SECURITY FIX (Sep 11 2026, audit): this route was public AND unlimited,
+    // so it could mint unlimited result rows -- each a fresh share_slug, and
+    // each slug a fresh target for the unlock route's email send. Capping slug
+    // creation is what stops the one-email-per-slug rule over there from being
+    // trivially worked around by minting a new slug per victim. A real person
+    // takes this quiz once; the shared 5/hour per IP default is generous.
+    const underSubmitLimit = await checkAnonRateLimit("money-score-submit", getClientIp(req));
+    if (!underSubmitLimit) {
+      return NextResponse.json({ error: "Too many requests. Please try again later." }, { status: 429 });
     }
 
     const { score, categoryScores } = calculateMoneyScore(answers);
