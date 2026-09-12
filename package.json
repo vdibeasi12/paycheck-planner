@@ -22,9 +22,10 @@
     "test:monthly-safe-to-spend": "npx tsx lib/__tests__/monthlySafeToSpend.test.ts",
     "test:account-safe-to-spend": "npx tsx lib/__tests__/accountSafeToSpend.test.ts",
     "test:monthly-debt-capacity": "npx tsx lib/__tests__/monthlyDebtCapacity.test.ts",
-    "test:all": "npm run test:safe-to-spend && npm run test:safe-to-spend-invariants && npm run test:cash-balance && npm run test:plan-resilience && npm run test:plan-resilience-split && npm run test:debt-payoff-safety && npm run test:monthly-safe-to-spend && npm run test:account-safe-to-spend && npm run test:monthly-debt-capacity && npm run test:dst-safety && npm run test:cron-batch",
+    "test:all": "npm run test:safe-to-spend && npm run test:safe-to-spend-invariants && npm run test:cash-balance && npm run test:plan-resilience && npm run test:plan-resilience-split && npm run test:debt-payoff-safety && npm run test:monthly-safe-to-spend && npm run test:account-safe-to-spend && npm run test:monthly-debt-capacity && npm run test:dst-safety && npm run test:cron-batch && npm run test:paycheck-snapshot",
     "test:dst-safety": "npx tsx lib/__tests__/dstSafety.test.ts",
-    "test:cron-batch": "npx tsx lib/__tests__/cronBatch.test.ts"
+    "test:cron-batch": "npx tsx lib/__tests__/cronBatch.test.ts",
+    "test:paycheck-snapshot": "npx tsx lib/__tests__/paycheckSnapshot.test.ts"
   },
   "dependencies": {
     "@aparajita/capacitor-biometric-auth": "^9.1.2",

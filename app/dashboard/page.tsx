@@ -38,6 +38,8 @@ import BillDebtOverlapWarning from "@/app/components/BillDebtOverlapWarning"
 import { bumpActivityStreak } from "@/lib/activityStreak"
 import DataLoadError from "@/app/components/DataLoadError"
 import { newLoadTracker, rowsOrFail, didAnyLoadFail } from "@/lib/dataLoad"
+import PaycheckSnapshotCard from "@/app/components/PaycheckSnapshotCard"
+import { buildPaycheckSnapshot } from "@/lib/paycheckSnapshot"
 
 export default async function DashboardPage() {
   const supabase = await createClient()
@@ -351,6 +353,16 @@ export default async function DashboardPage() {
       )
   }
 
+  // The first screen (Sep 12 2026, Vince: "can the actual app look like
+  // this?"). One card that reads as a sentence -- what is in checking, what
+  // is coming, what leaves, what is left -- built entirely from the result
+  // above by lib/paycheckSnapshot.ts. Null when there is no projectable plan
+  // yet, and deliberately skipped when the account split is active: two
+  // accounts cannot be honestly summarised as one number, and showing the
+  // pooled figure there is exactly the kind of quiet lie this page has been
+  // audited for twice.
+  const snapshot = accountSplit.isSplit ? null : buildPaycheckSnapshot(safeToSpendResult)
+
   // Admins act as the top (connected) tier so they can use/test every feature.
   const effectivePlan = profile?.is_admin ? "connected" : plan
   const canUseCharts = planCanUseCharts(effectivePlan)
@@ -360,14 +372,21 @@ export default async function DashboardPage() {
   return (
     <div className="max-w-6xl mx-auto px-6 py-10 space-y-8">
 
-      <div data-tour="dash-title">
-        <h1 className="text-3xl font-bold">Dashboard</h1>
-        <p className="text-gray-400 mt-1">
-          Plan: <span className="text-white capitalize">{plan}</span>
+      {/* Compact by design. The old two-line title block with the plan name
+          under it took the top of the screen to tell the user something they
+          already know, above the number they came for. */}
+      <div data-tour="dash-title" className="flex items-baseline justify-between gap-3">
+        <h1 className="text-2xl font-bold">Dashboard</h1>
+        <p className="text-sm text-muted">
+          Plan: <span className="capitalize text-secondary">{plan}</span>
         </p>
       </div>
 
-      <AchievementsStrip />
+      {/* Warnings stay ABOVE the snapshot even though they interrupt it. A
+          duplicated bill or an unresolved surplus changes what the number
+          below means, and quieting a money warning for the sake of a calm
+          first screen would be the wrong trade. Both are conditional and
+          neither is on screen most days. */}
       <BillDebtOverlapWarning overlaps={billDebtOverlaps} />
       {pendingSurplus && (
         <PaycheckSurplusPrompt
@@ -378,6 +397,24 @@ export default async function DashboardPage() {
           goals={goals.map((g) => ({ id: g.id, title: g.title }))}
         />
       )}
+      {/* ---------------------------------------------------------------
+          THE FIRST SCREEN
+          --------------------------------------------------------------- */}
+      {snapshot && (
+        <PaycheckSnapshotCard snapshot={snapshot} percentPaid={percentPaid} totalDebt={totalDebt} />
+      )}
+
+      {/* ---------------------------------------------------------------
+          Everything below here is the detail. It is all still on this page,
+          in the same order it was, and all of it is still correct -- it is
+          just no longer competing with the answer for the top of the screen.
+          --------------------------------------------------------------- */}
+      <div className="flex items-center gap-3 pt-2">
+        <span className="h-px flex-1 bg-white/10" />
+        <span className="text-[11px] font-medium uppercase tracking-wider text-muted">The detail</span>
+        <span className="h-px flex-1 bg-white/10" />
+      </div>
+
       {accountSplit.isSplit ? (
         <div className="space-y-6">
           <p className="text-sm text-muted">
@@ -410,17 +447,19 @@ export default async function DashboardPage() {
         />
       )}
       {/* Sep 9 2026, Vince: "create a new section for safe to spend so it's
-          not buried in several different places" -- this card stays exactly
-          as it was (it's the frozen paycheck-cycle number), but now points
-          at the one consolidated page that also has the monthly view and
-          Extra Debt Payment, instead of those living only on their own
-          separate pages. */}
-      <Link
-        href="/safe-to-spend"
-        className="-mt-2 flex items-center gap-1.5 text-sm font-semibold text-emerald-400 hover:underline"
-      >
-        See this month's full breakdown too <ArrowRight size={14} />
-      </Link>
+          not buried in several different places" -- that link now lives on
+          the snapshot card at the top of the page instead of here, so there
+          is one route to the full breakdown rather than two on one screen.
+          When the account split is active there is no snapshot card, so it is
+          still rendered here. */}
+      {accountSplit.isSplit && (
+        <Link
+          href="/safe-to-spend"
+          className="-mt-2 flex items-center gap-1.5 text-sm font-semibold text-emerald-400 hover:underline"
+        >
+          See this month&apos;s full breakdown too <ArrowRight size={14} />
+        </Link>
+      )}
       {/* What-If and Paycheck Talk both reason against ONE pooled Safe to
           Spend number -- not yet account-aware (see accountSplit above), so
           they're hidden rather than shown against a number that's wrong for
@@ -514,6 +553,12 @@ export default async function DashboardPage() {
           broke up the "here's where you stand" flow with a share prompt
           before the user had even seen their own numbers. It's still on
           every dashboard load, just after everything else. */}
+      {/* Moved down here Sep 12 2026 with the first-screen rebuild. This was
+          the very first thing on the page, above the money -- a badge strip
+          is a nice reward, but it is not what anyone opens this app to find
+          out. */}
+      <AchievementsStrip />
+
       <ReferralCard userId={user.id} />
 
     </div>
