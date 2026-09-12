@@ -76,7 +76,7 @@ export default function Footer() {
               crammed in. Same links, same SEO/internal-linking value (see
               Aug 18 2026 note below on why these are linked from the footer
               at all) -- just grouped so the footer reads as intentional. */}
-          <div className="grid grid-cols-2 gap-x-8 gap-y-10 mb-12 md:grid-cols-5 md:gap-16">
+          <div className="grid grid-cols-2 gap-x-8 gap-y-10 mb-12 md:grid-cols-3 md:gap-10 lg:grid-cols-6 lg:gap-12">
             {/* Product */}
             <div className="text-center">
               <h3 className="font-bold text-lg mb-4 text-white">Product</h3>
@@ -85,6 +85,34 @@ export default function Footer() {
                 <p><Link href="/pricing" className="hover:text-white transition">Pricing</Link></p>
                 <p><Link href="/ai-chat" className="hover:text-white transition">AI Chat</Link></p>
                 <p><Link href="/calculators" className="hover:text-white transition">Calculators</Link></p>
+              </div>
+            </div>
+
+            {/* In the app -- Sep 12 2026. These four are the features the app
+                is actually built around, and until now not one of them was
+                linked anywhere outside the signed-in sidebar: someone who
+                landed on the marketing site had no way to even learn Safe to
+                Spend exists.
+
+                Unlike every other column here, these are auth-gated (see
+                PROTECTED in middleware.ts), so a logged-out visitor clicking
+                one lands on /login?redirectTo=<path> and is returned here
+                after signing in -- deliberate, and the reason /safe-to-spend
+                was added to PROTECTED in the same change (its page.tsx
+                redirected on its own, which threw the destination away and
+                dumped the visitor on a bare login form).
+
+                They are not indexable and are not in sitemap.xml, so this
+                column is a product/navigation aid, not an SEO play like the
+                Tools column below. */}
+            <div className="text-center">
+              <h3 className="font-bold text-lg mb-4 text-white">In the app</h3>
+              <div className="space-y-2 text-gray-400 text-sm">
+                <p><Link href="/safe-to-spend" className="hover:text-white transition">Safe to Spend</Link></p>
+                <p><Link href="/paycheck-shield" className="hover:text-white transition">Paycheck Shield</Link></p>
+                <p><Link href="/survival-mode" className="hover:text-white transition">Survival Mode</Link></p>
+                <p><Link href="/paycheck-autopilot" className="hover:text-white transition">Paycheck Autopilot</Link></p>
+                <p><Link href="/debt-payoff-calculator" className="hover:text-white transition">Payoff Calculator</Link></p>
               </div>
             </div>
 
@@ -103,6 +131,11 @@ export default function Footer() {
                 <p><Link href="/budget-by-salary" className="hover:text-white transition">Budget by Salary</Link></p>
                 <p><Link href="/debt-payoff-plans" className="hover:text-white transition">Debt Payoff Plans</Link></p>
                 <p><Link href="/challenge" className="hover:text-white transition">30-Day Challenge</Link></p>
+                {/* Public, priority 0.7 in sitemap.xml, and linked from
+                    nowhere on the site until Sep 12 2026 -- exactly the
+                    "Discovered - currently not indexed" case the rest of
+                    this column was created to fix. */}
+                <p><Link href="/best-budgeting-apps-paycheck-to-paycheck" className="hover:text-white transition">Best Budgeting Apps</Link></p>
               </div>
             </div>
 
@@ -134,6 +167,12 @@ export default function Footer() {
                 <p><Link href="/privacy" className="hover:text-white transition">Privacy Policy</Link></p>
                 <p><Link href="/terms" className="hover:text-white transition">Terms of Service</Link></p>
                 <p><Link href="/disclaimer" className="hover:text-white transition">Disclaimer</Link></p>
+                {/* Google Play requires a publicly reachable account/data
+                    deletion URL for any app that collects user data. The
+                    page existed and was public, but was reachable only from
+                    inside /account -- i.e. only after logging in, which is
+                    the one thing a reviewer checking this cannot do. */}
+                <p><Link href="/account/delete-info" className="hover:text-white transition">Delete My Data</Link></p>
               </div>
             </div>
           </div>

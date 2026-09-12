@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { Wallet, PiggyBank, Pencil, Trash2, Plus, ShieldAlert, X } from "lucide-react"
+import { Wallet, PiggyBank, Pencil, Trash2, Plus, ShieldAlert, X, AlertTriangle } from "lucide-react"
 import { supabase } from "@/lib/supabase/client"
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency"
 import { type StartingCash, type ProjectedCashAccountRow } from "@/lib/cashBalance"
@@ -48,19 +48,29 @@ function AccountRow({
 }) {
   const [editing, setEditing] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>({
     name: account.name,
     amount: String(account.balance),
     asOf: account.balance_as_of,
   })
 
+  // Note what closing the editor means here: the row falls back to rendering
+  // `account.balance`, the value the server sent. If the write failed and we
+  // closed anyway, the user watched their new number get replaced by the old
+  // one with no explanation -- which reads as "it didn't take, type it
+  // again," and typing it again hits the same failure. So the editor stays
+  // open, holding what they entered, and says what went wrong.
   async function save() {
     const n = Number(form.amount)
     if (!Number.isFinite(n) || !form.asOf || !form.name.trim()) return
     setBusy(true)
+    setErr(null)
     try {
       await onSave(account.id, form.name.trim(), n, form.asOf)
       setEditing(false)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not save that change.")
     } finally {
       setBusy(false)
     }
@@ -69,8 +79,11 @@ function AccountRow({
   async function remove() {
     if (!window.confirm(`Remove "${account.name}"? This can't be undone.`)) return
     setBusy(true)
+    setErr(null)
     try {
       await onDelete(account.id)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not remove that account.")
     } finally {
       setBusy(false)
     }
@@ -138,6 +151,12 @@ function AccountRow({
             <Trash2 size={14} /> Remove
           </button>
         </div>
+        {err && (
+          <p className="mt-3 flex items-start gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+            <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+            <span>{err} Your balance was not changed.</span>
+          </p>
+        )}
       </div>
     )
   }
@@ -184,16 +203,23 @@ function AddAccountRow({
 }) {
   const [open, setOpen] = useState(false)
   const [busy, setBusy] = useState(false)
+  const [err, setErr] = useState<string | null>(null)
   const [form, setForm] = useState<FormState>(emptyForm())
 
+  // Clearing the form and collapsing the panel on a failed insert threw away
+  // what the user typed and left no account behind, with nothing on screen
+  // saying so.
   async function save() {
     const n = Number(form.amount)
     if (!Number.isFinite(n) || !form.asOf) return
     setBusy(true)
+    setErr(null)
     try {
       await onAdd(form.name.trim() || (kind === "checking" ? "Checking" : "Savings"), n, form.asOf)
       setForm(emptyForm())
       setOpen(false)
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Could not add that account.")
     } finally {
       setBusy(false)
     }
@@ -259,8 +285,14 @@ function AddAccountRow({
         onClick={save}
         className="mt-3 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-semibold text-black hover:bg-emerald-600 disabled:opacity-60"
       >
-        Add account
+        {busy ? "Adding..." : "Add account"}
       </button>
+      {err && (
+        <p className="mt-3 flex items-start gap-1.5 rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-300">
+          <AlertTriangle size={15} className="mt-0.5 shrink-0" />
+          <span>{err} Nothing was added.</span>
+        </p>
+      )}
     </div>
   )
 }
@@ -302,12 +334,27 @@ export default function CashBalanceEditor({ startingCash, accounts }: Props) {
   // any single row. When the two disagree, something is still unlinked.
   const hasUnlinkedChecking = checking.length > 0 && !roughlyEqual(projectedCheckingTotal, startingCash.amount)
 
+  // All three writes below discarded their result. This is easy to miss
+  // because it does not look like missing error handling: `await supabase
+  // .from(...).update(...)` does NOT reject on a failed write -- Supabase
+  // resolves and hands the error back inside the payload. So the await
+  // succeeded, router.refresh() ran, the row re-rendered with the value the
+  // server still had, and the app reported nothing.
+  //
+  // On this component in particular that is the worst place to lose a write
+  // silently. Every balance here is typed in by hand precisely because
+  // nothing is linked to a bank, and it is the input Safe to Spend,
+  // Survival Mode and Paycheck Shield are all built on. A dropped update
+  // leaves those three answering with a stale balance the user is certain
+  // they corrected.
+  //
+  // These throw; the row and add-panel that called them catch and say so.
   async function addAccount(kind: "checking" | "savings", name: string, amount: number, asOfDate: string) {
     const {
       data: { user },
     } = await supabase.auth.getUser()
-    if (!user) return
-    await supabase.from("cash_accounts").insert({
+    if (!user) throw new Error("You appear to be signed out.")
+    const { error } = await supabase.from("cash_accounts").insert({
       user_id: user.id,
       kind,
       name,
@@ -315,19 +362,31 @@ export default function CashBalanceEditor({ startingCash, accounts }: Props) {
       balance_as_of: asOfDate,
       updated_at: new Date().toISOString(),
     })
+    if (error) {
+      console.error("[CashBalanceEditor] insert failed:", error)
+      throw new Error(error.message || "Could not add that account.")
+    }
     router.refresh()
   }
 
   async function saveAccount(id: string, name: string, amount: number, asOfDate: string) {
-    await supabase
+    const { error } = await supabase
       .from("cash_accounts")
       .update({ name, balance: amount, balance_as_of: asOfDate, updated_at: new Date().toISOString() })
       .eq("id", id)
+    if (error) {
+      console.error("[CashBalanceEditor] update failed:", error)
+      throw new Error(error.message || "Could not save that change.")
+    }
     router.refresh()
   }
 
   async function deleteAccount(id: string) {
-    await supabase.from("cash_accounts").delete().eq("id", id)
+    const { error } = await supabase.from("cash_accounts").delete().eq("id", id)
+    if (error) {
+      console.error("[CashBalanceEditor] delete failed:", error)
+      throw new Error(error.message || "Could not remove that account.")
+    }
     router.refresh()
   }
 

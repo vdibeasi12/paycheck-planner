@@ -18,6 +18,7 @@ const PROTECTED = [
   "/documents",
   "/goals",
   "/survival-mode",
+  "/safe-to-spend",
   "/paycheck-shield",
   "/paycheck-autopilot",
   "/plan-drift",

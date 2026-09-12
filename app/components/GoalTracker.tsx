@@ -6,7 +6,7 @@ import { celebrate, popMilestone, crossedMilestone } from "@/lib/confetti";
 import { checkAchievementsAndCelebrate } from "@/lib/checkAchievements";
 import { recalcLinkedGoals } from "@/lib/goalAutoCalc";
 import { useFormatCurrency } from "@/lib/i18n/formatCurrency";
-import { Plus, Target, Trophy, Trash2, Loader2, Link2, Unlink } from "lucide-react";
+import { Plus, Target, Trophy, Trash2, Loader2, Link2, Unlink, X } from "lucide-react";
 
 type Goal = {
   id: string;
@@ -37,6 +37,10 @@ export default function GoalTracker() {
   const [adding, setAdding] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // `error` above is rendered inside the add-goal form, so it is only on
+  // screen while that form is open. Contributions and deletions happen from
+  // the goal list with no form in sight, so they need their own banner.
+  const [writeError, setWriteError] = useState<string | null>(null);
   // Distinct account names the user has imported statements under (see
   // app/import/page.tsx) -- the pool a goal can link to. Empty until they
   // import at least one CSV/PDF statement.
@@ -143,6 +147,13 @@ export default function GoalTracker() {
     }
   }
 
+  // Both of these were optimistic updates with no confirmation step: the bar
+  // moved, the confetti fired, the goal disappeared -- and then the write
+  // result was thrown away. A failed write left the screen showing progress
+  // that does not exist, or a goal the user believes they deleted, right up
+  // until the next reload silently put it all back. The optimistic update is
+  // worth keeping (the bar should move instantly); what was missing is
+  // putting it back when the write does not land.
   async function contribute(goal: Goal, raw: string) {
     const amount = Number(raw);
     if (!amount || amount <= 0) return;
@@ -152,6 +163,14 @@ export default function GoalTracker() {
     const completed = newCurrent >= Number(goal.target_amount);
     const after = Math.min(100, Math.round((newCurrent / Number(goal.target_amount)) * 100));
 
+    // Snapshot for rollback. Taken from the goal we were handed rather than
+    // from `goals`, so a second contribution landing in between rolls back
+    // only this one's effect.
+    const previous = {
+      current_amount: goal.current_amount,
+      status: goal.status,
+    };
+
     // Optimistic update so the bar moves immediately
     setGoals((gs) =>
       gs.map((g) =>
@@ -160,11 +179,9 @@ export default function GoalTracker() {
           : g
       )
     );
+    setWriteError(null);
 
-    if (completed) celebrate();
-    else if (crossedMilestone(before, after)) popMilestone();
-
-    await supabase
+    const { error: updErr } = await supabase
       .from("financial_goals")
       .update({
         current_amount: newCurrent,
@@ -172,11 +189,31 @@ export default function GoalTracker() {
         updated_at: new Date().toISOString(),
       })
       .eq("id", goal.id);
+
+    if (updErr) {
+      console.error("[GoalTracker] contribution failed:", updErr);
+      setGoals((gs) => gs.map((g) => (g.id === goal.id ? { ...g, ...previous } : g)));
+      setWriteError("That contribution didn't save, so your goal is unchanged. Please try again.");
+      return;
+    }
+
+    // Celebrations moved to AFTER the write confirms. Firing them first meant
+    // a goal could be celebrated as complete and then quietly rolled back.
+    if (completed) celebrate();
+    else if (crossedMilestone(before, after)) popMilestone();
   }
 
   async function removeGoal(id: string) {
+    const previous = goals;
     setGoals((gs) => gs.filter((g) => g.id !== id));
-    await supabase.from("financial_goals").delete().eq("id", id);
+    setWriteError(null);
+
+    const { error: delErr } = await supabase.from("financial_goals").delete().eq("id", id);
+    if (delErr) {
+      console.error("[GoalTracker] delete failed:", delErr);
+      setGoals(previous);
+      setWriteError("That goal couldn't be deleted. It's still here and nothing was lost.");
+    }
   }
 
   if (loading) {
@@ -203,6 +240,20 @@ export default function GoalTracker() {
           <Plus size={16} /> New goal
         </button>
       </div>
+
+      {writeError && (
+        <div className="flex items-start justify-between gap-3 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-300">
+          <span>{writeError}</span>
+          <button
+            type="button"
+            onClick={() => setWriteError(null)}
+            aria-label="Dismiss"
+            className="shrink-0 text-rose-400 hover:text-rose-200"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      )}
 
       {/* Add form */}
       {adding && (

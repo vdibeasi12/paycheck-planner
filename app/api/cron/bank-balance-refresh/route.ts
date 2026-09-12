@@ -5,6 +5,35 @@ import { syncCachedBalancesForItem, syncLiabilitiesForItem } from "@/lib/plaid"
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
 
+// Declared explicitly (Sep 12 2026 audit). With no maxDuration this ran at
+// the platform default, and the default is far shorter than a serial walk
+// over every Plaid item takes -- Vercel kills the function mid-item, so the
+// run neither finishes nor reports anything: no JSON, no totals, and the
+// items it never reached look identical to the ones it synced fine. 300s is
+// the Vercel Pro ceiling for a standard Node function.
+export const maxDuration = 300
+
+// Hard ceiling on rows pulled per run. The query had no .limit() at all, so
+// the work per run grew linearly with the number of connected banks across
+// every user on the platform -- fine at today's handful, quietly fatal at a
+// few hundred, and the failure arrives as a timeout on the day it does.
+//
+// A bare limit alone would be a different bug: it would sync the same first
+// N items every day and never touch the rest. The .order() below is what
+// makes the limit safe -- least-recently-synced first, so each run picks up
+// where the last one left off and the whole population rotates through.
+// Every item processed gets plaid_items.updated_at bumped (both sync helpers
+// do it on success, the error branch below does it on failure), which is
+// what moves it to the back of the queue.
+const MAX_ITEMS_PER_RUN = 300
+
+// Stop STARTING new items once we are this close to maxDuration. Returning a
+// short, honest batch beats being killed part-way through one: the loop's
+// per-item error handling never runs on a kill, so a half-processed item is
+// left with no status update and no log line. 60s of headroom is generous
+// for one item (two Plaid calls plus the upserts).
+const TIME_BUDGET_MS = 240_000
+
 function adminDb() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL as string
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY as string
@@ -54,17 +83,30 @@ export async function GET(req: Request) {
   }
 
   const db = adminDb()
+  const startedAt = Date.now()
 
   const { data: items, error } = await db
     .from("plaid_items")
     .select("item_id, user_id, access_token")
+    .order("updated_at", { ascending: true, nullsFirst: true })
+    .limit(MAX_ITEMS_PER_RUN)
 
   if (error) {
     return NextResponse.json({ error: "Could not load bank items" }, { status: 500 })
   }
 
-  const totals = { items: 0, accounts: 0, liabilities: 0, debts: 0, assets: 0, errors: 0 }
-  for (const it of items ?? []) {
+  const queue = items ?? []
+  const totals = { items: 0, accounts: 0, liabilities: 0, debts: 0, assets: 0, errors: 0, skipped: 0 }
+
+  for (let i = 0; i < queue.length; i++) {
+    if (Date.now() - startedAt > TIME_BUDGET_MS) {
+      totals.skipped = queue.length - i
+      console.warn(
+        `[bank-balance-refresh] time budget reached after ${i} items; ${totals.skipped} deferred to tomorrow's run`
+      )
+      break
+    }
+    const it = queue[i]
     let touched = false
     try {
       const r = await syncLiabilitiesForItem(db, it.user_id, it.access_token, it.item_id)
@@ -94,5 +136,15 @@ export async function GET(req: Request) {
     }
   }
 
-  return NextResponse.json({ ok: true, ...totals })
+  // batch/elapsed are here to make the ceiling observable rather than
+  // invisible: if batch is consistently MAX_ITEMS_PER_RUN, or skipped is
+  // consistently non-zero, this cron is no longer keeping up and needs to run
+  // more than once a day (or fan out) rather than a bigger limit.
+  return NextResponse.json({
+    ok: true,
+    ...totals,
+    batch: queue.length,
+    limit: MAX_ITEMS_PER_RUN,
+    elapsedMs: Date.now() - startedAt,
+  })
 }

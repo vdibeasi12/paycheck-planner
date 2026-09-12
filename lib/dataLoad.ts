@@ -52,6 +52,34 @@ export function rowsOrFail<T>(
   return Array.isArray(result.data) ? result.data : []
 }
 
+// Same contract as rowsOrFail, for a .maybeSingle() / .single() query whose
+// `data` is one object rather than an array.
+//
+// The asymmetry is the same and matters just as much here: `data: null` with
+// no error is a real, correct answer (no profile row yet), while a non-null
+// `error` means we do not know. The distinction is the whole point -- the
+// amortization page read `profile?.plan` and fell back to "free" without
+// checking, so a transient failure on the profiles table showed the upgrade
+// paywall to someone who had already paid.
+// The generic is written over the whole result rather than over `data` (the
+// way rowsOrFail is) deliberately. maybeSingle() returns a discriminated
+// union whose failure member has `data: null`, so inferring T from
+// `data: T | null` collapses T to `never` and every field read off the row
+// becomes a type error. Distributing R["data"] across that union and
+// stripping null recovers the real row type.
+export function rowOrFail<R extends { data: unknown; error: unknown }>(
+  tracker: LoadTracker,
+  label: string,
+  result: R
+): NonNullable<R["data"]> | null {
+  if (result.error) {
+    console.error(`[dataLoad] failed to load ${label}:`, result.error)
+    if (!tracker.failed.includes(label)) tracker.failed.push(label)
+    return null
+  }
+  return (result.data ?? null) as NonNullable<R["data"]> | null
+}
+
 export function didAnyLoadFail(tracker: LoadTracker): boolean {
   return tracker.failed.length > 0
 }

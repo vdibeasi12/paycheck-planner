@@ -5,6 +5,8 @@ import AmortizationSchedule from "@/app/components/AmortizationSchedule"
 import PaywallOverlay from "@/app/components/PaywallOverlay"
 import InfoHint from "@/app/components/InfoHint"
 import DownloadSummaryButton from "@/app/components/DownloadSummaryButton"
+import DataLoadError from "@/app/components/DataLoadError"
+import { newLoadTracker, rowOrFail, rowsOrFail, didAnyLoadFail } from "@/lib/dataLoad"
 import { CalendarClock } from "lucide-react"
 
 export default async function AmortizationPage() {
@@ -18,12 +20,55 @@ export default async function AmortizationPage() {
     redirect("/login")
   }
 
-  const { data: profile } = await supabase
-    .from("profiles")
-    .select("plan, onboarded, is_admin")
-    .eq("id", user.id)
-    .maybeSingle()
+  // Both queries below feed decisions that are wrong in a user-visible way if
+  // they fail silently -- see lib/dataLoad.ts. This page had the same
+  // swallowed-error pattern the dashboard and Safe to Spend pages did, with
+  // two distinct failure modes:
+  //
+  //   profiles -> plan fell back to "free" and a paying customer was shown
+  //               the upgrade paywall on a feature they had already bought.
+  //   debts    -> an empty list is indistinguishable from a real "no debts
+  //               yet" state, so the page rendered the friendly "No debts to
+  //               schedule yet" empty state and an "Add debts" button to
+  //               someone whose debts are all sitting right there in the
+  //               database.
+  //
+  // Neither one announced a problem, and the second actively told the user
+  // something false about their own data.
+  const load = newLoadTracker()
 
+  const profile = rowOrFail(
+    load,
+    "plan details",
+    await supabase.from("profiles").select("plan, onboarded, is_admin").eq("id", user.id).maybeSingle()
+  )
+
+  const debtsData = rowsOrFail(
+    load,
+    "debts",
+    await supabase
+      .from("debts")
+      .select("id, name, balance, interest_rate, minimum_payment, debt_type, escrow_payment")
+      .eq("user_id", user.id)
+  )
+
+  if (didAnyLoadFail(load)) {
+    return (
+      <div className="mx-auto max-w-6xl space-y-6 px-6 py-10">
+        <div className="flex items-center gap-2">
+          <CalendarClock size={26} className="text-emerald-400" />
+          <h1 className="text-3xl font-bold">Payoff Plan</h1>
+        </div>
+        <DataLoadError
+          missing={load.failed}
+          explanation={
+            "We aren't showing a payoff schedule, because one built without your full picture would give you a " +
+            "debt-free date that isn't real. Nothing here has changed and this is almost always temporary."
+          }
+        />
+      </div>
+    )
+  }
 
   let plan = "free"
   if (profile?.plan) {
@@ -42,12 +87,7 @@ export default async function AmortizationPage() {
   // To make it free for everyone: set this to true.
   const canUseAmortization = effectivePlan === "premium" || effectivePlan === "connected"
 
-  const { data: debtsData } = await supabase
-    .from("debts")
-    .select("id, name, balance, interest_rate, minimum_payment, debt_type, escrow_payment")
-    .eq("user_id", user.id)
-
-  const debts = (Array.isArray(debtsData) ? debtsData : []).map((d) => ({
+  const debts = debtsData.map((d) => ({
     id: String(d.id),
     name: String(d.name || "Debt"),
     balance: Number(d.balance) || 0,

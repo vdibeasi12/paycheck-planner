@@ -12,7 +12,17 @@
 
 import { AlertTriangle, RefreshCw } from "lucide-react"
 
-export default function DataLoadError({ missing }: { missing: string[] }) {
+export default function DataLoadError({
+  missing,
+  explanation,
+}: {
+  missing: string[]
+  // Override the default body copy. The default is specific to the money
+  // pages ("this would look like more money than you have"); a page that
+  // fails differently -- the payoff schedule, say -- should explain its own
+  // failure rather than reuse a sentence that is not true there.
+  explanation?: string
+}) {
   const list =
     missing.length === 1
       ? missing[0]
@@ -28,9 +38,13 @@ export default function DataLoadError({ missing }: { missing: string[] }) {
       </div>
 
       <p className="mt-2 max-w-xl text-sm text-secondary">
-        Your numbers aren&apos;t shown because they would be wrong. Safe to Spend is what you have minus what you
-        owe, so if we can&apos;t read your {list}, anything we displayed would look like more money than you
-        actually have.
+        {explanation ?? (
+          <>
+            Your numbers aren&apos;t shown because they would be wrong. Safe to Spend is what you have minus what
+            you owe, so if we can&apos;t read your {list}, anything we displayed would look like more money than
+            you actually have.
+          </>
+        )}
       </p>
       <p className="mt-2 max-w-xl text-sm text-muted">
         Nothing in your account has changed. This is almost always temporary.

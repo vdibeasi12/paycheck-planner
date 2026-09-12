@@ -37,7 +37,7 @@ import { celebrate, popMilestone, crossedMilestone } from '@/lib/confetti'
 import { DEBT_TYPES, debtTypeLabel } from '@/lib/debtTypes'
 import { toISODate, nextItemOccurrence, excludeTransferCoveredDebts, type CycleIncome } from '@/lib/paycheckCycles'
 import { generateBillsDebtsPdf } from '@/lib/generateBillsDebtsPdf'
-import { resolveStartingCash, type CashAccountRow } from '@/lib/cashBalance'
+import { resolveStartingCash, savingsAccountIdsOf, type CashAccountRow } from '@/lib/cashBalance'
 import DebtPayoffAffordability from '../components/DebtPayoffAffordability'
 
 // Sep 4 2026, Vince: Bills and Debts used to be two separate pages built
@@ -144,6 +144,25 @@ type Obligation = {
   badge: string | null // bill category, or debt type label
   isSubscription: boolean
   raw: Bill | Debt
+}
+
+
+// CRITICAL FIX (Sep 11 2026, Vince): "stop counting the savings in Chime,
+// that is for emergency money only not part of safe to spend... it's not to
+// be used to pay bills or debt."
+//
+// Savings accounts are no longer offered as a pay-from account. Linking a
+// bill or debt to one would draw the emergency fund down to cover it, and
+// Safe to Spend -- which is checking-only by design (see resolveStartingCash
+// in lib/cashBalance.ts) -- would never see that money leave, so the app
+// would understate what is actually being spent while quietly spending the
+// one account that is supposed to be untouchable.
+//
+// An account that is ALREADY selected stays in the list, so an existing link
+// is never silently dropped or reassigned behind the user's back; it just
+// can't be chosen fresh.
+function payFromOptions(accounts: CashAccountOption[], selectedId: string): CashAccountOption[] {
+  return accounts.filter((a) => a.kind === 'checking' || a.id === selectedId)
 }
 
 const SUBSCRIPTION_CATEGORY = 'Subscriptions'
@@ -284,6 +303,13 @@ export default function BillsAndDebtsPage() {
   const [payAccountId, setPayAccountId] = useState('')
   const [payAmount, setPayAmount] = useState('')
   const [payBusy, setPayBusy] = useState(false)
+  // In flight for the Add Bill or Debt form -- the same guard payBusy gives
+  // "Confirm paid" just below. The add form had none, and it awaits
+  // auth.getUser() before it validates anything, so the button sat live
+  // through two round trips and a second click filed a duplicate bill or
+  // debt. A duplicated obligation quietly understates Safe to Spend and
+  // corrupts the payoff schedule until someone notices the row twice.
+  const [addBusy, setAddBusy] = useState(false)
   // "I already paid this and my balance already shows it" -- see confirmPay.
   const [payAlreadyInBalance, setPayAlreadyInBalance] = useState(false)
 
@@ -410,7 +436,8 @@ export default function BillsAndDebtsPage() {
     const checkingRows: CashAccountRow[] = cashAccounts
       .filter((a) => a.kind === 'checking')
       .map((a) => ({ id: a.id, kind: a.kind, name: a.name, balance: Number(a.balance) || 0, balance_as_of: a.balance_as_of }))
-    return resolveStartingCash(checkingRows, { income, bills, debts, todayISO }, 0)
+    const savingsAccountIds = savingsAccountIdsOf(cashAccounts as unknown as CashAccountRow[])
+    return resolveStartingCash(checkingRows, { income, bills, debts, todayISO, savingsAccountIds }, 0)
   }, [cashAccounts, income, bills, debts, todayISO])
 
   const subscriptionBills = useMemo(() => obligations.filter((o) => o.isSubscription), [obligations])
@@ -471,7 +498,22 @@ export default function BillsAndDebtsPage() {
     setPayFromAccountId('')
   }
 
+  // Wrapper rather than a setAddBusy pair inside submitObligation: that
+  // function has six early returns (no session, two validation failures, the
+  // duplicate-of-a-debt confirm, the plan limit, plus both catch blocks), and
+  // a finally here covers all of them without touching any of that logic.
   async function addObligation(e: React.FormEvent) {
+    e.preventDefault()
+    if (addBusy) return
+    setAddBusy(true)
+    try {
+      await submitObligation(e)
+    } finally {
+      setAddBusy(false)
+    }
+  }
+
+  async function submitObligation(e: React.FormEvent) {
     e.preventDefault()
     const { data: userAuth } = await supabase.auth.getUser()
     if (!userAuth.user) {
@@ -746,7 +788,7 @@ export default function BillsAndDebtsPage() {
     // for anything not yet linked.
     const linkedAccountId = o.type === 'bill' ? (o.raw as Bill).cash_account_id : (o.raw as Debt).cash_account_id
     const linkedAccount = linkedAccountId ? cashAccounts.find((a) => a.id === linkedAccountId) : null
-    const defaultAccount = linkedAccount ?? cashAccounts.find((a) => a.kind === 'checking') ?? cashAccounts[0]
+    const defaultAccount = linkedAccount ?? cashAccounts.find((a) => a.kind === 'checking')
     setPayAccountId(defaultAccount?.id ?? '')
   }
 
@@ -1144,7 +1186,7 @@ export default function BillsAndDebtsPage() {
                   className={inputClass}
                 >
                   <option value="">Not linked yet</option>
-                  {cashAccounts.map((a) => (
+                  {payFromOptions(cashAccounts, payFromAccountId).map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.name} ({a.kind === 'checking' ? 'Checking' : 'Savings'})
                     </option>
@@ -1155,10 +1197,11 @@ export default function BillsAndDebtsPage() {
 
             <button
               type="submit"
-              disabled={formType === 'debt' && atDebtLimit}
+              disabled={addBusy || (formType === 'debt' && atDebtLimit)}
               className="w-full max-w-sm mt-4 bg-green-500 hover:bg-green-600 text-black font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-500"
             >
-              <Plus size={20} /> Add {formType === 'bill' ? 'Bill' : 'Debt'}
+              <Plus size={20} />{' '}
+              {addBusy ? 'Adding...' : `Add ${formType === 'bill' ? 'Bill' : 'Debt'}`}
             </button>
 
             {formType === 'debt' && atDebtLimit && (
@@ -1528,7 +1571,7 @@ export default function BillsAndDebtsPage() {
                         className={inputClass}
                       >
                         <option value="">Not linked yet</option>
-                        {cashAccounts.map((a) => (
+                        {payFromOptions(cashAccounts, editPayFromAccountId).map((a) => (
                           <option key={a.id} value={a.id}>
                             {a.name} ({a.kind === 'checking' ? 'Checking' : 'Savings'})
                           </option>
@@ -1607,7 +1650,7 @@ export default function BillsAndDebtsPage() {
                           <label className="text-gray-500 text-xs block mb-1">Paid from</label>
                           <select value={payAccountId} onChange={(e) => setPayAccountId(e.target.value)} className={inputClass}>
                             {cashAccounts.length === 0 && <option value="">No accounts on file</option>}
-                            {cashAccounts.map((a) => (
+                            {payFromOptions(cashAccounts, payAccountId).map((a) => (
                               <option key={a.id} value={a.id}>
                                 {a.name} ({formatMoney(Number(a.balance))})
                               </option>

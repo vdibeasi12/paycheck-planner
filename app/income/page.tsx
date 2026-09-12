@@ -83,6 +83,14 @@ export default function IncomePage() {
   const [depositAccountId, setDepositAccountId] = useState('')
   const [cashAccounts, setCashAccounts] = useState<CashAccountOption[]>([])
   const [loading, setLoading] = useState(true)
+  // In flight for the Add Income form. Same job payBusy already does for
+  // "Confirm paid" on /bills-debts. Without it the submit button stayed live
+  // across two awaits (auth.getUser, then the insert), and a double-click --
+  // or an impatient second click on a slow connection -- inserted the same
+  // paycheck twice. That failure is worse here than it looks: duplicated
+  // income is the one error the app cannot detect for you, and it inflates
+  // Safe to Spend by a whole paycheck.
+  const [addBusy, setAddBusy] = useState(false)
   const [showCapture, setShowCapture] = useState(false)
 
   const [showDetails, setShowDetails] = useState(false)
@@ -135,7 +143,21 @@ export default function IncomePage() {
     return hasAnyValue ? payload : null
   }
 
+  // Thin in-flight wrapper around the real handler, rather than a setAddBusy
+  // pair threaded through every early return inside it -- the finally is what
+  // guarantees the button comes back no matter which path bails out.
   async function addIncome(e: React.FormEvent) {
+    e.preventDefault()
+    if (addBusy) return
+    setAddBusy(true)
+    try {
+      await submitIncome(e)
+    } finally {
+      setAddBusy(false)
+    }
+  }
+
+  async function submitIncome(e: React.FormEvent) {
     e.preventDefault()
     if (!source || !amount) {
       alert('Please enter a source and amount')
@@ -553,9 +575,10 @@ export default function IncomePage() {
 
                 <button
                   type="submit"
-                  className="w-full bg-green-500 hover:bg-green-600 text-black font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2"
+                  disabled={addBusy}
+                  className="w-full bg-green-500 hover:bg-green-600 text-black font-semibold py-2 rounded-lg transition flex items-center justify-center gap-2 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-green-500"
                 >
-                  <Plus size={20} /> Add Income
+                  <Plus size={20} /> {addBusy ? 'Adding...' : 'Add Income'}
                 </button>
               </form>
 
