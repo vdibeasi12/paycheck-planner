@@ -2,9 +2,15 @@ import { NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { sendPushToUser } from "@/lib/push"
 import { generateProposal } from "@/lib/paycheckAutopilot"
+import { CRON_MAX_RESULT_ROWS, fetchAllRows, forEachWithBudget } from "@/lib/cronBatch"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
+
+// Bare literal, not an imported constant -- Next.js reads route-segment
+// config by static analysis, so an import can silently fall back to the
+// platform default. See the note at the top of lib/cronBatch.ts.
+export const maxDuration = 300
 
 // How many days before the predicted payday the proposal is drafted --
 // fixed, same reasoning as app/api/cron/debt-reminder/route.ts's
@@ -37,20 +43,32 @@ export async function GET(req: Request) {
 
   const db = adminDb()
 
-  const { data: profiles, error: profilesErr } = await db
-    .from("profiles")
-    .select("id")
-    .eq("plan", "connected")
+  const startedAt = Date.now()
+
+  const {
+    rows: profiles,
+    error: profilesErr,
+    truncated,
+  } = await fetchAllRows<any>("paycheck-autopilot", (from, to) =>
+    db.from("profiles").select("id").eq("plan", "connected").order("id", { ascending: true }).range(from, to)
+  )
 
   if (profilesErr) {
-    return NextResponse.json({ error: profilesErr.message }, { status: 500 })
+    return NextResponse.json({ error: (profilesErr as any)?.message || "Could not load profiles" }, { status: 500 })
   }
 
   let created = 0
   let pushSent = 0
   const results: Array<{ user_id: string; created: boolean; pushed: boolean }> = []
 
-  for (const profile of profiles || []) {
+  // This is the heaviest of the crons per user -- five queries plus
+  // generateProposal -- and unlike the reminder routes it sends no email, so
+  // there is no per-second send limit to respect. Modest concurrency is what
+  // keeps it inside the budget; it is deliberately not higher, to leave the
+  // shared Supabase connection pool room for live traffic.
+  const budget = await forEachWithBudget(
+    profiles,
+    async (profile: any) => {
     const userId = profile.id as string
 
     const [{ data: incomeData }, { data: billsData }, { data: debtsData }, { data: goalsData }] = await Promise.all([
@@ -70,7 +88,7 @@ export async function GET(req: Request) {
 
     if (!proposal) {
       results.push({ user_id: userId, created: false, pushed: false })
-      continue
+      return
     }
 
     const { data: existing } = await db
@@ -82,7 +100,7 @@ export async function GET(req: Request) {
 
     if (existing) {
       results.push({ user_id: userId, created: false, pushed: false })
-      continue
+      return
     }
 
     const { error: insertErr } = await db.from("paycheck_plan_proposals").insert({
@@ -96,8 +114,9 @@ export async function GET(req: Request) {
     })
 
     if (insertErr) {
+      console.error("[cron:paycheck-autopilot] proposal insert failed for", userId, insertErr)
       results.push({ user_id: userId, created: false, pushed: false })
-      continue
+      return
     }
     created++
 
@@ -118,13 +137,21 @@ export async function GET(req: Request) {
     }
 
     results.push({ user_id: userId, created: true, pushed })
-  }
+    },
+    { startedAt, label: "paycheck-autopilot", concurrency: 4 }
+  )
 
   return NextResponse.json({
-    ok: true,
-    processed: (profiles || []).length,
+    ok: budget.skipped === 0 && !truncated,
+    eligible: profiles.length,
+    processed: budget.processed,
+    skipped: budget.skipped,
+    failed: budget.failed,
+    rowsTruncated: truncated,
     created,
     pushSent,
-    results,
+    results: results.slice(0, CRON_MAX_RESULT_ROWS),
+    resultsTruncated: results.length > CRON_MAX_RESULT_ROWS,
+    elapsedMs: Date.now() - startedAt,
   })
 }

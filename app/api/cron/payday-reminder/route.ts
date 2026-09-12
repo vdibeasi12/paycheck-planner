@@ -5,9 +5,15 @@ import { formatCurrency } from "@/lib/i18n/formatCurrency"
 import { occurrencesInMonth, type Frequency } from "@/lib/schedule"
 import { sendPushToUser } from "@/lib/push"
 import { reminderUnsubLinks } from "@/lib/emailFooter"
+import { CRON_MAX_RESULT_ROWS, fetchAllRows, forEachWithBudget } from "@/lib/cronBatch"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
+
+// Bare literal, not an imported constant -- Next.js reads route-segment
+// config by static analysis, so an import can silently fall back to the
+// platform default. See the note at the top of lib/cronBatch.ts.
+export const maxDuration = 300
 
 const APP_URL =
   process.env.NEXT_PUBLIC_APP_URL ||
@@ -46,20 +52,34 @@ export async function GET(req: Request) {
 
   const db = adminDb()
 
-  const { data: prefs, error: prefsErr } = await db
-    .from("notification_preferences")
-    .select("user_id, email_payday_reminder, push_payday_reminder, payday_reminder_days_before, unsubscribe_token")
-    .or("email_payday_reminder.eq.true,push_payday_reminder.eq.true")
+  const startedAt = Date.now()
+
+  // Paged, for the reason spelled out in lib/cronBatch.ts: an unlimited
+  // SELECT returns PostgREST's max-rows, not every row, and the users past
+  // that point were being dropped invisibly.
+  const {
+    rows: prefs,
+    error: prefsErr,
+    truncated,
+  } = await fetchAllRows<any>("payday-reminder", (from, to) =>
+    db
+      .from("notification_preferences")
+      .select("user_id, email_payday_reminder, push_payday_reminder, payday_reminder_days_before, unsubscribe_token")
+      .or("email_payday_reminder.eq.true,push_payday_reminder.eq.true")
+      .order("user_id", { ascending: true })
+      .range(from, to)
+  )
 
   if (prefsErr) {
-    return NextResponse.json({ error: prefsErr.message }, { status: 500 })
+    return NextResponse.json({ error: (prefsErr as any)?.message || "Could not load preferences" }, { status: 500 })
   }
 
   let sent = 0
   let pushSent = 0
   const results: Array<{ user_id: string; paychecks: number; emailed: boolean; pushed: boolean }> = []
 
-  for (const pref of prefs || []) {
+  // Serial: this loop sends email. See forEachWithBudget.
+  const budget = await forEachWithBudget(prefs, async (pref: any) => {
     const daysBefore =
       typeof pref.payday_reminder_days_before === "number" ? pref.payday_reminder_days_before : 1
 
@@ -87,7 +107,7 @@ export async function GET(req: Request) {
 
     if (upcoming.length === 0) {
       results.push({ user_id: pref.user_id, paychecks: 0, emailed: false, pushed: false })
-      continue
+      return
     }
 
     const dayWord = daysBefore === 1 ? "tomorrow" : "in " + daysBefore + " days"
@@ -167,13 +187,19 @@ export async function GET(req: Request) {
     }
 
     results.push({ user_id: pref.user_id, paychecks: upcoming.length, emailed, pushed })
-  }
+  }, { startedAt, label: "payday-reminder" })
 
   return NextResponse.json({
-    ok: true,
-    processed: (prefs || []).length,
+    ok: budget.skipped === 0 && !truncated,
+    eligible: prefs.length,
+    processed: budget.processed,
+    skipped: budget.skipped,
+    failed: budget.failed,
+    rowsTruncated: truncated,
     sent,
     pushSent,
-    results,
+    results: results.slice(0, CRON_MAX_RESULT_ROWS),
+    resultsTruncated: results.length > CRON_MAX_RESULT_ROWS,
+    elapsedMs: Date.now() - startedAt,
   })
 }

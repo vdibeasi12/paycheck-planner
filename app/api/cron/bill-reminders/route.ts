@@ -4,9 +4,15 @@ import { resend } from "@/lib/email"
 import { formatCurrency } from "@/lib/i18n/formatCurrency"
 import { sendPushToUser } from "@/lib/push"
 import { reminderUnsubLinks } from "@/lib/emailFooter"
+import { CRON_MAX_RESULT_ROWS, fetchAllRows, forEachWithBudget } from "@/lib/cronBatch"
 
 export const runtime = "nodejs"
 export const dynamic = "force-dynamic"
+
+// Bare literal, not an imported constant -- Next.js reads route-segment
+// config by static analysis, so an import can silently fall back to the
+// platform default. See the note at the top of lib/cronBatch.ts.
+export const maxDuration = 300
 
 // Canonical app origin for links in outbound emails. Tracks the production
 // domain via env, with a safe fallback to the live custom domain.
@@ -48,23 +54,40 @@ export async function GET(req: Request) {
 
   const db = adminDb()
 
+  const startedAt = Date.now()
+
   // Either channel qualifies a user for this cron -- email and push are
   // sent independently below based on each user's own toggles, so someone
   // who only wants push (email_bill_reminders off) isn't skipped entirely.
-  const { data: prefs, error: prefsErr } = await db
-    .from("notification_preferences")
-    .select("user_id, email_bill_reminders, push_bill_reminders, reminder_days_before, unsubscribe_token")
-    .or("email_bill_reminders.eq.true,push_bill_reminders.eq.true")
+  //
+  // Paged rather than read in one shot: this SELECT had no limit, which does
+  // not mean "every row" -- PostgREST caps the response at its max-rows
+  // setting, so past that point users simply stopped getting reminders and
+  // the response looked identical either way.
+  const {
+    rows: prefs,
+    error: prefsErr,
+    truncated,
+  } = await fetchAllRows<any>("bill-reminders", (from, to) =>
+    db
+      .from("notification_preferences")
+      .select("user_id, email_bill_reminders, push_bill_reminders, reminder_days_before, unsubscribe_token")
+      .or("email_bill_reminders.eq.true,push_bill_reminders.eq.true")
+      .order("user_id", { ascending: true })
+      .range(from, to)
+  )
 
   if (prefsErr) {
-    return NextResponse.json({ error: prefsErr.message }, { status: 500 })
+    return NextResponse.json({ error: (prefsErr as any)?.message || "Could not load preferences" }, { status: 500 })
   }
 
   let sent = 0
   let pushSent = 0
   const results: Array<{ user_id: string; bills: number; emailed: boolean; pushed: boolean }> = []
 
-  for (const pref of prefs || []) {
+  // Serial on purpose -- every iteration can send email, and a 429 from
+  // Resend costs a real user their reminder. See forEachWithBudget.
+  const budget = await forEachWithBudget(prefs, async (pref: any) => {
     const daysBefore =
       typeof pref.reminder_days_before === "number" ? pref.reminder_days_before : 3
     const { day: targetDay, daysInMonth } = reminderTarget(daysBefore)
@@ -88,7 +111,7 @@ export async function GET(req: Request) {
 
     if (due.length === 0) {
       results.push({ user_id: pref.user_id, bills: 0, emailed: false, pushed: false })
-      continue
+      return
     }
 
     let emailed = false
@@ -162,13 +185,23 @@ export async function GET(req: Request) {
     }
 
     results.push({ user_id: pref.user_id, bills: due.length, emailed, pushed })
-  }
+  }, { startedAt, label: "bill-reminders" })
 
+  // skipped > 0 means real people did not get today's reminder and never
+  // will -- tomorrow's run targets a different due day. It is reported at the
+  // top level, and ok goes false, so a monitor can catch it rather than it
+  // hiding at the bottom of a 200.
   return NextResponse.json({
-    ok: true,
-    processed: (prefs || []).length,
+    ok: budget.skipped === 0 && !truncated,
+    eligible: prefs.length,
+    processed: budget.processed,
+    skipped: budget.skipped,
+    failed: budget.failed,
+    rowsTruncated: truncated,
     sent,
     pushSent,
-    results,
+    results: results.slice(0, CRON_MAX_RESULT_ROWS),
+    resultsTruncated: results.length > CRON_MAX_RESULT_ROWS,
+    elapsedMs: Date.now() - startedAt,
   })
 }
