@@ -1,6 +1,6 @@
 # 🎯 Paycheck Planner
 
-**Legal Operator & Owner:** DiBeasi Global Investment LLC  
+**Legal Operator & Owner:** DiBeasi Global Investments LLC  
 **Version:** 1.0 Production Ready  
 **Status:** Enterprise Grade - Deployment Ready
 
@@ -10,7 +10,7 @@
 
 ## ⚖️ Legal Notice
 
-Paycheck Planner is **owned and operated by DiBeasi Global Investment LLC**. All intellectual property, technology, content, trademarks, and proprietary materials are the exclusive property of DiBeasi Global Investment LLC. Unauthorized use, reproduction, or distribution is prohibited.
+Paycheck Planner is **owned and operated by DiBeasi Global Investments LLC**. All intellectual property, technology, content, trademarks, and proprietary materials are the exclusive property of DiBeasi Global Investments LLC. Unauthorized use, reproduction, or distribution is prohibited.
 
 **Disclaimer:** Paycheck Planner provides educational tools and planning resources only. We do NOT provide financial, legal, or investment advice. Always consult a licensed financial advisor before making major financial decisions.
 

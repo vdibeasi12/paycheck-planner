@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Paycheck Planner -- personal-finance debt payoff, paycheck budgeting, and goals app.",
-  "author": "DiBeasi Global Investment LLC",
+  "author": "DiBeasi Global Investments LLC",
   "license": "UNLICENSED",
   "scripts": {
     "dev": "next dev",

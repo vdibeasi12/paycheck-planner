@@ -98,7 +98,7 @@ export async function generateBillsDebtsPdf(
   doc.setFontSize(8)
   doc.setTextColor(150, 160, 175)
   doc.text(
-    "Paycheck Planner — a product of DiBeasi Global Investment LLC · support@paycheckplanner.ai",
+    "Paycheck Planner — a product of DiBeasi Global Investments LLC · support@paycheckplanner.ai",
     14,
     doc.internal.pageSize.getHeight() - 10
   )

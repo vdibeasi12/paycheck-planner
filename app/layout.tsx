@@ -45,8 +45,8 @@ export const metadata: Metadata = {
   title: "Paycheck Planner - Debt Payoff & Financial Planning Tools",
   description: "Free AI-powered financial planning tools to eliminate debt, track bills, and achieve financial freedom. Compare debt payoff strategies and get personalized recommendations.",
   keywords: ["debt payoff", "financial planning", "debt calculator", "bill tracker", "AI financial advisor"],
-  authors: [{ name: "DiBeasi Global Investment LLC" }],
-  creator: "DiBeasi Global Investment LLC",
+  authors: [{ name: "DiBeasi Global Investments LLC" }],
+  creator: "DiBeasi Global Investments LLC",
   // Self-referencing canonical for the homepage. Marketing/campaign links land
   // here with UTM query params (?utm_source=...) which render identical
   // content -- without this, Search Console flags those tagged variants as

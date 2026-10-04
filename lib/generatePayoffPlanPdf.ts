@@ -77,7 +77,7 @@ export async function generatePayoffPlanPdf(params: {
     doc.setFontSize(8)
     doc.setTextColor(150, 160, 175)
     doc.text(
-      "Paycheck Planner \u2014 a product of DiBeasi Global Investment LLC \u00b7 support@paycheckplanner.ai",
+      "Paycheck Planner \u2014 a product of DiBeasi Global Investments LLC \u00b7 support@paycheckplanner.ai",
       14,
       doc.internal.pageSize.getHeight() - 10
     )

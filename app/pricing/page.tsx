@@ -304,7 +304,9 @@ export default function PricingPage() {
           </div>
         )}
 
-        {/* Tier cards */}
+        {/* Tier cards. The sr-only H2 keeps the outline H1 > H2 > H3 --
+            without it the plan names (H3) sat directly under the H1. */}
+        <h2 className="sr-only">Choose a plan</h2>
         <section className={`mt-10 grid gap-6 ${VISIBLE_TIERS.length === 4 ? "md:grid-cols-4" : "md:grid-cols-3"}`}>
           {VISIBLE_TIERS.map((tier) => (
             <TierCard
@@ -383,14 +385,16 @@ export default function PricingPage() {
           {/* Desktop / tablet: full side-by-side table (plenty of width, no scrolling needed) */}
           <div className="mt-8 hidden overflow-x-auto rounded-2xl border border-slate-800 bg-slate-900/40 md:block">
             <table className="w-full min-w-[560px] border-collapse text-left">
+              <caption className="sr-only">Features included in each Paycheck Planner plan</caption>
               <thead>
                 <tr className="border-b border-slate-800">
-                  <th className="bg-[#0f172a] px-5 py-4 text-base font-semibold text-white">
+                  <th scope="col" className="bg-[#0f172a] px-5 py-4 text-base font-semibold text-white">
                     Feature
                   </th>
                   {VISIBLE_TIERS.map((t) => (
                     <th
                       key={t.id}
+                      scope="col"
                       className="px-5 py-4 text-center text-base font-semibold"
                     >
                       <span className={t.highlight ? "text-emerald-400" : "text-white"}>
@@ -400,11 +404,11 @@ export default function PricingPage() {
                   ))}
                 </tr>
               </thead>
-              <tbody>
-                {FEATURE_GROUPS.map((group) => (
-                  <GroupRows key={group.group} group={group.group} rows={group.rows} />
-                ))}
-              </tbody>
+              {/* Each feature group is its own tbody (rendered by GroupRows) so
+                  the group label can be a real rowgroup header. */}
+              {FEATURE_GROUPS.map((group) => (
+                <GroupRows key={group.group} group={group.group} rows={group.rows} />
+              ))}
             </table>
           </div>
 
@@ -510,7 +514,7 @@ export default function PricingPage() {
                     name: "What does the annual plan save me?",
                     acceptedAnswer: {
                       "@type": "Answer",
-                      text: "Annual billing is ten months for the price of twelve — two months free on Momentum and Accelerate.",
+                      text: "Annual billing is twelve months for the price of ten — two months free on every paid plan.",
                     },
                   },
                   {
@@ -526,7 +530,7 @@ export default function PricingPage() {
                     name: "How do I get help?",
                     acceptedAnswer: {
                       "@type": "Answer",
-                      text: `Email us anytime at ${BRAND.supportEmail}. Accelerate members get priority replies.`,
+                      text: `Email us anytime at ${BRAND.supportEmail}. Accelerate and Autopilot members get priority replies.`,
                     },
                   },
                 ],
@@ -540,14 +544,14 @@ export default function PricingPage() {
               we prorate the difference.
             </Faq>
             <Faq q="What does the annual plan save me?">
-              Annual billing is ten months for the price of twelve — two months free
-              on Momentum and Accelerate.
+              Annual billing is twelve months for the price of ten — two months free
+              on every paid plan.
             </Faq>
             <Faq q="Do I need a card for the Free plan?">
               No. The Free plan stays free, no card required.
             </Faq>
             <Faq q="How do I get help?">
-              Email us anytime at {BRAND.supportEmail}. Accelerate members get priority
+              Email us anytime at {BRAND.supportEmail}. Accelerate and Autopilot members get priority
               replies.
             </Faq>
           </div>
@@ -686,26 +690,27 @@ function TierCard({
 
 function GroupRows({ group, rows }: { group: string; rows: typeof FEATURE_GROUPS[number]["rows"] }) {
   return (
-    <>
+    <tbody>
       <tr>
-        <td
+        <th
+          scope="rowgroup"
           colSpan={VISIBLE_TIERS.length + 1}
-          className="bg-[#0f172a] px-5 pt-5 pb-2 text-xs font-semibold uppercase tracking-wider text-slate-300"
+          className="bg-[#0f172a] px-5 pt-5 pb-2 text-left text-xs font-semibold uppercase tracking-wider text-slate-300"
         >
           {group}
-        </td>
+        </th>
       </tr>
       {rows.map((row, i) => (
         <tr key={row.label} className={i % 2 ? "bg-slate-900/20" : ""}>
-          <td className="bg-[#0f172a] px-5 py-3 text-base text-white">
+          <th scope="row" className="bg-[#0f172a] px-5 py-3 text-left text-base font-normal text-white">
             {row.label}
-          </td>
+          </th>
           {VISIBLE_TIERS.map((col) => (
             <Cell key={col.id} value={row[col.id]} highlight={col.highlight} />
           ))}
         </tr>
       ))}
-    </>
+    </tbody>
   );
 }
 
