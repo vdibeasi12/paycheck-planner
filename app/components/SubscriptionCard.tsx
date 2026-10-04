@@ -127,6 +127,14 @@ export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
         return;
       }
 
+      // Guideline 3.1.1: the iOS app must never open the Stripe billing
+      // portal, which can change plans or take payment outside In-App
+      // Purchase. A web-purchased (Stripe) plan stays fully usable in the
+      // iOS app (Guideline 3.1.3(b)); it just can't be managed from here.
+      if (ios) {
+        return;
+      }
+
       const res = await fetch("/api/billing", { method: "POST" });
       const body = await res.json().catch(() => ({}));
       if (!res.ok || !body?.url) {
@@ -186,6 +194,12 @@ export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
 
           {showLiveControls ? (
             isPaid ? (
+              ios && source !== "app_store" ? (
+                <p className="mt-4 text-xs text-gray-500">
+                  This plan was purchased outside the App Store, so it can&apos;t
+                  be changed or cancelled from the iOS app.
+                </p>
+              ) : (
               <>
                 <button
                   type="button"
@@ -204,6 +218,7 @@ export default function SubscriptionCard({ userId }: { userId?: string } = {}) {
                       }.`}
                 </p>
               </>
+              )
             ) : (
               <Link
                 href="/pricing"

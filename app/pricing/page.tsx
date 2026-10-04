@@ -1,10 +1,15 @@
 "use client";
 
-import { isNativeApp, isIOSApp } from "@/lib/platform";
-import { getIAPPackages, purchaseIAPPackage, type IAPPackage } from "@/lib/iap";
+import { isNativeApp, isIOSApp, useIsIOSApp } from "@/lib/platform";
+import {
+  getIAPPackages,
+  purchaseIAPPackage,
+  restoreIAPPurchases,
+  type IAPPackage,
+} from "@/lib/iap";
 import { supabase } from "@/lib/supabase/client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, X, Sparkles } from "lucide-react";
 import {
@@ -26,6 +31,78 @@ export default function PricingPage() {
   const [mobileTierId, setMobileTierId] = useState<TierId>(
     VISIBLE_TIERS.find((t) => t.highlight)?.id ?? VISIBLE_TIERS[0].id
   );
+
+  // iOS only (App Store Guideline 3.1.2): show the App Store's own localized
+  // price for each plan instead of our hardcoded USD figures, so the price on
+  // the card always matches the StoreKit purchase sheet in every storefront.
+  // Keyed by RevenueCat package identifier AND StoreKit product id, the same
+  // two keys handleIOSPurchase() matches on. Empty on web/Android.
+  const ios = useIsIOSApp();
+  const [storePrices, setStorePrices] = useState<Record<string, string>>({});
+  const [restoring, setRestoring] = useState(false);
+  const [restoreMessage, setRestoreMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (ios !== true) return;
+    let cancelled = false;
+    getIAPPackages().then((packages) => {
+      if (cancelled) return;
+      const map: Record<string, string> = {};
+      for (const p of packages) {
+        map[p.identifier] = p.product.priceString;
+        map[p.product.identifier] = p.product.priceString;
+      }
+      setStorePrices(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [ios]);
+
+  function storePriceFor(tier: Tier): string | null {
+    if (ios !== true) return null;
+    const id = billing === "annual" ? tier.iap?.annual : tier.iap?.monthly;
+    if (!id) return null;
+    return storePrices[id] ?? null;
+  }
+
+  // Guideline 3.1.1 requires a way to restore previously purchased App Store
+  // subscriptions. Restores through StoreKit, then runs the same server
+  // reconciliation as a fresh purchase so profiles.plan updates immediately.
+  async function handleRestore() {
+    setError(null);
+    setRestoreMessage(null);
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      window.location.href = "/login?redirectTo=/pricing";
+      return;
+    }
+    try {
+      setRestoring(true);
+      const result = await restoreIAPPurchases();
+      if (!result.ok) {
+        setError(
+          `We couldn't restore purchases. Please try again -- if it keeps happening, email ${BRAND.supportEmail}.`
+        );
+        return;
+      }
+      await fetch("/api/revenuecat/confirm", { method: "POST" }).catch(() => {
+        /* webhook still reconciles even if the fast path fails */
+      });
+      if (result.tier === "free") {
+        setRestoreMessage("No active App Store subscription was found for this Apple ID.");
+        return;
+      }
+      window.location.href = "/dashboard";
+    } catch (err) {
+      console.error("IAP restore error:", err);
+      setError("We couldn't reach the App Store. Check your connection and try again.");
+    } finally {
+      setRestoring(false);
+    }
+  }
 
   async function handleIOSPurchase(tier: Tier) {
     setError(null);
@@ -236,8 +313,62 @@ export default function PricingPage() {
               billing={billing}
               loading={loadingId === tier.id}
               onSelect={() => handleCheckout(tier)}
+              storePrice={storePriceFor(tier)}
             />
           ))}
+        </section>
+
+        {/* Subscription terms (App Store Guideline 3.1.2). The auto-renew
+            disclosure and Restore Purchases are iOS-only; the Terms of Use
+            and Privacy Policy links show on every platform. */}
+        <section className="mx-auto mt-8 max-w-2xl text-center text-xs leading-relaxed text-slate-400">
+          {ios === true && (
+            <>
+              <p>
+                Paid plans are auto-renewing subscriptions (monthly or yearly, as
+                shown above). Payment is charged to your Apple ID at confirmation
+                of purchase. Your subscription renews automatically at the same
+                price unless it is cancelled at least 24 hours before the end of
+                the current period. Manage or cancel anytime in your Apple ID
+                account settings.
+              </p>
+              <button
+                type="button"
+                onClick={handleRestore}
+                disabled={restoring}
+                className="mt-4 rounded-lg border border-slate-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-emerald-400 hover:text-emerald-300 disabled:opacity-60"
+              >
+                {restoring ? "Restoring..." : "Restore Purchases"}
+              </button>
+              {restoreMessage && (
+                <p role="status" className="mt-3 text-sm text-slate-300">
+                  {restoreMessage}
+                </p>
+              )}
+            </>
+          )}
+          <p className="mt-4">
+            <Link href="/terms" className="underline underline-offset-4 hover:text-emerald-400">
+              Terms of Use
+            </Link>
+            {" | "}
+            <Link href="/privacy" className="underline underline-offset-4 hover:text-emerald-400">
+              Privacy Policy
+            </Link>
+            {ios === true && (
+              <>
+                {" | "}
+                <a
+                  href="https://www.apple.com/legal/internet-services/itunes/dev/stdeula/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline underline-offset-4 hover:text-emerald-400"
+                >
+                  Apple Standard EULA
+                </a>
+              </>
+            )}
+          </p>
         </section>
 
         {/* Comparison matrix */}
@@ -481,11 +612,16 @@ function TierCard({
   billing,
   loading,
   onSelect,
+  storePrice = null,
 }: {
   tier: Tier;
   billing: Billing;
   loading: boolean;
   onSelect: () => void;
+  // iOS only: the App Store's localized price string (e.g. "$3.99"). When
+  // present it replaces our hardcoded USD headline so the card matches the
+  // StoreKit purchase sheet exactly.
+  storePrice?: string | null;
 }) {
   const isFree = tier.id === "free";
   const annual = billing === "annual";
@@ -515,7 +651,9 @@ function TierCard({
       <div className="mt-5">
         <div className="flex items-end gap-1">
           <span className="text-4xl font-bold tracking-tight tabular-nums">
-            ${isFree ? "0" : headlinePrice.toFixed(2).replace(/\.00$/, "")}
+            {!isFree && storePrice
+              ? storePrice
+              : `$${isFree ? "0" : headlinePrice.toFixed(2).replace(/\.00$/, "")}`}
           </span>
           {!isFree && (
             <span className="pb-1 text-sm text-slate-400">{annual ? "/yr" : "/mo"}</span>
@@ -525,7 +663,11 @@ function TierCard({
           {isFree
             ? "Free forever"
             : annual
-            ? `$${tier.priceAnnual} billed yearly · 2 months free`
+            ? storePrice
+              ? `${storePrice} billed yearly, auto-renews`
+              : `$${tier.priceAnnual} billed yearly \u00B7 2 months free`
+            : storePrice
+            ? "Billed monthly, auto-renews"
             : "Billed monthly"}
         </p>
       </div>
