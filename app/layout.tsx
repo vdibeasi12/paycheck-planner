@@ -47,15 +47,20 @@ export const metadata: Metadata = {
   keywords: ["debt payoff", "financial planning", "debt calculator", "bill tracker", "AI financial advisor"],
   authors: [{ name: "DiBeasi Global Investments LLC" }],
   creator: "DiBeasi Global Investments LLC",
-  // Self-referencing canonical for the homepage. Marketing/campaign links land
-  // here with UTM query params (?utm_source=...) which render identical
-  // content -- without this, Search Console flags those tagged variants as
-  // "Duplicate without user-selected canonical" instead of folding them into
-  // this one indexed URL. Nested routes (pricing, features, login, signup)
-  // set their own canonical in a route-level layout.tsx since their pages are
-  // client components and can't export metadata directly.
+  // Self-referencing canonical for EVERY page, resolved per route. Next.js
+  // resolves a "./" canonical against the current pathname, so /about gets
+  // https://paycheckplanner.ai/about, / gets https://paycheckplanner.ai, and
+  // query strings (?utm_source=..., ?fpr=...) are dropped -- tagged campaign
+  // and affiliate links still fold into the one clean URL.
+  //
+  // Oct 7 2026: this used to be canonical: "/", which every child route
+  // inherited unless it set its own. /about, /contact, /privacy, /terms,
+  // /disclaimer (all in the sitemap) were telling Google they were duplicates
+  // of the homepage, and Search Console reported them as "Alternate page with
+  // proper canonical tag" -- i.e. not indexed. Routes that set their own
+  // canonical (pricing, features, blog, compare, ...) still override this.
   alternates: {
-    canonical: "/",
+    canonical: "./",
   },
   openGraph: {
     // Was a different tagline than the <title>/meta description above --
@@ -63,7 +68,9 @@ export const metadata: Metadata = {
     // card all say the same thing instead of drifting into two brand lines.
     title: "Paycheck Planner - Debt Payoff & Financial Planning Tools",
     description: "Free AI-powered financial planning tools to eliminate debt, track bills, and achieve financial freedom. Compare debt payoff strategies and get personalized recommendations.",
-    url: "https://paycheckplanner.ai",
+    // "./" resolves per route like the canonical above, so a shared /about
+    // or /blog link no longer reports og:url as the homepage.
+    url: "./",
     siteName: "Paycheck Planner",
     images: [
       {
